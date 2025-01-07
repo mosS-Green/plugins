@@ -3,7 +3,7 @@ from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMa
 from ub_core import BOT, Message, bot
 
 from app.plugins.ai.media_query import handle_audio
-from app.plugins.ai.models import MEDIA_MODEL
+from .models import MEDIA_MODEL
 
 _bot: BOT = bot.bot
 
