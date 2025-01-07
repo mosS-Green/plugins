@@ -1,5 +1,5 @@
 import google.generativeai as genai
-from app.plugins.ai.models import get_response_text, basic_check, SAFETY_SETTINGS
+from app.plugins.ai.models import get_response_text, run_basic_check, SAFETY_SETTINGS
 
 GENERATION_CONFIG = {"temperature": 1, "max_output_tokens": 3096}
 
