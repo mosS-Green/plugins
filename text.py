@@ -56,7 +56,7 @@ async def ai_chat(bot: BOT, message: Message):
         After 5 mins of Idle bot will export history and stop chat.
         use .load_history to continue
     """
-    if not await run_basic_check(message):
+    if not run_basic_check(message):
         return
     chat = MPAST.start_chat(history=[])
     await do_convo(chat=chat, message=message)
@@ -70,7 +70,7 @@ async def history_chat(bot: BOT, message: Message):
     USAGE:
         .load_history {question} [reply to history document]
     """
-    if not await run_basic_check(message):
+    if not run_basic_check(message):
         return
     reply = message.replied
     
