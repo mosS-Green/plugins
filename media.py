@@ -12,12 +12,7 @@ from ub_core.utils import run_shell_cmd
 
 from app import BOT, Message, bot
 from app.plugins.ai.media_query import PHOTO_EXTS, VIDEO_EXTS, AUDIO_EXTS, download_file, handle_video
-from .models import (
-    IMAGE_MODEL,
-    MEDIA_MODEL,
-    TEXT_MODEL,
-    get_response_text,
-)
+from .models import MEDIA_MODEL, get_response_text
 
 @bot.add_cmd(cmd="vx")
 async def video_to_text(bot: BOT, message: Message):
