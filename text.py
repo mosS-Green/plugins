@@ -56,7 +56,7 @@ async def ai_chat(bot: BOT, message: Message):
         After 5 mins of Idle bot will export history and stop chat.
         use .load_history to continue
     """
-    if not await basic_check(message):
+    if not await run_basic_check(message):
         return
     chat = MPAST.start_chat(history=[])
     await do_convo(chat=chat, message=message)
@@ -70,7 +70,7 @@ async def history_chat(bot: BOT, message: Message):
     USAGE:
         .load_history {question} [reply to history document]
     """
-    if not await basic_check(message):
+    if not await run_basic_check(message):
         return
     reply = message.replied
     
@@ -117,7 +117,7 @@ async def reya(bot: BOT, message: Message):
     INFO: Ask a question to Reya.
     USAGE: .r How to be strong?
     """
-    if not (await basic_check(message)):  # fmt:skip
+    if not (await run_basic_check(message)):  # fmt:skip
         return
     MODEL = MEDIA_MODEL if message.cmd == "r" else MPAST
     replied = message.replied
@@ -144,7 +144,7 @@ async def reya(bot: BOT, message: Message):
 
 @bot.add_cmd(cmd = "f")
 async def fix(bot: BOT, message: Message):
-    if not (await basic_check(message)):  # fmt:skip
+    if not (await run_basic_check(message)):  # fmt:skip
         return
         
     prompt = f"REWRITE FOLLOWING MESSAGE AS IS, WITH NO CHANGES TO FORMAT AND SYMBOLS ETC. AND ONLY WITH CORRECTION TO SPELLING ERRORS :- {message.replied.text}"
