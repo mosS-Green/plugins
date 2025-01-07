@@ -117,7 +117,7 @@ async def reya(bot: BOT, message: Message):
     INFO: Ask a question to Reya.
     USAGE: .r How to be strong?
     """
-    if not (await run_basic_check(message)):  # fmt:skip
+    if not (run_basic_check(message)):  # fmt:skip
         return
     MODEL = MEDIA_MODEL if message.cmd == "r" else MPAST
     replied = message.replied
@@ -144,7 +144,7 @@ async def reya(bot: BOT, message: Message):
 
 @bot.add_cmd(cmd = "f")
 async def fix(bot: BOT, message: Message):
-    if not (await run_basic_check(message)):  # fmt:skip
+    if not (run_basic_check(message)):  # fmt:skip
         return
         
     prompt = f"REWRITE FOLLOWING MESSAGE AS IS, WITH NO CHANGES TO FORMAT AND SYMBOLS ETC. AND ONLY WITH CORRECTION TO SPELLING ERRORS :- {message.replied.text}"
