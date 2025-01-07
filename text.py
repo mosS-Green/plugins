@@ -133,7 +133,7 @@ async def reya(bot: BOT, message: Message):
     else:
         if replied and message.input:
             prompt = f"{replied.text}\n\n{message.input}"
-        else not message.input:
+        elif not message.input:
             prompt = replied.text
           
         convo = MODEL.start_chat(history = CONV)
