@@ -28,7 +28,7 @@ async def init_task(bot=bot, message=None):
     
     global MPAST
     MPAST = genai.GenerativeModel(
-        model_name="gemini-1.5-flash-latest",
+        model_name="gemini-2.0-flash-exp",
         generation_config=GENERATION_CONFIG,
         system_instruction=past,
         safety_settings=SAFETY_SETTINGS,
