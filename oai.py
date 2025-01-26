@@ -4,7 +4,7 @@ from openai import OpenAI
 from app import BOT, Message, bot
 import asyncio
 
-apikey = os.environ.get("FAPIKEY")
+apikey = os.environ.get("FAPI_KEY")
 
 client = OpenAI(api_key = apikey, base_url = "https://fresedgpt.space/v1")
 
