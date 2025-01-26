@@ -94,9 +94,9 @@ async def history_chat(bot: BOT, message: Message):
 @bot.add_cmd(cmd="ry")
 async def question(bot: BOT, message: Message):
     """
-    CMD: AI
-    INFO: Ask a question to Gemini AI.
-    USAGE: .ai what is the meaning of life.
+    CMD: RY
+    INFO: Ask a question.
+    USAGE: .ry what is the meaning of life.
     """
 
     prompt = message.input
