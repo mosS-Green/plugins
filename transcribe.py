@@ -2,7 +2,7 @@ from pyrogram import filters
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
 
-from app.plugins.ai.media_query import handle_audio
+from .media import handle_audio
 from .models import MEDIA_MODEL
 
 _bot: BOT = bot.bot
@@ -19,5 +19,5 @@ async def auto_transcribe(bot: BOT, message: Message):
 @_bot.on_callback_query(filters=filters.regex("auto_trs"))
 async def transcribe(bot: BOT, callback_query: CallbackQuery):
     await callback_query.edit_message_text("transcribing...")
-    transcribed_str = await handle_audio(prompt="Transcribe this audio. Use english alphabet to express hindi. Do not translate. Do not write anything extra than the transcription. Have good formatting.", message=callback_query.message.reply_to_message)
+    transcribed_str = await handle_audio(prompt="Transcribe this audio. Use ONLY english alphabet to express hindi. Do not translate. Do not write anything extra than the transcription. Have good formatting.", message=callback_query.message.reply_to_message, MODEL=MEDIA_MODEL)
     await callback_query.edit_message_text(transcribed_str)
