@@ -67,7 +67,7 @@ async def handle_photo(prompt: str, message: Message, model: genai.GenerativeMod
     return get_response_text(response)
 
 
-async def handle_video(prompt: str, message: Message, model=MODEL) -> tuple[str, list]:
+async def handle_video(prompt: str, message: Message, model=MEDIA_MODEL) -> tuple[str, list]:
     file_name = "v.mp4"
     file_path, download_dir = await download_file(file_name, message)
     output_path = os.path.join(download_dir, "output_frame_%04d.png")
