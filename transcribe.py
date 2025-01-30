@@ -1,6 +1,7 @@
 from pyrogram import filters
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
+from pyrogram.enums import ParseMode
 
 from app.plugins.ai.media_query import handle_media
 from app.plugins.ai.models import MODEL
