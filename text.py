@@ -45,7 +45,7 @@ async def ai_chat(bot: BOT, message: Message):
 @run_basic_check
 async def history_chat(bot: BOT, message: Message):
     MODEL = MPAST
-    return await history_chat(bot: BOT, message: Message)
+    return await history_chat(bot, message)
 
 
 @bot.add_cmd(cmd=["r","rx"])
