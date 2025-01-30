@@ -65,7 +65,7 @@ async def r_question(bot: BOT, message: Message):
         )
     else:
         message_response = await message.reply(
-            "<code>Input received... generating response.</code>"
+            "<code>...</code>"
         )
         prompt = f"{reply_text}\n\n\n{message.input}".strip()
         response = await model.generate_content_async(prompt)
