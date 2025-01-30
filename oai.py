@@ -3,6 +3,7 @@ from ub_core.utils import aio
 from openai import OpenAI
 from app import BOT, Message, bot
 import asyncio
+from pyrogram.enums import ParseMode
 
 apikey = os.environ.get("FAPI_KEY")
 
@@ -32,7 +33,7 @@ async def generate_image(bot: BOT, message: Message):
     prompt = message.input
 
     response = await asyncio.to_thread(client.images.generate,
-        model="dall-e-3",
+        model="flux-pro",
         prompt=prompt,
         size="1024x1024"
     )
