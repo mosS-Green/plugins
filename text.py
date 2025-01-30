@@ -53,7 +53,7 @@ async def history_chat(bot: BOT, message: Message):
 async def r_question(bot: BOT, message: Message):
     reply = message.replied
     reply_text = reply.text if reply else ""
-    MODEL = MODEL if message.cmd == "r" else MPAST
+    model = MODEL if message.cmd == "r" else MPAST
 
     if reply and reply.media:
         message_response = await message.reply(
@@ -68,7 +68,7 @@ async def r_question(bot: BOT, message: Message):
             "<code>Input received... generating response.</code>"
         )
         prompt = f"{reply_text}\n\n\n{message.input}".strip()
-        response = await MODEL.generate_content_async(prompt)
+        response = await model.generate_content_async(prompt)
         response_text = get_response_text(response)
 
     await message_response.edit(
