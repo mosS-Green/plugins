@@ -3,8 +3,9 @@ from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMa
 from ub_core import BOT, Message, bot
 from pyrogram.enums import ParseMode
 
+import google.generativeai as genai
 from app.plugins.ai.media_query import handle_media
-from app.plugins.ai.models import MODEL
+from app.plugins.ai.models import SAFETY_SETTINGS, GENERATION_CONFIG
 
 _bot: BOT = bot.bot
 
@@ -19,6 +20,11 @@ async def auto_transcribe(bot: BOT, message: Message):
 
 @_bot.on_callback_query(filters=filters.regex("auto_trs"))
 async def transcribe(bot: BOT, callback_query: CallbackQuery):
+    MODEL = genai.GenerativeModel(
+        model_name="gemini-1.5-flash-002",
+        generation_config=GENERATION_CONFIG,
+        safety_settings=SAFETY_SETTINGS,
+    )
     await callback_query.edit_message_text("transcribing...")
     transcribed_str = await handle_media(prompt="Transcribe this audio. Use ONLY english alphabet to express hindi. Do not translate. Do not write anything extra than the transcription.\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET.", media_message=callback_query.message.reply_to_message, model=MODEL)
     await callback_query.edit_message_text(
