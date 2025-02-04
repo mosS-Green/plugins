@@ -11,6 +11,7 @@ apikey = os.environ.get("FAPI_KEY")
 async def gpt(bot: BOT, message: Message):
     client = OpenAI(api_key = apikey, base_url = "https://fresedgpt.space/v1")
     prompt = message.input
+    loading_msg = await message.reply("...")
 
     response = await asyncio.to_thread(client.chat.completions.create,
         model="gpt-4o",
@@ -20,7 +21,7 @@ async def gpt(bot: BOT, message: Message):
     )
 
     response_text = f"4o: {response.choices[0].message.content}"
-    await message.reply(
+    await loading_msg.edit(
         text=f"<blockquote expandable=True><pre language=text>{response_text}</pre></blockquote>",
         parse_mode=ParseMode.MARKDOWN,
     )
@@ -31,14 +32,18 @@ async def generate_image(bot: BOT, message: Message):
     client = OpenAI(api_key="zu-89d98ff1db79a5601658fdbc832f14e5", 
                     base_url="https://api.zukijourney.com/v1")
     prompt = message.input
+    size = "1024x1024"
+
+    loading_msg = await message.reply("...")
 
     response = await asyncio.to_thread(client.images.generate,
-        model="flux-pro",
+        model="playground-v3",
         prompt=prompt,
-        size="1024x1024"
+        size=size
     )
 
     image_url = response.data[0].url
     image_file = await aio.in_memory_dl(image_url)
 
-    await message.reply_photo(photo=image_file)
+    await message.reply_photo(photo=image_file, caption=f"<blockquote expandable=True><pre language=text>{prompt}</pre></blockquote>")
+    await loading_msg.delete()
