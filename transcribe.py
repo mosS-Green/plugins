@@ -21,7 +21,7 @@ async def auto_transcribe(bot: BOT, message: Message):
 @_bot.on_callback_query(filters=filters.regex("auto_trs"))
 async def transcribe(bot: BOT, callback_query: CallbackQuery):
     MODEL = genai.GenerativeModel(
-        model_name="gemini-1.5-flash-002",
+        model_name="gemini-2.0-flash-exp",
         generation_config=GENERATION_CONFIG,
         safety_settings=SAFETY_SETTINGS,
     )
