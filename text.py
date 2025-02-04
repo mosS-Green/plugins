@@ -11,6 +11,7 @@ import google.generativeai as genai
 from app.plugins.ai.text_query import do_convo, history_chat
 from app.plugins.ai.media_query import handle_media
 from app.plugins.ai.models import get_response_text, run_basic_check, SAFETY_SETTINGS, GENERATION_CONFIG, MODEL
+from .transcribe import FMODEL
 
 
 @bot.add_cmd(cmd="fh")
@@ -82,7 +83,7 @@ async def r_question(bot: BOT, message: Message):
 async def fix(bot: BOT, message: Message):   
     prompt = f"REWRITE FOLLOWING MESSAGE AS IS, WITH NO CHANGES TO FORMAT AND SYMBOLS ETC. AND ONLY WITH CORRECTION TO SPELLING ERRORS :- {message.replied.text}"
     
-    response = await MODEL.generate_content_async(prompt)
+    response = await FMODEL.generate_content_async(prompt)
     response_text = get_response_text(response)
     message_response = message.replied
     await message_response.edit(response_text)
