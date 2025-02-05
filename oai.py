@@ -44,7 +44,7 @@ async def send_image_reply(message, image_url, prompt, loading_msg):
     await loading_msg.edit_media(
         InputMediaPhoto(
             media=image_file,
-            caption=f"<blockquote expandable=True><pre language=text>{prompt}</pre></blockquote>"),
+            caption=f"<blockquote expandable=True><pre language=text>{prompt}</pre></blockquote>",
             parse_mode=ParseMode.MARKDOWN,
             has_spoiler="-s" in message.flags,
         )
