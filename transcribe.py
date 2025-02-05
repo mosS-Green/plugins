@@ -11,7 +11,7 @@ import asyncio
 _bot: BOT = bot.bot
 
 FMODEL = genai.GenerativeModel(
-    model_name="gemini-2.0-flash-lite-preview-02-05",
+    model_name="gemini-2.0-flash",
     generation_config=GENERATION_CONFIG,
     safety_settings=SAFETY_SETTINGS,
 )
