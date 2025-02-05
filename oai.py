@@ -41,8 +41,14 @@ async def generate_image_from_api(client, prompt):
 
 async def send_image_reply(message, image_url, prompt, loading_msg):
     image_file = await aio.in_memory_dl(image_url)
-    await message.reply_photo(photo=image_file, caption=f"<blockquote expandable=True><pre language=text>{prompt}</pre></blockquote>")
-    await loading_msg.delete()
+    await loading_msg.edit_media(
+        InputMediaPhoto(
+            media=image_file,
+            caption=f"<blockquote expandable=True><pre language=text>{prompt}</pre></blockquote>",
+            parse_mode=ParseMode.MARKDOWN,
+            has_spoiler="-s" in message.flags,
+        )
+    )
 
 @bot.add_cmd(cmd="g")
 async def gpt(bot: BOT, message: Message):
