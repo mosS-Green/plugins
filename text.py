@@ -8,7 +8,6 @@ from pyrogram.enums import ParseMode
 
 from app import BOT, Convo, Message, bot, Config
 import google.generativeai as genai
-from app.plugins.ai.text_query import do_convo, history_chat
 from app.plugins.ai.media_query import handle_media
 from app.plugins.ai.models import get_response_text, run_basic_check, SAFETY_SETTINGS, GENERATION_CONFIG, MODEL
 from .transcribe import FMODEL
@@ -35,20 +34,6 @@ async def init_task(bot=bot, message=None):
     if message is not None:
         await message.reply("Done.", del_in=5)
 
-@bot.add_cmd(cmd="rxc")
-@run_basic_check
-async def ai_chat(bot: BOT, message: Message):
-    chat = MPAST.start_chat(history=[])
-    await do_convo(chat=chat, message=message)
-
-
-@bot.add_cmd(cmd="lxc")
-@run_basic_check
-async def history_chat(bot: BOT, message: Message):
-    MODEL = MPAST
-    return await history_chat(bot, message)
-
-
 @bot.add_cmd(cmd=["r","rx"])
 @run_basic_check
 async def r_question(bot: BOT, message: Message):
@@ -58,7 +43,7 @@ async def r_question(bot: BOT, message: Message):
 
     if reply and reply.media:
         message_response = await message.reply(
-            "<code>Processing... this may take a while.</code>"
+            "<code>...</code>"
         )
         prompt = message.input
         response_text = await handle_media(
