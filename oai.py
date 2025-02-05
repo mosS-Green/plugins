@@ -3,6 +3,7 @@ from ub_core.utils import aio
 from openai import AsyncOpenAI
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
+import asyncio
 
 GPT4O_MODEL = "gpt-4o"
 IMAGE_MODEL = "playground-v3"
@@ -22,33 +23,26 @@ current_zuki_api_key_index = 0
 async def send_api_request(client, method, **kwargs):
     try:
         response = await method(**kwargs)
-        return response
+        return response, None
     except Exception as e:
         return None, str(e)
 
-async def generate_text(client, prompt):
-    response, error = await send_api_request(client.chat.completions, create, model=GPT4O_MODEL, messages=[{"role": "user", "content": prompt}])
+async def generate_text_from_api(client, prompt):
+    response, error = await send_api_request(client, client.chat.completions.create, model=GPT4O_MODEL, messages=[{"role": "user", "content": prompt}])
     if response:
         return response.choices[0].message.content, None
     return None, error
 
-async def generate_image_from_api(api_key, base_url, prompt):
-    client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
-    response, error = await send_api_request(client.images, generate, model=IMAGE_MODEL, prompt=prompt, size=IMAGE_SIZE)
+async def generate_image_from_api(client, prompt):
+    response, error = await send_api_request(client, client.images.generate, model=IMAGE_MODEL, prompt=prompt, size=IMAGE_SIZE)
     if response:
         return response.data[0].url, None
     return None, error
 
 async def send_image_reply(message, image_url, prompt, loading_msg):
     image_file = await aio.in_memory_dl(image_url)
-    await loading_msg.edit_media(
-        InputMediaPhoto(
-            media=image_file,
-            caption=f"<blockquote expandable=True><pre language=text>{prompt}</pre></blockquote>",
-            parse_mode=ParseMode.MARKDOWN,
-            has_spoiler="-s" in message.flags,
-        )
-    )
+    await message.reply_photo(photo=image_file, caption=f"<blockquote expandable=True><pre language=text>{prompt}</pre></blockquote>")
+    await loading_msg.delete()
 
 @bot.add_cmd(cmd="g")
 async def gpt(bot: BOT, message: Message):
@@ -59,7 +53,7 @@ async def gpt(bot: BOT, message: Message):
     prompt = message.input
     loading_msg = await message.reply("...")
 
-    response_text, error = await generate_text(client, prompt)
+    response_text, error = await generate_text_from_api(client, prompt)
 
     if response_text:
         output_text = f"4o: {response_text}"
@@ -83,7 +77,8 @@ async def zuki_image(bot: BOT, message: Message):
         return
 
     loading_msg = await message.reply("....")
-    image_url, error = await generate_image_from_api(api_key, base_url, prompt)
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
+    image_url, error = await generate_image_from_api(client, prompt)
 
     if image_url:
         await send_image_reply(message, image_url, prompt, loading_msg)
@@ -101,7 +96,8 @@ async def electron_image(bot: BOT, message: Message):
         return
 
     loading_msg = await message.reply("....")
-    image_url, error = await generate_image_from_api(api_key, base_url, prompt)
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
+    image_url, error = await generate_image_from_api(client, prompt)
 
     if image_url:
         await send_image_reply(message, image_url, prompt, loading_msg)
