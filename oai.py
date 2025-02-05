@@ -3,6 +3,7 @@ from ub_core.utils import aio
 from openai import AsyncOpenAI
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
+from pyrogram.types import InputMediaPhoto
 import asyncio
 
 GPT4O_MODEL = "gpt-4o"
