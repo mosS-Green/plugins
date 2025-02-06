@@ -88,9 +88,9 @@ async def zuki_image(bot: BOT, message: Message):
     
     image_size = IMAGE_SIZE
     if "-p" in message.flags:
-        image_size = "836x1254"
+        image_size = "1024x1792"
     elif "-l" in message.flags:
-        image_size = "1254x836"
+        image_size = "1792x1024"
 
     image_url, error = await generate_image_from_api(client, prompt, image_size)
 
