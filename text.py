@@ -25,10 +25,15 @@ async def init_task(bot=bot, message=None):
     
     global MPAST
     MPAST = genai.GenerativeModel(
-        model_name="gemini-2.0-flash-exp",
+        model_name="gemini-2.0-flash",
         generation_config=GENERATION_CONFIG,
         system_instruction=past,
         safety_settings=SAFETY_SETTINGS,
+        tools = [
+            genai.protos.Tool(
+                google_search = genai.protos.Tool.GoogleSearch(),
+            ),
+        ],
     )
     
     if message is not None:
