@@ -29,11 +29,6 @@ async def init_task(bot=bot, message=None):
         generation_config=GENERATION_CONFIG,
         system_instruction=past,
         safety_settings=SAFETY_SETTINGS,
-        tools = [
-            genai.protos.Tool(
-                google_search = genai.protos.Tool.GoogleSearch(),
-            ),
-        ],
     )
     
     if message is not None:
