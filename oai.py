@@ -34,8 +34,8 @@ async def generate_text_from_api(client, prompt):
         return response.choices[0].message.content, None
     return None, error
 
-async def generate_image_from_api(client, prompt):
-    response, error = await send_api_request(client, client.images.generate, model=IMAGE_MODEL, prompt=prompt, size=IMAGE_SIZE)
+async def generate_image_from_api(client, prompt, size):
+    response, error = await send_api_request(client, client.images.generate, model=IMAGE_MODEL, prompt=prompt, size=size)
     if response:
         return response.data[0].url, None
     return None, error
@@ -85,7 +85,14 @@ async def zuki_image(bot: BOT, message: Message):
 
     loading_msg = await message.reply("....")
     client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
-    image_url, error = await generate_image_from_api(client, prompt)
+    
+    image_size = IMAGE_SIZE
+    if "-p" in message.flags:
+        image_size = "836x1254"
+    elif "-l" in message.flags:
+        image_size = "1254x836"
+
+    image_url, error = await generate_image_from_api(client, prompt, image_size)
 
     if image_url:
         await send_image_reply(message, image_url, prompt, loading_msg)
@@ -104,7 +111,14 @@ async def electron_image(bot: BOT, message: Message):
 
     loading_msg = await message.reply("....")
     client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
-    image_url, error = await generate_image_from_api(client, prompt)
+    
+    image_size = IMAGE_SIZE
+    if "-p" in message.flags:
+        image_size = "836x1254"
+    elif "-l" in message.flags:
+        image_size = "1254x836"
+
+    image_url, error = await generate_image_from_api(client, prompt, image_size)
 
     if image_url:
         await send_image_reply(message, image_url, prompt, loading_msg)
