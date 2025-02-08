@@ -40,6 +40,8 @@ async def create_cmodel():
     return CMODEL
 
 async def handle_img(prompt: str, media_message: Message, **kwargs) -> str:
+    if getattr(media_message, "photo", None):
+        setattr(media_message.photo, "mime_type", "image/jpeg")
     return await handle_media(prompt, media_message, **{"config": {"mime_type": "image/jpeg"}, **kwargs})
 
 @bot.add_cmd(cmd=["r","rx"])
