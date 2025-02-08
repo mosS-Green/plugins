@@ -21,11 +21,10 @@ async def _transcribe_with_retry(message: Message, edit_msg: Message):
             transcribed_str = await handle_media(
                 prompt="Transcribe this audio. Use ONLY english alphabet to express hindi. Do not translate. Do not write anything extra than the transcription.\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET.",
                 media_message=message, 
-                **MODEL.get_kwargs()
+                **Settings.get_kwargs()
         )
             await edit_msg.edit_text(
                 text=f"<blockquote expandable=True><pre language=text>{transcribed_str}</pre></blockquote>",
-                parse_mode=ParseMode.MARKDOWN,
             )
             return True
         except Exception:
