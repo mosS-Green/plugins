@@ -5,7 +5,7 @@ from google.genai.chats import AsyncChat
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 
-from app import BOT, Convo, Message, bot, Config
+from app import BOT, Message, bot, Config
 from app.plugins.ai.media_query import handle_media
 from app.plugins.ai.models import (
     Settings,
