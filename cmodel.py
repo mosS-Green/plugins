@@ -1,15 +1,7 @@
 import os
 import json
-from functools import wraps
 import copy
 
-from google.genai.types import (
-    DynamicRetrievalConfig,
-    GenerateContentConfig,
-    GoogleSearchRetrieval,
-    SafetySetting,
-    Tool,
-)
 from pyrogram import filters
 from app.plugins.ai.models import Settings
 
@@ -25,7 +17,9 @@ async def init_task(bot=bot, message=None):
         chat_id=Config.LOG_CHAT, message_ids=past_message_id
     )
 
-    CMODEL.CONFIG.system_instruction = json.loads(past_message.text)
+    json_data = json.loads(past_message.text)
+    CMODEL.MODEL = json_data["model"]
+    CMODEL.CONFIG.system_instruction = json_data["text"]
 
     if message is not None:
         await message.reply("Done.", del_in=5)
