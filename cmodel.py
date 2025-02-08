@@ -11,7 +11,7 @@ from google.genai.types import (
 )
 from pyrogram import filters
 
-from app import BOT, Message, extra_config, bot
+from app import BOT, Message, Config, extra_config, bot
 
 @bot.add_cmd(cmd="fh")
 async def init_task(bot=bot, message=None):
