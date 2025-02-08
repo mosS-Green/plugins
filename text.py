@@ -1,10 +1,7 @@
 import os
 import json
-import pickle
 import copy
-from io import BytesIO
 
-from google.genai.chats import AsyncChat
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 
@@ -50,18 +47,16 @@ async def r_question(bot: BOT, message: Message):
     reply_text = reply.text if reply else ""
     MODEL = Settings if message.cmd == "r" else await create_cmodel()
 
+    message_response = await message.reply(
+        "<code>...</code>"
+    )
+
     if reply and reply.media:
-        message_response = await message.reply(
-            "<code>...</code>"
-        )
         prompt = message.input
         response_text = await handle_media(
             prompt=prompt, media_message=reply, **MODEL.get_kwargs()
         )
     else:
-        message_response = await message.reply(
-            "<code>...</code>"
-        )
         prompt = f"{reply_text}\n\n\n{message.input}".strip()
         response = await async_client.models.generate_content(
             contents=prompt, **MODEL.get_kwargs()
@@ -83,5 +78,5 @@ async def fix(bot: BOT, message: Message):
         contents=prompt, **Settings.get_kwargs()
     )
     response_text = get_response_text(response)
-    message_response = message.replied
-    await message_response.edit(response_text)
+    msg = message.replied
+    await msg.edit(response_text)
