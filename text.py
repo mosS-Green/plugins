@@ -13,7 +13,7 @@ from app.plugins.ai.models import (
     get_response_text,
     run_basic_check,
 )
-from .cmodel import Fast
+from .cmodel import CMODEL
 
 
 @bot.add_cmd(cmd=["r","rx"])
@@ -21,7 +21,7 @@ from .cmodel import Fast
 async def r_question(bot: BOT, message: Message):
     reply = message.replied
     reply_text = reply.text if reply else ""
-    MODEL = Settings if message.cmd == "r" else Fast
+    MODEL = Settings if message.cmd == "r" else CMODEL
 
     if reply and reply.media:
         message_response = await message.reply(
@@ -43,7 +43,6 @@ async def r_question(bot: BOT, message: Message):
 
     await message_response.edit(
         text=f"<blockquote expandable=True><pre language=text>{response_text.strip()}</pre></blockquote>",
-        parse_mode=ParseMode.MARKDOWN,
         disable_preview=True,
     )
 
