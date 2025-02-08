@@ -1,4 +1,7 @@
+import os
+import json
 import pickle
+import copy
 from io import BytesIO
 
 from google.genai.chats import AsyncChat
@@ -13,7 +16,31 @@ from app.plugins.ai.models import (
     get_response_text,
     run_basic_check,
 )
-from .cmodel import CMODEL
+
+
+@bot.add_cmd(cmd="fh")
+async def init_task(bot=bot, message=None):
+    past_message_id = int(os.environ.get("PAST_MESSAGE_ID"))
+
+    past_message = await bot.get_messages(
+        chat_id=Config.LOG_CHAT, message_ids=past_message_id
+    )
+
+    json_data = json.loads(past_message.text)
+    global PAST_MODEL 
+    PAST_MODEL = json_data["model"]
+    global PAST_SI
+    PAST_SI = json_data["text"]
+
+    if message is not None:
+        await message.reply("Done.", del_in=2)
+
+
+async def create_cmodel():
+    CMODEL = copy.deepcopy(Settings)
+    CMODEL.MODEL = PAST_MODEL
+    CMODEL.CONFIG.system_instruction = PAST_SI
+    return CMODEL
 
 
 @bot.add_cmd(cmd=["r","rx"])
@@ -21,7 +48,7 @@ from .cmodel import CMODEL
 async def r_question(bot: BOT, message: Message):
     reply = message.replied
     reply_text = reply.text if reply else ""
-    MODEL = Settings if message.cmd == "r" else CMODEL
+    MODEL = Settings if message.cmd == "r" else create_cmodel()
 
     if reply and reply.media:
         message_response = await message.reply(
