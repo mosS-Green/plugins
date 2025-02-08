@@ -1,16 +1,9 @@
 from pyrogram import filters
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
-from pyrogram.enums import ParseMode
 
-from google.genai.chats import AsyncChat
 from app.plugins.ai.media_query import handle_media
-from app.plugins.ai.models import (
-    Settings,
-    async_client,
-    get_response_text,
-    run_basic_check,
-)
+from app.plugins.ai.models import Settings
 import asyncio
 
 _bot: BOT = bot.bot
