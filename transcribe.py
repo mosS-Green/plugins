@@ -3,27 +3,26 @@ from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMa
 from ub_core import BOT, Message, bot
 from pyrogram.enums import ParseMode
 
-import google.generativeai as genai
+from google.genai.chats import AsyncChat
 from app.plugins.ai.media_query import handle_media
-from app.plugins.ai.models import SAFETY_SETTINGS, GENERATION_CONFIG
+from app.plugins.ai.models import (
+    Settings,
+    async_client,
+    get_response_text,
+    run_basic_check,
+)
 import asyncio
 
 _bot: BOT = bot.bot
-
-FMODEL = genai.GenerativeModel(
-    model_name="gemini-2.0-flash",
-    generation_config=GENERATION_CONFIG,
-    safety_settings=SAFETY_SETTINGS,
-)
 
 async def _transcribe_with_retry(message: Message, edit_msg: Message):
     for _ in range(2):
         try:
             transcribed_str = await handle_media(
                 prompt="Transcribe this audio. Use ONLY english alphabet to express hindi. Do not translate. Do not write anything extra than the transcription.\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET.",
-                media_message=message,
-                model=FMODEL,
-            )
+                media_message=message, 
+                **MODEL.get_kwargs()
+        )
             await edit_msg.edit_text(
                 text=f"<blockquote expandable=True><pre language=text>{transcribed_str}</pre></blockquote>",
                 parse_mode=ParseMode.MARKDOWN,
