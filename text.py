@@ -48,7 +48,7 @@ async def create_cmodel():
 async def r_question(bot: BOT, message: Message):
     reply = message.replied
     reply_text = reply.text if reply else ""
-    MODEL = Settings if message.cmd == "r" else create_cmodel()
+    MODEL = Settings if message.cmd == "r" else await create_cmodel()
 
     if reply and reply.media:
         message_response = await message.reply(
