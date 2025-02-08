@@ -39,6 +39,8 @@ async def create_cmodel():
     CMODEL.CONFIG.system_instruction = PAST_SI
     return CMODEL
 
+async def handle_img(prompt: str, media_message: Message, **kwargs) -> str:
+    return await handle_media(prompt, media_message, **{"config": {"mime_type": "image/jpeg"}, **kwargs})
 
 @bot.add_cmd(cmd=["r","rx"])
 @run_basic_check
@@ -53,7 +55,8 @@ async def r_question(bot: BOT, message: Message):
 
     if reply and reply.media:
         prompt = message.input
-        response_text = await handle_media(
+        handler = handle_media if not reply.photo else handle_img
+        response_text = await handler(
             prompt=prompt, media_message=reply, **MODEL.get_kwargs()
         )
     else:
