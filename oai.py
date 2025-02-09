@@ -63,7 +63,7 @@ async def send_image_reply(message, image_url, prompt, loading_msg):
     await loading_msg.edit_media(
         InputMediaPhoto(
             media=image_file,
-            caption=f"<blockquote expandable=True><pre language=text>{prompt}</pre></blockquote>",
+            caption=f"**>\n{prompt}<**",
             parse_mode=ParseMode.MARKDOWN,
             has_spoiler="-s" in message.flags,
         )
@@ -84,7 +84,7 @@ async def gpt(bot: BOT, message: Message):
     if response_text:
         output_text = f"4o: {response_text}"
         await loading_msg.edit(
-            text=f"<blockquote expandable=True><pre language=text>{output_text}</pre></blockquote>",
+            text=f"**>\n{output_text}<**",
             parse_mode=ParseMode.MARKDOWN,
         )
     else:
