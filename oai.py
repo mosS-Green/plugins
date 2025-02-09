@@ -23,9 +23,12 @@ ZUKI_API_KEYS = [
 current_zuki_api_key_index = 0
 
 ELECTRON_BASE_URL = "https://api.electronhub.top/v1/"
-ELECTRON_API_KEY = "ek-L7fg9Cps9nN4AqPXKwLsvn947yjaICwQfIlQisMWRkY6uw2Gz5"
 
-
+async def init_task(bot=bot, message=None):
+    apikey = await bot.get_messages(chat_id = Config.LOG_CHAT, message_ids = 3903)
+    global ELECTRON_API_KEY
+    ELECTRON_API_KEY = apikey.text
+    
 async def send_api_request(client, method, **kwargs):
     try:
         response = await method(**kwargs)
