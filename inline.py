@@ -1,5 +1,6 @@
 from pyrogram.raw.types.messages import BotResults
-from ub_core import BOT, Message, Config
+from ub_core import BOT, Message
+
 from app.plugins.misc.inline_bot_results import run_with_timeout_guard
 
 

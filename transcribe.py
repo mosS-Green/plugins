@@ -1,23 +1,32 @@
+import asyncio
+
 from pyrogram import filters
+from pyrogram.enums import ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
 
 from app.plugins.ai.media_query import handle_media
 from app.plugins.ai.models import Settings
-import asyncio
 
 _bot: BOT = bot.bot
+
 
 async def _transcribe_with_retry(message: Message, edit_msg: Message):
     for _ in range(2):
         try:
             transcribed_str = await handle_media(
-                prompt="Transcribe this audio. Use ONLY english alphabet to express hindi. Do not translate. Do not write anything extra than the transcription.\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET.",
-                media_message=message, 
-                **Settings.get_kwargs()
-        )
+                prompt=(
+                    "Transcribe this audio. "
+                    "Use ONLY english alphabet to express hindi. "
+                    "Do not translate. "
+                    "Do not write anything extra than the transcription."
+                    "\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET."
+                ),
+                media_message=message,
+                **Settings.get_kwargs(),
+            )
             await edit_msg.edit_text(
-                text=f"<blockquote expandable=True><pre language=text>{transcribed_str}</pre></blockquote>",
+                text=transcribed_str, parse_mode=ParseMode.MARKDOWN
             )
             return True
         except Exception:
@@ -41,4 +50,6 @@ async def auto_transcribe(bot: BOT, message: Message):
 @_bot.on_callback_query(filters=filters.regex("auto_trs"))
 async def transcribe(bot: BOT, callback_query: CallbackQuery):
     await callback_query.edit_message_text("transcribing...")
-    await _transcribe_with_retry(callback_query.message.reply_to_message, callback_query.message)
+    await _transcribe_with_retry(
+        callback_query.message.reply_to_message, callback_query.message
+    )

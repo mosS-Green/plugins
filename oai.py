@@ -1,25 +1,30 @@
 import os
-from ub_core.utils import aio
+
 from openai import AsyncOpenAI
-from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
-import asyncio
+from ub_core.utils import aio
+
+from app import BOT, Message, bot
 
 GPT4O_MODEL = "gpt-4o"
+
 IMAGE_MODEL = "playground-v3"
 IMAGE_SIZE = "1024x1024"
+
 GPT_BASE_URL = "https://fresedgpt.space/v1"
-ZUKI_BASE_URL = "https://api.zukijourney.com/v1"
-ELECTRON_BASE_URL = "https://api.electronhub.top/v1/"
-ZUKI_API_KEYS = [
-    "zu-89d98ff1db79a5601658fdbc832f14e5",
-    "zu-697462a11e0b0ef7525230309d421cfe"
-]
-ELECTRON_API_KEY = "ek-L7fg9Cps9nN4AqPXKwLsvn947yjaICwQfIlQisMWRkY6uw2Gz5"
 GPT_API_KEY = os.environ.get("FAPI_KEY")
 
+ZUKI_BASE_URL = "https://api.zukijourney.com/v1"
+ZUKI_API_KEYS = [
+    "zu-89d98ff1db79a5601658fdbc832f14e5",
+    "zu-697462a11e0b0ef7525230309d421cfe",
+]
 current_zuki_api_key_index = 0
+
+ELECTRON_BASE_URL = "https://api.electronhub.top/v1/"
+ELECTRON_API_KEY = "ek-L7fg9Cps9nN4AqPXKwLsvn947yjaICwQfIlQisMWRkY6uw2Gz5"
+
 
 async def send_api_request(client, method, **kwargs):
     try:
@@ -28,17 +33,27 @@ async def send_api_request(client, method, **kwargs):
     except Exception as e:
         return None, str(e)
 
+
 async def generate_text_from_api(client, prompt):
-    response, error = await send_api_request(client, client.chat.completions.create, model=GPT4O_MODEL, messages=[{"role": "user", "content": prompt}])
+    response, error = await send_api_request(
+        client,
+        client.chat.completions.create,
+        model=GPT4O_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+    )
     if response:
         return response.choices[0].message.content, None
     return None, error
 
+
 async def generate_image_from_api(client, prompt, size):
-    response, error = await send_api_request(client, client.images.generate, model=IMAGE_MODEL, prompt=prompt, size=size)
+    response, error = await send_api_request(
+        client, client.images.generate, model=IMAGE_MODEL, prompt=prompt, size=size
+    )
     if response:
         return response.data[0].url, None
     return None, error
+
 
 async def send_image_reply(message, image_url, prompt, loading_msg):
     image_file = await aio.in_memory_dl(image_url)
@@ -50,6 +65,7 @@ async def send_image_reply(message, image_url, prompt, loading_msg):
             has_spoiler="-s" in message.flags,
         )
     )
+
 
 @bot.add_cmd(cmd="g")
 async def gpt(bot: BOT, message: Message):
@@ -71,6 +87,7 @@ async def gpt(bot: BOT, message: Message):
     else:
         await loading_msg.edit(f"Error: {error}")
 
+
 @bot.add_cmd(cmd="i")
 async def zuki_image(bot: BOT, message: Message):
     global current_zuki_api_key_index
@@ -79,13 +96,15 @@ async def zuki_image(bot: BOT, message: Message):
     prompt = message.input
 
     if not prompt:
-        current_zuki_api_key_index = (current_zuki_api_key_index + 1) % len(ZUKI_API_KEYS)
+        current_zuki_api_key_index = (current_zuki_api_key_index + 1) % len(
+            ZUKI_API_KEYS
+        )
         await message.reply(f"API {current_zuki_api_key_index + 1}")
         return
 
     loading_msg = await message.reply("....")
     client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
-    
+
     image_size = IMAGE_SIZE
     if "-p" in message.flags:
         image_size = "1024x1792"
@@ -99,6 +118,7 @@ async def zuki_image(bot: BOT, message: Message):
     else:
         await loading_msg.edit(f"Error: {error}")
 
+
 @bot.add_cmd(cmd="ie")
 async def electron_image(bot: BOT, message: Message):
     api_key = ELECTRON_API_KEY
@@ -111,7 +131,7 @@ async def electron_image(bot: BOT, message: Message):
 
     loading_msg = await message.reply("....")
     client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
-    
+
     image_size = IMAGE_SIZE
     if "-p" in message.flags:
         image_size = "836x1254"
