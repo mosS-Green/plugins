@@ -5,7 +5,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
 from ub_core.utils import aio
 
-from app import BOT, Message, bot
+from app import BOT, Config, Message, bot
 
 GPT4O_MODEL = "gpt-4o"
 
@@ -23,7 +23,11 @@ ZUKI_API_KEYS = [
 current_zuki_api_key_index = 0
 
 ELECTRON_BASE_URL = "https://api.electronhub.top/v1/"
-ELECTRON_API_KEY = "outoforder"
+
+async def init_task(bot=bot, message=None):
+    apikey = await bot.get_messages(chat_id = Config.LOG_CHAT, message_ids = 3903)
+    global ELECTRON_API_KEY
+    ELECTRON_API_KEY = apikey.text
     
 async def send_api_request(client, method, **kwargs):
     try:
