@@ -5,7 +5,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
 from ub_core.utils import aio
 
-from app import BOT, Message, bot
+from app import BOT, Config, Message, bot
 
 GPT4O_MODEL = "gpt-4o"
 
