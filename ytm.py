@@ -15,8 +15,9 @@ async def ytm_link(bot, message: Message):
     message_response = await message.reply("<code>...</code>")
 
     prompt = (
-        "Extract the song title and artist from the following text. "
-        "If there’s no clear song title, just reply with 'Unknown Song':\n\n" + content
+        "Either extract the song title and artist from the following text. "
+        "Or guess the song based on description. "
+        "If you are unable guess, just reply with 'Unknown Song':\n\n" + content
     )
     
     ai_response = await async_client.models.generate_content(contents=[prompt], **Settings.get_kwargs())
@@ -49,8 +50,7 @@ async def ytm_link(bot, message: Message):
             ytm_link = f"https://music.youtube.com/watch?v={video_id}"
 
             await message_response.edit(
-                f"[{song_name}]({ytm_link})",
-                parse_mode=ParseMode.MARKDOWN,
+                f"<a href='{ytm_link}'>{song_name}</a>)",
                 disable_preview=True,
             )
 
