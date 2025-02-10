@@ -1,6 +1,5 @@
 import os
-
-from ub_core import BOT, Config, Message
+from app import BOT, Config, Message, bot
 
 Config.CMD_DICT["eu"] = Config.CMD_DICT["extupdate"]
 
