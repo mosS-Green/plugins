@@ -3,7 +3,7 @@ from pyrogram.enums import ParseMode
 from ub_core.utils.helpers import TELEGRAPH, post_to_telegraph
 
 from app import BOT, Message, bot
-from .text import text_gen, get_response_text, FAST, MEDIUM, SLOW, run_basic_check
+from .text import text_gen, get_response_text, FAST, MEDIUM, SLOW, run_basic_check, get_slow_text
 
 
 @bot.add_cmd(cmd="rg")
@@ -29,11 +29,13 @@ async def generate_article(bot: BOT, message: Message):
 
     if "-t" in message.flags:
         model = SLOW
+        get = get_slow_text
     else:
         model = MEDIUM
+        get = get_response_text
     
     response = await text_gen(contents=base_prompt, **model)
-    article_content = get_response_text(response)
+    article_content = get(response)
 
     title_prompt = f"Generate a very concise and short title for this article: {article_content}. Only reply with the Title."
     title_response = await text_gen(contents=title_prompt, **FAST)
