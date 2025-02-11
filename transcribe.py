@@ -5,8 +5,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
 
-from app.plugins.ai.media_query import handle_media
-from app.plugins.ai.models import Settings
+from app.plugins.ai.text import Settings, handle_media, text_gen
 
 _bot: BOT = bot.bot
 
@@ -19,7 +18,7 @@ async def _transcribe_with_retry(message: Message, edit_msg: Message):
                     "Transcribe this audio. "
                     "Use ONLY english alphabet to express hindi. "
                     "Do not translate. "
-                    "Do not write anything extra than the transcription."
+                    "Do not write anything extra than the transcription. Use proper punctuation, and formatting."
                     "\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET."
                 ),
                 media_message=message,
