@@ -3,7 +3,7 @@ import yt_dlp
 from app import bot, Message
 from pyrogram.enums import ParseMode
 
-from .text import text_gen, get_response_text, Settings, run_basic_check
+from .text import text_gen, get_slow_text, Settings, run_basic_check
 
 
 @bot.add_cmd(cmd="yt")
@@ -23,7 +23,7 @@ async def ytm_link(bot, message: Message):
     ai_response = await text_gen(
             contents=prompts, **Settings.get_kwargs()
     )
-    song_name = get_response_text(ai_response)
+    song_name = get_slow_text(ai_response)
 
     if "unknown song" in song_name.lower() or not song_name:
         await message_response.edit("Couldn't determine the song title.")
