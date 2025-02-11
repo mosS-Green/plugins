@@ -16,7 +16,7 @@ async def ytm_link(bot, message: Message):
 
     prompt = (
         "Either extract the song title and artist from the following text. "
-        "Or guess the song based on description. "
+        "Or guess the song based on description. use search for getting the name. reply only with song name and artist."
         "If you are unable guess, just reply with 'Unknown Song':\n\n" + content
     )
     
@@ -50,7 +50,7 @@ async def ytm_link(bot, message: Message):
             ytm_link = f"https://music.youtube.com/watch?v={video_id}"
 
             await message_response.edit(
-                f"<a href='{ytm_link}'>{song_name}</a>)",
+                f"<a href='{ytm_link}'>{song_name}</a>",
                 disable_preview=True,
             )
 
