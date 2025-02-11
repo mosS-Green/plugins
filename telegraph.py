@@ -39,7 +39,7 @@ async def generate_article(bot: BOT, message: Message):
 
     title_prompt = f"Generate a very concise and short title for this article: {article_content}. Only reply with the Title."
     title_response = await text_gen(contents=title_prompt, **FAST)
-    title = get_response_text(title_response)
+    title = get(title_response)
 
     page_url = await post_to_telegraph(title, article_content)
 
