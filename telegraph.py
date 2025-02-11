@@ -1,9 +1,9 @@
 from pyrogram.enums import ParseMode
 
-from app import BOT, Message, bot
+from ub_core.utils.helpers import TELEGRAPH, post_to_telegraph
 
-from app.modules.text import text_gen, get_response_text, Settings
-from ub_core.utils.helpers import TELEGRAPH, post_to_telegraph, run_basic_check
+from app import BOT, Message, bot
+from app.modules.text import text_gen, get_response_text, Settings, run_basic_check
 
 
 @bot.add_cmd(cmd="rg")
