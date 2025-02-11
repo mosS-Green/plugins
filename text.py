@@ -100,3 +100,8 @@ async def text_gen(contents: str, **kwargs):
 
     return response
 
+def get_slow_text(response):
+    candidate = response.candidates[0]
+    text = "\n".join([part.text for part in candidate.content.parts])
+    final_text = text.strip()
+    return final_text
