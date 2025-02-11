@@ -22,13 +22,11 @@ async def generate_article(bot: BOT, message: Message):
         "IMPORTANT - Do not any give pretext. Immediately start with article."
     )
 
-    model = **Settings.get_kwargs()
-
-    response = await text_gen(contents=base_prompt, model)
+    response = await text_gen(contents=base_prompt, **Settings.get_kwargs())
     article_content = get_response_text(response)
 
-    title_prompt = f"Generate a concise and compact title for this article: {article_content}. Only reply with the Title."
-    title_response = await text_gen(contents=title_prompt, model)
+    title_prompt = f"Generate a very concise and compact title for this article: {article_content}. Only reply with the Title."
+    title_response = await text_gen(contents=title_prompt, **Settings.get_kwargs())
     title = get_response_text(title_response)
 
     page_url = await post_to_telegraph(title, article_content)
@@ -37,16 +35,19 @@ async def generate_article(bot: BOT, message: Message):
 
 
 @bot.add_cmd(cmd="tf")
+@run_basic_check
 async def tf(bot: BOT, message: Message):
     text = message.input or (message.replied.text if message.replied and message.replied.text else None)
-    if not text:
-        await message.reply("Provide some text!")
-        return
+
+    load_msg = await message.reply("<code>...</code>")
+
     parts = text.split(maxsplit=1)
     if len(parts) < 2:
         await message.reply("Not enough text to generate title and content!")
         return
+
     title, content = parts[0], parts[1]
+
     page_url = await post_to_telegraph(title, content)
 
-    await message.reply(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
+    await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
