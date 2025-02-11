@@ -15,6 +15,7 @@ from app.plugins.ai.models import (
 
 PAST_MODEL = None
 PAST_CONFIG = copy.deepcopy(Settings.CONFIG)
+SLOW_CONFIG = copy.deepcopy(Settings.CONFIG)
 
 
 @bot.add_cmd(cmd="fh")
@@ -34,6 +35,13 @@ async def init_task(bot=bot, message=None):
 
     if message is not None:
         await message.reply("Done.", del_in=2)
+
+
+FAST = {"model": "gemini-2.0-flash-lite-preview-02-05"}
+MEDIUM = {"model": "gemini-2.0-flash"}
+slow = copy.deepcopy(Settings.CONFIG)
+slow.tools = []
+SLOW = {"model": "gemini-2.0-flash-thinking-exp-01-21", "config": slow}
 
 
 @bot.add_cmd(cmd=["r", "rx"])
@@ -75,7 +83,7 @@ async def fix(bot: BOT, message: Message):
     prompts = f"REWRITE FOLLOWING MESSAGE AS IS, WITH NO CHANGES TO FORMAT AND SYMBOLS ETC. AND ONLY WITH CORRECTION TO SPELLING ERRORS :- {message.replied.text}"
 
     response = await text_gen(
-        contents=prompts, **extra_args
+        contents=prompts, **MEDIUM
     )
 
     response_text = get_response_text(response)
