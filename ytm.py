@@ -34,6 +34,7 @@ async def ytm_link(bot, message: Message):
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
+        'extract_flat': True,
         'format': 'bestaudio/best',
     }
 
