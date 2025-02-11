@@ -14,7 +14,7 @@ async def ytm_link(bot, message: Message):
 
     message_response = await message.reply("<code>...</code>")
 
-    prompt = (
+    prompts = (
         "The following text contains a song name, extract that. "
         "Or guess the song based on description. use search for getting the name. reply only with song name and artist."
         "If you are unable to guess, just reply with 'Unknown Song':\n\n" + content
