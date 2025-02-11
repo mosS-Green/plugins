@@ -59,7 +59,7 @@ async def r_question(bot: BOT, message: Message):
         else:
             prompts = [message.input]
 
-        response = await async_client.models.generate_content(
+        response = await text_gen(
             contents=prompts, **extra_args
         )
         response_text = get_response_text(response, quoted=True)
@@ -81,3 +81,14 @@ async def fix(bot: BOT, message: Message):
     response_text = get_response_text(response)
 
     await message.replied.edit(response_text)
+
+
+async def text_gen(contents: str, **kwargs):
+    prompt = contents.strip()
+    
+    response = await async_client.models.generate_content(
+            contents = prompt, **kwargs
+        )
+
+    return response
+
