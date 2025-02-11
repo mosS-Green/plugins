@@ -3,7 +3,7 @@ import yt_dlp
 from app import bot, Message
 from pyrogram.enums import ParseMode
 
-from app.plugins.ai.models import async_client, get_response_text, Settings, run_basic_check
+from .text import text_gen, get_response_text, Settings, run_basic_check
 
 
 @bot.add_cmd(cmd="yt")
@@ -15,12 +15,14 @@ async def ytm_link(bot, message: Message):
     message_response = await message.reply("<code>...</code>")
 
     prompt = (
-        "Either extract the song title and artist from the following text. "
+        "The following text contains a song name, extract that. "
         "Or guess the song based on description. use search for getting the name. reply only with song name and artist."
-        "If you are unable guess, just reply with 'Unknown Song':\n\n" + content
+        "If you are unable to guess, just reply with 'Unknown Song':\n\n" + content
     )
     
-    ai_response = await async_client.models.generate_content(contents=[prompt], **Settings.get_kwargs())
+    ai_response = await text_gen(
+            contents=prompts, **Settings.get_kwargs()
+    )
     song_name = get_response_text(ai_response)
 
     if "unknown song" in song_name.lower() or not song_name:
