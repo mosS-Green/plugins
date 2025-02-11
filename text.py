@@ -72,10 +72,10 @@ async def r_question(bot: BOT, message: Message):
 @bot.add_cmd(cmd="f")
 @run_basic_check
 async def fix(bot: BOT, message: Message):
-    prompt = f"REWRITE FOLLOWING MESSAGE AS IS, WITH NO CHANGES TO FORMAT AND SYMBOLS ETC. AND ONLY WITH CORRECTION TO SPELLING ERRORS :- {message.replied.text}"
+    prompts = f"REWRITE FOLLOWING MESSAGE AS IS, WITH NO CHANGES TO FORMAT AND SYMBOLS ETC. AND ONLY WITH CORRECTION TO SPELLING ERRORS :- {message.replied.text}"
 
-    response = await async_client.models.generate_content(
-        contents=[prompt], **Settings.get_kwargs()
+    response = await text_gen(
+        contents=prompts, **extra_args
     )
 
     response_text = get_response_text(response)
@@ -84,7 +84,7 @@ async def fix(bot: BOT, message: Message):
 
 
 async def text_gen(contents: str, **kwargs):
-    prompt = contents.strip()
+    prompt = contents
     
     response = await async_client.models.generate_content(
             contents = prompt, **kwargs
