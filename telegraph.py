@@ -21,7 +21,6 @@ async def generate_article(bot: BOT, message: Message):
         f"Write a well-structured, informative, and engaging article based on the following input: {content}. "
         "Ensure proper formatting with paragraphs, bullet points if necessary, and a natural flow."
         "Note - use HTML formatting. You are writing on the Telegra.ph platform."
-        "Embed Images using their links."
         "IMPORTANT - Do not include a title."
         "IMPORTANT - Do not write inside an html code block."
         "IMPORTANT - Do not any give pretext. Immediately start with article."
@@ -35,7 +34,7 @@ async def generate_article(bot: BOT, message: Message):
         get = get_response_text
     
     response = await text_gen(contents=base_prompt, **model)
-    article_content = get(response)
+    article_content = get(response).strip('"')
 
     title_prompt = f"Generate a very concise and short title for this article: {article_content}. Only reply with the Title."
     title_response = await text_gen(contents=title_prompt, **FAST)
@@ -49,7 +48,7 @@ async def generate_article(bot: BOT, message: Message):
 @bot.add_cmd(cmd="tf")
 @run_basic_check
 async def tf(bot: BOT, message: Message):
-    content = message.replied
+    content = message.replied.text
     title = message.input or "Telegraphed"
 
     load_msg = await message.reply("<code>...</code>")
