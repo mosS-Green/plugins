@@ -39,7 +39,10 @@ async def init_task(bot=bot, message=None):
 
 MEDIUM = {"model": "gemini-2.0-flash", "config": Settings.CONFIG}
 slow = copy.deepcopy(Settings.CONFIG)
+fast = copy.deepcopy(Settings.CONFIG)
 slow.tools = []
+fast.tools = []
+slow.max_output_tokens = 60000
 FAST = {"model": "gemini-2.0-flash-lite-preview-02-05", "config": slow}
 SLOW = {"model": "gemini-2.0-flash-thinking-exp-01-21", "config": slow}
 
