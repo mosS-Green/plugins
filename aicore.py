@@ -14,7 +14,7 @@ from app.plugins.ai.models import Settings, run_basic_check, async_client
 
 DEFAULT = Settings.get_kwargs()
 
-LEAF = None
+LEAF_MODEL = copy.deepcopy(Settings)
 
 THINK_CONFIG = copy.deepcopy(Settings.CONFIG)
 THINK_CONFIG.system_instruction = (
@@ -23,6 +23,7 @@ THINK_CONFIG.system_instruction = (
     "<figure>, <h3>, <h4>, <img>, <p>, and <strong> elements."
     "Use these tags properly, and only write the body part as it is rendered automatically."
 )
+THINK_CONFIG.tools = []
 THINK_CONFIG.temperature = 0.7
 THINK_CONFIG.max_output_tokens = 60000
 
@@ -42,29 +43,6 @@ PROMPT_MAP = {
     ),
 }
 PROMPT_MAP[Audio] = PROMPT_MAP[Voice]
-
-
-@bot.add_cmd(cmd="fh")
-async def init_task(bot=bot, message=None):
-    past_message_id = int(os.environ.get("PAST_MESSAGE_ID"))
-
-    past_message = await bot.get_messages(
-        chat_id=Config.LOG_CHAT, message_ids=past_message_id
-    )
-
-    json_data = json.loads(past_message.text)
-
-    LEAF_MODEL = copy.deepcopy(Settings)
-    LEAF_CONFIG = LEAF_MODEL.CONFIG
-    LEAF_CONFIG.system_instruction = json_data["text"]
-    LEAF_CONFIG.temperature = 0.8
-    LEAF_CONFIG.max_output_tokens = 8192
-
-    global LEAF
-    LEAF = {"model": LEAF_MODEL.MODEL,"config": LEAF_CONFIG}
-    
-    if message is not None:
-        await message.reply("Done.", del_in=2)
 
 
 async def ask_ai(prompt: str, query: Message | None = None, quote: bool = False, **kwargs) -> str:
