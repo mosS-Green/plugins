@@ -1,8 +1,33 @@
 from pyrogram.enums import ParseMode
 
 from app import BOT, Message, bot
-from .aicore import ask_ai, LEAF, QUICK
-from app.plugins.ai.models import run_basic_check, Settings
+from .aicore import ask_ai, LEAF_MODEL, QUICK, DEFAULT, run_basic_check
+
+
+LEAF = None
+
+
+@bot.add_cmd(cmd="fh")
+async def init_task(bot=bot, message=None):
+    past_message_id = int(os.environ.get("PAST_MESSAGE_ID"))
+
+    past_message = await bot.get_messages(
+        chat_id=Config.LOG_CHAT, message_ids=past_message_id
+    )
+
+    json_data = json.loads(past_message.text)
+
+    LEAF_MODEL = copy.deepcopy(Settings)
+    LEAF_CONFIG = LEAF_MODEL.CONFIG
+    LEAF_CONFIG.system_instruction = json_data["text"]
+    LEAF_CONFIG.temperature = 0.8
+    LEAF_CONFIG.max_output_tokens = 8192
+
+    global LEAF
+    LEAF = {"model": LEAF_MODEL.MODEL,"config": LEAF_CONFIG}
+    
+    if message is not None:
+        await message.reply("Done.", del_in=2)
 
 
 @bot.add_cmd(cmd=["r", "rx"])
@@ -14,7 +39,7 @@ async def r_question(bot: BOT, message: Message):
     message_response = await message.reply("<code>...</code>")
 
     if message.cmd == "r":
-        model = Settings.get_kwargs()
+        model = DEFAULT
     else:
         model = LEAF
 
