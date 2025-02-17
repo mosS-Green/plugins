@@ -72,7 +72,9 @@ def download_audio(ytm_link: str):
         audio_path = os.path.splitext(path)[0] + ".mp3"
     return audio_path, info
 
-@bot.add_callback_query_handler(callback_data_prefix="Download")
+_bot: BOT = bot.bot
+
+@_bot.add_callback_query_handler(callback_data_prefix="Download")
 async def download_callback(bot, callback_query: CallbackQuery):
     try:
         _, ytm_link = callback_query.data.split("|", 1)
