@@ -1,6 +1,8 @@
+import json
+import os
 from pyrogram.enums import ParseMode
 
-from app import BOT, Message, bot
+from app import BOT, Message, bot, Config
 from .aicore import ask_ai, LEAF_MODEL, QUICK, DEFAULT, run_basic_check
 
 
