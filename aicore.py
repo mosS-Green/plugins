@@ -10,7 +10,7 @@ from ub_core.utils import get_tg_media_details
 from app import BOT, Message, bot
 from app.plugins.ai.models import Settings, run_basic_check, async_client
 
-LEAF_MODEL = copy.deepcopy(Settings)
+LEAF_CONFIG = copy.deepcopy(Settings.CONFIG)
 
 DEFAULT = {"model": Settings.MODEL, "config": Settings.CONFIG}
 
