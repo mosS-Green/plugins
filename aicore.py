@@ -10,8 +10,9 @@ from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core.utils import get_tg_media_details
 
 from app import BOT, Config, Message, bot
-from app.plugins.ai.models import Settings
+from app.plugins.ai.models import Settings, run_basic_check
 
+DEFAULT = Settings.get_kwargs()
 
 THINK_CONFIG = copy.deepcopy(Settings.CONFIG)
 THINK_CONFIG.system_instruction = (
