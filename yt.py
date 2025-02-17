@@ -57,7 +57,7 @@ async def ytm_link(bot, message: Message):
         await message_response.edit("No search results found.")
 
     await message_response.edit(
-        f"**>\n**[{title}]({page_url})**<**",
+        f"**>\n**[{song_name}]({ytm_link_result})**<**",
         parse_mode=ParseMode.MARKDOWN,
         disable_preview=True,
     )
