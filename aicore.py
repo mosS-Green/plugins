@@ -11,23 +11,19 @@ from ub_core.utils import get_tg_media_details
 from app import BOT, Message, bot
 from app.plugins.ai.models import Settings
 
-leaf_config = copy.deepcopy(Settings.CONFIG)
-leaf_config.temperature = 0.8
-leaf_config.max_output_tokens = 8192
 
-LEAF = {"model": "gemini-2.0-flash", "config": leaf_config}
-
-leaf_think_config = copy.deepcopy(Settings.CONFIG)
-leaf_think_config.system_instruction = (
+THINK_CONFIG = copy.deepcopy(Settings.CONFIG)
+THINK_CONFIG.system_instruction = (
     "Write a lengthy, well-structured, and easy-to-read answer."
     "You are writing on Telegra.ph, which allows only <a>, <blockquote>, <br>, <em>,"
     "<figure>, <h3>, <h4>, <img>, <p>, and <strong> elements."
     "Use these tags properly, and only write the body part as it is rendered automatically."
 )
-leaf_think_config.temperature = 0.7
-leaf_think_config.max_output_tokens = 60000
+THINK_CONFIG.temperature = 0.7
+THINK_CONFIG.max_output_tokens = 60000
 
-LEAF_THINK = {"model": "gemini-2.0-flash-thinking-exp-01-21", "config": leaf_think_config}
+THINK = {"model": "gemini-2.0-flash-thinking-exp-01-21", "config": THINK_CONFIG}
+QUICK = {"model": "gemini-2.0-flash-lite-preview-02-05", "config": THINK_CONFIG}
 
 
 PROMPT_MAP = {
@@ -42,6 +38,29 @@ PROMPT_MAP = {
     ),
 }
 PROMPT_MAP[Audio] = PROMPT_MAP[Voice]
+
+
+@bot.add_cmd(cmd="fh")
+async def init_task(bot=bot, message=None):
+    past_message_id = int(os.environ.get("PAST_MESSAGE_ID"))
+
+    past_message = await bot.get_messages(
+        chat_id=Config.LOG_CHAT, message_ids=past_message_id
+    )
+
+    json_data = json.loads(past_message.text)
+
+    LEAF_MODEL = copy.deepcopy(Settings)
+    LEAF_CONFIG = LEAF_MODEL.CONFIG
+    LEAF_CONFIG.system_instruction = json_data["text"]
+    LEAF_CONFIG.temperature = 0.8
+    LEAF_CONFIG.max_output_tokens = 8192
+
+    global LEAF
+    LEAF = {"model": LEAF_MODEL.MODEL,"config": LEAF_CONFIG}
+    
+    if message is not None:
+        await message.reply("Done.", del_in=2)
 
 
 async def ask_ai(prompt: str, query: Message | None, quote: bool = False, **kwargs) -> str:
