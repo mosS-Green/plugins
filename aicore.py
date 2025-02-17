@@ -10,11 +10,11 @@ from ub_core.utils import get_tg_media_details
 from app import BOT, Message, bot
 from app.plugins.ai.models import Settings, run_basic_check, async_client
 
-DEFAULT = Settings.get_kwargs()
+LEAF_MODEL = DEFAULT_MODEL = copy.deepcopy(Settings)
 
-LEAF_MODEL = copy.deepcopy(Settings)
+DEFAULT = DEFAULT_MODEL.get_kwargs()
 
-THINK_CONFIG = copy.deepcopy(Settings.CONFIG)
+THINK_CONFIG = QUICK_CONFIG = copy.deepcopy(Settings.CONFIG)
 THINK_CONFIG.system_instruction = (
     "Write a lengthy, well-structured, and easy-to-read answer."
     "You are writing on Telegra.ph, which allows only <a>, <blockquote>, <br>, <em>,"
@@ -25,8 +25,12 @@ THINK_CONFIG.tools = []
 THINK_CONFIG.temperature = 0.7
 THINK_CONFIG.max_output_tokens = 60000
 
+QUICK_CONFIG.tools = []
+QUICK_CONFIG.temperature = 0.65
+QUICK_CONFIG.max_output_tokens = 8000
+
 THINK = {"model": "gemini-2.0-flash-thinking-exp-01-21", "config": THINK_CONFIG}
-QUICK = {"model": "gemini-2.0-flash-lite-preview-02-05", "config": THINK_CONFIG}
+QUICK = {"model": "gemini-2.0-flash-lite-preview-02-05", "config": QUICK_CONFIG}
 
 
 PROMPT_MAP = {
