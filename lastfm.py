@@ -5,10 +5,13 @@ import aiohttp
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.enums import ParseMode
 
-from app import Config, bot, Message
+from app import Config
+from ub_core import BOT, Message, bot
+
 from app.modules.aicore import ask_ai, DEFAULT
 from .yt import get_ytm_link
 
+_bot: BOT = bot.bot
 
 @bot.add_cmd(cmd="fren")
 async def init_task(bot=bot, message=None):
@@ -31,14 +34,16 @@ async def fetch_json(url: str) -> dict:
 
 
 @bot.add_cmd(cmd="sn")
-async def sn_now_playing(bot, message: Message):
+async def sn_now_playing(bot: BOT, message: Message):
     if not FRENS or not API_KEY:
         return await message.reply("Initialization incomplete.")
+
+    load_msg = await message.reply("<code>...</code>")
     
     user = message.from_user
     username = FRENS.get(user.username)
     if not username:
-        return await message.reply("Username not found.")
+        return await load_msg.edit("Username not found.")
     
     url = (
         f"http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={username}"
@@ -61,17 +66,19 @@ async def sn_now_playing(bot, message: Message):
         ytm_link = await asyncio.to_thread(get_ytm_link, song_name)
         
         prompt = (
-            f"Generate a short sentence in a chill tone: {user.first_name} is listening to "
-            f"{song_name}. Ensure both track and artist name are used."
+            "Generate variations of a short sentence in a chill tone:"
+            f"{user.first_name} is listening to {song_name}."
+            "Ensure both track and artist name are used."
             "In this format - **__[{text}]({url})**__,"
-            f"also hyperlink them with {ytm_link}"
+            f" hyperlink them with {ytm_link}"
             "Don't hyperlink the whole text."
         )
         sentence = await ask_ai(prompt=prompt, **DEFAULT)
-        button = [InlineKeyboardButton(text="download song", callback_data="ytmdl")]
-        await message.reply(
+        button = [InlineKeyboardButton(text="Download song", callback_data="ytmdl")]
+        await load_msg.edit(
             text=sentence,
             parse_mode=ParseMode.MARKDOWN,
+            disable_preview=True,
             reply_markup=InlineKeyboardMarkup([button])
         )
     except Exception as e:
@@ -97,12 +104,10 @@ def download_audio(ytm_link: str):
     return audio_path, info
 
 
-_bot: BOT = bot.bot
-
 @_bot.on_callback_query(filters=filters.regex("ytmdl"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     await callback_query.edit_message_text("uploading...")
-    audio_path, info = await asyncio.to_thread(download_audio, ytm_link)
+    await asyncio.to_thread(download_audio, ytm_link)
     await bot.send_audio(
         chat_id=callback_query.message.chat.id,
         audio=audio_path,
