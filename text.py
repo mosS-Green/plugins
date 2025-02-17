@@ -19,7 +19,6 @@ async def init_task(bot=bot, message=None):
 
     json_data = json.loads(past_message.text)
 
-    LEAF_MODEL = copy.deepcopy(Settings)
     LEAF_CONFIG = LEAF_MODEL.CONFIG
     LEAF_CONFIG.system_instruction = json_data["text"]
     LEAF_CONFIG.temperature = 0.8
