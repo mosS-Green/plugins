@@ -8,6 +8,23 @@ from .aicore import ask_ai, DEFAULT, run_basic_check
 from app.plugins.files.upload import upload_to_tg
 
 
+def get_ytm_link(song_name: str) -> str:
+    ydl_opts = {
+        'quiet': True,
+        'skip_download': True,
+        'extract_flat': True,
+        'format': 'bestaudio/best',
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        search_query = f"ytsearch:{song_name}"
+        info = ydl.extract_info(search_query, download=False)
+        if info.get('entries'):
+            video = info['entries'][0]
+            video_id = video.get('id')
+            if video_id:
+                return f"https://music.youtube.com/watch?v={video_id}"
+    return None
+
 @bot.add_cmd(cmd="yt")
 @run_basic_check
 async def ytm_link(bot, message: Message):
@@ -23,46 +40,26 @@ async def ytm_link(bot, message: Message):
 
     prompts = (
         f"{content}\n\nThe above text/image contains a song name, extract that. "
-        "Or guess the song based on description. use search for getting the name. reply only with song name and artist."
+        "Or guess the song based on description. Use search for getting the name. Reply only with song name and artist. "
         "If you are unable to guess, just reply with 'Unknown Song'."
     )
-    
     song_name = await ask_ai(prompt=prompts, query=reply, **DEFAULT)
 
-    if "unknown song" in song_name.lower() or not song_name:
+    if "unknown song" in song_name.lower() or not song_name.strip():
         await message_response.edit("Couldn't determine the song title.")
         return
 
     await message_response.edit("<code>......</code>")
 
-    ydl_opts = {
-        'quiet': True,
-        'skip_download': True,
-        'extract_flat': True,
-        'format': 'bestaudio/best',
-    }
+    ytm_link_result = await asyncio.to_thread(get_ytm_link_from_song, song_name)
+    if not ytm_link_result:
+        await message_response.edit("No search results found.")
+        return
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        search_query = f"ytsearch:{song_name}"
-        info = ydl.extract_info(search_query, download=False)
-
-        if info.get('entries'):
-            video = info['entries'][0]
-            video_id = video.get('id')
-
-            if not video_id:
-                await message_response.edit("Not found.")
-                return
-
-            ytm_link = f"https://music.youtube.com/watch?v={video_id}"
-
-            await message_response.edit(
-                f"<a href='{ytm_link}'>{song_name}</a>",
-                disable_preview=True,
-            )
-
-        else:
-            await message_response.edit("No search results found.")
+    await message_response.edit(
+        f"<a href='{ytm_link_result}'>{song_name}</a>",
+        disable_preview=True,
+    )
 
 
 @bot.add_cmd(cmd="ytdl")
