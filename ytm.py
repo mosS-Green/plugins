@@ -1,9 +1,11 @@
 import yt_dlp
+import os
 
 from app import bot, Message
 from pyrogram.enums import ParseMode
 
-from .text import text_gen, get_slow_text, Settings, run_basic_check
+from .aicore import ask_ai, DEFAULT, run_basic_check
+from app.plugins.files.upload import upload_to_tg
 
 
 @bot.add_cmd(cmd="yt")
@@ -20,10 +22,7 @@ async def ytm_link(bot, message: Message):
         "If you are unable to guess, just reply with 'Unknown Song':\n\n" + content
     )
     
-    ai_response = await text_gen(
-            contents=prompts, **Settings.get_kwargs()
-    )
-    song_name = get_slow_text(ai_response)
+    song_name = await ask_ai(prompt=prompts, **DEFAULT)
 
     if "unknown song" in song_name.lower() or not song_name:
         await message_response.edit("Couldn't determine the song title.")
@@ -59,3 +58,25 @@ async def ytm_link(bot, message: Message):
 
         else:
             await message_response.edit("No search results found.")
+
+
+@bot.add_cmd(cmd="ytdl")
+async def ytdl_download(bot, message: Message):
+    link = message.input
+    response = await message.reply("<code>Downloading...</code>")
+    ydl_opts = {
+        'format': 'best[height<=360]',
+        'outtmpl': 'downloaded_video.%(ext)s',
+        'quiet': True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(link, download=True)
+            file = ydl.prepare_filename(info)
+    except Exception as e:
+        await response.edit("Download failed.")
+        return
+    await response.edit("Uploading...")
+    await upload_to_tg(file=file, message=message, response=response)
+
+    os.remove(file)
