@@ -19,7 +19,7 @@ async def r_question(bot: BOT, message: Message):
         model = LEAF
 
     response = await ask_ai(
-        prompt=prompt, media_message=reply, quote=True, **model
+        prompt=prompt, query=reply, quote=True, **model
     )
     
     await message_response.edit(
