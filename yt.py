@@ -1,5 +1,6 @@
 import yt_dlp
 import os
+import asyncio
 
 from app import bot, Message
 from pyrogram.enums import ParseMode
@@ -54,7 +55,6 @@ async def ytm_link(bot, message: Message):
     ytm_link_result = await asyncio.to_thread(get_ytm_link_from_song, song_name)
     if not ytm_link_result:
         await message_response.edit("No search results found.")
-        return
 
     await message_response.edit(
         f"<a href='{ytm_link_result}'>{song_name}</a>",
