@@ -14,6 +14,9 @@ from .yt import get_ytm_link
 
 _bot: BOT = bot.bot
 
+YTM_LINK_CACHE = {}
+
+
 @bot.add_cmd(cmd="fren")
 async def init_task(bot=bot, message=None):
     lastfm_names = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4027)
