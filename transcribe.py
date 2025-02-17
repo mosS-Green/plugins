@@ -5,7 +5,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
 
-from .text import Settings, handle_media, text_gen
+from .aicore import ask_ai, DEFAULT
 
 _bot: BOT = bot.bot
 
@@ -13,16 +13,11 @@ _bot: BOT = bot.bot
 async def _transcribe_with_retry(message: Message, edit_msg: Message):
     for _ in range(2):
         try:
-            transcribed_str = await handle_media(
-                prompt=(
-                    "Transcribe this audio. "
-                    "Use ONLY english alphabet to express hindi. "
-                    "Do not translate. "
-                    "Do not write anything extra than the transcription. Use proper punctuation, and formatting."
-                    "\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET."
-                ),
+            transcribed_str = await ask_ai(
+                prompt="",
                 media_message=message,
-                **Settings.get_kwargs(),
+                quote=True
+                **DEFAULT,
             )
             await edit_msg.edit_text(
                 text=transcribed_str, parse_mode=ParseMode.MARKDOWN
