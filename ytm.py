@@ -12,12 +12,17 @@ from app.plugins.files.upload import upload_to_tg
 @run_basic_check
 async def ytm_link(bot, message: Message):
     reply = message.replied
-    content = reply.text if reply else message.input
+    if reply and reply.media:
+        content = ""
+    elif reply:
+        content = reply.text
+    else:
+        content = message.input
 
     message_response = await message.reply("<code>...</code>")
 
     prompts = (
-        content + "\n\nThe above text/image contains a song name, extract that. "
+        f"{content}\n\nThe above text/image contains a song name, extract that. "
         "Or guess the song based on description. use search for getting the name. reply only with song name and artist."
         "If you are unable to guess, just reply with 'Unknown Song'."
     )
