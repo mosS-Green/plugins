@@ -52,7 +52,7 @@ async def ytm_link(bot, message: Message):
 
     await message_response.edit("<code>......</code>")
 
-    ytm_link_result = await asyncio.to_thread(get_ytm_link_from_song, song_name)
+    ytm_link_result = await asyncio.to_thread(get_ytm_link, song_name)
     if not ytm_link_result:
         await message_response.edit("No search results found.")
 
