@@ -17,12 +17,12 @@ async def ytm_link(bot, message: Message):
     message_response = await message.reply("<code>...</code>")
 
     prompts = (
-        "The following text contains a song name, extract that. "
+        content + "\n\nThe above text/image contains a song name, extract that. "
         "Or guess the song based on description. use search for getting the name. reply only with song name and artist."
-        "If you are unable to guess, just reply with 'Unknown Song':\n\n" + content
+        "If you are unable to guess, just reply with 'Unknown Song'."
     )
     
-    song_name = await ask_ai(prompt=prompts, **DEFAULT)
+    song_name = await ask_ai(prompt=prompts, query=reply, **DEFAULT)
 
     if "unknown song" in song_name.lower() or not song_name:
         await message_response.edit("Couldn't determine the song title.")
