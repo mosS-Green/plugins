@@ -71,7 +71,7 @@ async def sn_now_playing(bot, message: Message):
         button = [InlineKeyboardButton(text="download song", callback_data="ytmdl")]
         await message.reply(
             text=sentence,
-            parse_mode=Parsemode.MARKDOWN,
+            parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup([button])
         )
     except Exception as e:
