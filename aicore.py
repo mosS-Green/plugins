@@ -1,7 +1,5 @@
 import copy
-import json
 import asyncio
-import os
 import shutil
 import time
 from mimetypes import guess_type
@@ -9,7 +7,7 @@ from mimetypes import guess_type
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core.utils import get_tg_media_details
 
-from app import BOT, Config, Message, bot
+from app import BOT, Message, bot
 from app.plugins.ai.models import Settings, run_basic_check, async_client
 
 DEFAULT = Settings.get_kwargs()
