@@ -70,10 +70,10 @@ async def sn_now_playing(bot: BOT, message: Message):
         ytm_link = await asyncio.to_thread(get_ytm_link, song_name)
         
         prompt = (
-            "Generate ANY ONE variation of a short sentence in a chill tone:"
+            "Generate this short sentence in a chill tone:"
             f"{user.first_name} is listening to {song_name}."
             "Ensure both track and artist name are used."
-            "In this format - **__[{text}]({url})**__,"
+            "In this format - **__[{text}]({url})__**,"
             f" hyperlink them with {ytm_link}"
             "Don't hyperlink the whole text."
         )
