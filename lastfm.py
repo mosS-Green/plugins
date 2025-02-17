@@ -54,7 +54,7 @@ async def sn_now_playing(bot, message: Message):
         track_name = current_track.get("name", "Unknown Track")
 
         song_name = f"{track_name} by {artist}"
-        ytm_link = await asyncio.to_thread(get_ytm_link_from_song, song_name)
+        ytm_link = await asyncio.to_thread(get_ytm_link, song_name)
         
         prompt = (
             f"Generate a short sentence in a chill tone: {user.first_name} is listening to "
