@@ -19,13 +19,13 @@ async def init_task(bot=bot, message=None):
 
     json_data = json.loads(past_message.text)
 
-    LEAF_CONFIG = LEAF_MODEL.CONFIG
+    LEAF_MODEL = json_data["model"]
     LEAF_CONFIG.system_instruction = json_data["text"]
     LEAF_CONFIG.temperature = 0.8
     LEAF_CONFIG.max_output_tokens = 8192
 
     global LEAF
-    LEAF = {"model": LEAF_MODEL.MODEL,"config": LEAF_CONFIG}
+    LEAF = {"model": LEAF_MODEL,"config": LEAF_CONFIG}
     
     if message is not None:
         await message.reply("Done.", del_in=2)
