@@ -14,6 +14,8 @@ from app.plugins.ai.models import Settings, run_basic_check
 
 DEFAULT = Settings.get_kwargs()
 
+LEAF = None
+
 THINK_CONFIG = copy.deepcopy(Settings.CONFIG)
 THINK_CONFIG.system_instruction = (
     "Write a lengthy, well-structured, and easy-to-read answer."
@@ -65,7 +67,7 @@ async def init_task(bot=bot, message=None):
         await message.reply("Done.", del_in=2)
 
 
-async def ask_ai(prompt: str, query: Message | None, quote: bool = False, **kwargs) -> str:
+async def ask_ai(prompt: str, query: Message | None = None, quote: bool = False, **kwargs) -> str:
     media = None
     prompts = [prompt]
 
