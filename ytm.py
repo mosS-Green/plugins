@@ -77,6 +77,10 @@ async def ytdl_download(bot, message: Message):
         await response.edit("Download failed.")
         return
     await response.edit("Uploading...")
-    await upload_to_tg(file=file, message=message, response=response)
-
+    await bot.send_video(
+        chat_id=message.chat.id,
+        video=filename,
+        caption=info.get("title", "No Title Found"),
+        parse_mode=ParseMode.HTML,
+    )
     os.remove(file)
