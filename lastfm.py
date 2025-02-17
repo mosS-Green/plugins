@@ -8,7 +8,7 @@ from pyrogram.enums import ParseMode
 from app import Config
 from ub_core import BOT, Message, bot
 
-from app.modules.aicore import ask_ai, DEFAULT
+from app.modules.aicore import ask_ai, QUICK
 from .yt import get_ytm_link
 
 _bot: BOT = bot.bot
