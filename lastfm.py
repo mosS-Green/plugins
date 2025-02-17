@@ -3,10 +3,24 @@ import asyncio
 import aiohttp
 
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.enums import ParseMode
 
 from app import Config, bot, Message
 from app.modules.aicore import ask_ai, DEFAULT
 from .yt import get_ytm_link
+
+
+@bot.add_cmd(cmd="fren")
+async def init_task(bot=bot, message=None):
+    lastfm_names = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4027)
+    apikey = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4025)
+    global FRENS, API_KEY
+    FRENS = json.loads(lastfm_names.text)
+    API_KEY = apikey.text.strip()
+
+    if message is not None:
+        await message.reply("Done.", del_in=2)
+
 
 async def fetch_json(url: str) -> dict:
     async with aiohttp.ClientSession() as session:
@@ -15,16 +29,6 @@ async def fetch_json(url: str) -> dict:
                 raise Exception("Error fetching data from last.fm.")
             return await response.json()
 
-@bot.add_cmd(cmd="fren")
-async def init_task(bot=bot, message=None):
-    global FRENS, API_KEY
-    lastfm_names = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4027)
-    apikey = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4025)
-    FRENS = json.loads(lastfm_names.text)
-    API_KEY = apikey.text.strip()
-
-    if message is not None:
-        await message.reply("Done.", del_in=2)
 
 @bot.add_cmd(cmd="sn")
 async def sn_now_playing(bot, message: Message):
