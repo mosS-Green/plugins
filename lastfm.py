@@ -82,7 +82,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         key = str(uuid.uuid4())
         YTM_LINK_CACHE[key] = ytm_link
 
-        button = [InlineKeyboardButton(text="Download song", callback_data="ytmdl")]
+        button = [InlineKeyboardButton(text="Download song", callback_data="ytmdl:{key}")]
         await load_msg.edit(
             text=sentence,
             parse_mode=ParseMode.MARKDOWN,
