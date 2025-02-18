@@ -7,7 +7,6 @@ from .aicore import ask_ai, QUICK, DEFAULT, run_basic_check
 
 
 LEAF = None
-LEAF_MODEL = None
 
 
 @bot.add_cmd(cmd="fh")
@@ -20,7 +19,6 @@ async def init_task(bot=bot, message=None):
 
     json_data = json.loads(past_message.text)
 
-    global LEAF_MODEL
     LEAF_MODEL = json_data["model"]
     LEAF_CONFIG.system_instruction = json_data["text"]
     LEAF_CONFIG.temperature = 0.8
