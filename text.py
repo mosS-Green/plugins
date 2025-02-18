@@ -3,32 +3,7 @@ import os
 from pyrogram.enums import ParseMode
 
 from app import BOT, Message, bot, Config
-from .aicore import ask_ai, QUICK, LEAF_CONFIG, DEFAULT, run_basic_check
-
-
-LEAF = None
-
-
-@bot.add_cmd(cmd="fh")
-async def init_task(bot=bot, message=None):
-    past_message_id = int(os.environ.get("PAST_MESSAGE_ID"))
-
-    past_message = await bot.get_messages(
-        chat_id=Config.LOG_CHAT, message_ids=past_message_id
-    )
-
-    json_data = json.loads(past_message.text)
-
-    LEAF_MODEL = json_data["model"]
-    LEAF_CONFIG.system_instruction = json_data["text"]
-    LEAF_CONFIG.temperature = 0.8
-    LEAF_CONFIG.max_output_tokens = 8192
-
-    global LEAF
-    LEAF = {"model": LEAF_MODEL,"config": LEAF_CONFIG}
-    
-    if message is not None:
-        await message.reply("Done.", del_in=2)
+from .aicore import ask_ai, MODEL, run_basic_check
 
 
 @bot.add_cmd(cmd=["r", "rx"])
@@ -40,9 +15,9 @@ async def r_question(bot: BOT, message: Message):
     message_response = await message.reply("<code>...</code>")
 
     if message.cmd == "r":
-        model = DEFAULT
+        model = MODEL["DEFAULT"]
     else:
-        model = LEAF
+        model = MODEL["LEAF"]
 
     response = await ask_ai(
         prompt=prompt, query=reply, quote=True, **model
@@ -61,6 +36,6 @@ async def fix(bot: BOT, message: Message):
         f"AND ONLY WITH CORRECTION TO SPELLING ERRORS :- \n{message.replied.text}"
     ]
     
-    response = await ask_ai(prompt=prompts, **QUICK)
+    response = await ask_ai(prompt=prompts, **MODEL["QUICK"])
 
     await message.replied.edit(response)
