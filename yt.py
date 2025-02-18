@@ -1,6 +1,7 @@
 import yt_dlp
 import os
 import asyncio
+import re
 
 from app import bot, Message
 from pyrogram.enums import ParseMode
@@ -24,6 +25,8 @@ def get_ytm_link(song_name: str) -> str:
             if video_id:
                 return f"https://music.youtube.com/watch?v={video_id}"
     return None
+
+
 
 @bot.add_cmd(cmd="yt")
 @run_basic_check
@@ -62,27 +65,79 @@ async def ytm_link(bot, message: Message):
     )
 
 
+
+def extract_link(markdown_text):
+    match = re.search(r"\[.*?\]\((https?://[^\s]+)\)", markdown_text)
+    return match.group(1) if match else None
+
+
+
 @bot.add_cmd(cmd="ytdl")
 async def ytdl_download(bot, message: Message):
-    link = message.input
-    response = await message.reply("<code>Downloading...</code>")
-    ydl_opts = {
-        'format': 'best[height<=360]',
-        'outtmpl': 'downloaded_video.%(ext)s',
-        'quiet': True,
-    }
+    reply = message.reply_to_message
+    link = reply.text if reply and reply.text else message.input
+    link = extract_link(link) if link else None
+
+    if not link:
+        return await message.reply("No valid link found.")
+
+    response = await message.reply("<code>Processing...</code>")
+
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(link, download=True)
-            file = ydl.prepare_filename(info)
-    except Exception as e:
-        await response.edit("Download failed.")
-        return
+        if 'music.youtube.com' in link:
+            filename, info = download_audio(link)
+        else:
+            filename, info = download_video(link)
+    except Exception:
+        return await response.edit("Download failed.")
+
     await response.edit("Uploading...")
-    await bot.send_video(
-        chat_id=message.chat.id,
-        video=filename,
-        caption=info.get("title", "No Title Found"),
-        parse_mode=ParseMode.HTML,
-    )
-    os.remove(file)
+
+    try:
+        send_func = bot.send_audio if 'music.youtube.com' in link else bot.send_video
+        await send_func(
+            chat_id=message.chat.id,
+            audio=filename if 'music.youtube.com' in link else None,
+            video=filename if 'music.youtube.com' not in link else None,
+            caption=info.get("title", "No Title Found"),
+            parse_mode=ParseMode.HTML,
+        )
+    except Exception:
+        return await response.edit("Upload failed.")
+    finally:
+        os.remove(filename)
+
+    await response.delete()
+
+
+def download_video(url: str):
+    o = {
+        'format': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
+        'merge_output_format': 'mp4',
+        'outtmpl': os.path.join(tempfile.gettempdir(), '%(title)s.%(ext)s'),
+        'quiet': True,
+        'no_warnings': True,
+    }
+    with yt_dlp.YoutubeDL(o) as ydl:
+        info = ydl.extract_info(url, download=True)
+        fn = ydl.prepare_filename(info)
+    return fn, info
+
+
+def download_audio(url: str):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': os.path.join(tempfile.gettempdir(), '%(title)s.%(ext)s'),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'quiet': True,
+        'no_warnings': True,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        path = ydl.prepare_filename(info)
+        audio_path = os.path.splitext(path)[0] + ".mp3"
+    return audio_path, info
