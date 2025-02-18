@@ -13,8 +13,12 @@ _bot: BOT = bot.bot
 async def _transcribe_with_retry(message: Message, edit_msg: Message):
     for _ in range(2):
         try:
-            transcribed_str = await ask_ai(
-                prompt="",
+            transcribed_str = await ask_ai(prompt=(
+    "Transcribe this audio. "
+    "Use ONLY english alphabet to express hindi. "
+    "Do not translate."
+    "Do not write anything extra than the transcription. Use proper punctuation, and formatting."
+    "\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET.",
                 query=message,
                 quote=True
                 **MODEL["DEFAULT"],
