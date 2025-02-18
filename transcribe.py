@@ -5,7 +5,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
 
-from .aicore import ask_ai, DEFAULT
+from .aicore import ask_ai, MODEL
 
 _bot: BOT = bot.bot
 
@@ -17,7 +17,7 @@ async def _transcribe_with_retry(message: Message, edit_msg: Message):
                 prompt="",
                 query=message,
                 quote=True
-                **DEFAULT,
+                **MODEL["DEFAULT"],
             )
             await edit_msg.edit_text(
                 text=transcribed_str, parse_mode=ParseMode.MARKDOWN
