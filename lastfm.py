@@ -34,7 +34,7 @@ async def fetch_json(url: str) -> dict:
             return await response.json()
 
 
-@bot.add_cmd(cmd="sn")
+@bot.add_cmd(cmd="st")
 async def sn_now_playing(bot: BOT, message: Message):
     if not FRENS or not API_KEY:
         return await message.reply("Initialization incomplete.")
@@ -83,10 +83,10 @@ async def sn_now_playing(bot: BOT, message: Message):
             text=sentence,
             parse_mode=ParseMode.MARKDOWN,
             disable_preview=True,
+        )
             """
             reply_markup=InlineKeyboardMarkup([button])
             """
-        )
     except Exception as e:
         await message.reply(str(e))
 
