@@ -2,6 +2,7 @@ import yt_dlp
 import os
 import asyncio
 import re
+import tempfile
 
 from app import bot, Message
 from pyrogram.enums import ParseMode
@@ -73,7 +74,7 @@ def extract_link(markdown_text):
 
 
 @bot.add_cmd(cmd="ytdl")
-async def ytdl_download(bot, message: Message):
+async def ytdl_upload(bot, message: Message):
     reply = message.reply_to_message
     link = reply.text if reply and reply.text else message.input
     link = extract_link(link) if link else None
@@ -85,9 +86,9 @@ async def ytdl_download(bot, message: Message):
 
     try:
         if 'music.youtube.com' in link:
-            filename, info = download_audio(link)
+            filename, info = ytdl_audio(link)
         else:
-            filename, info = download_video(link)
+            filename, info = ytdl_video(link)
     except Exception:
         return await response.edit("Download failed.")
 
@@ -110,7 +111,7 @@ async def ytdl_download(bot, message: Message):
     await response.delete()
 
 
-def download_video(url: str):
+def ytdl_video(url: str):
     o = {
         'format': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
         'merge_output_format': 'mp4',
@@ -124,7 +125,7 @@ def download_video(url: str):
     return fn, info
 
 
-def download_audio(url: str):
+def ytdl_audio(url: str):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(tempfile.gettempdir(), '%(title)s.%(ext)s'),
