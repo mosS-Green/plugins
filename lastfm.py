@@ -65,7 +65,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         track_name = current_track.get("name", "Unknown Track")
 
         ytm_link = await asyncio.to_thread(get_ytm_link, f"{track_name} by {artist}")
-        song = f"**__[{{track_name}}]({{ytm_link}})__**"
+        song = f"**__[{track_name}]({ytm_link})__**"
 
         prompts = (
             "Rewrite this short sentence depending on the type of song:"
@@ -77,7 +77,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         sentence = await ask_ai(prompt=prompts, **DEFAULT)
 
 
-        button = [InlineKeyboardButton(text="Download song", callback_data="ytm")]
+        button = [InlineKeyboardButton(text="Download song", callback_data=f"y_{ytm_link}")]
         
         await load_msg.edit(
             text=sentence,
@@ -90,7 +90,7 @@ async def sn_now_playing(bot: BOT, message: Message):
 
 
 
-def _download_audio(message: Message):
+def _download_audio(url: str):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(tempfile.gettempdir(), '%(id)s.%(ext)s'),
@@ -103,16 +103,17 @@ def _download_audio(message: Message):
         'no_warnings': True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(message, download=True)
+        info = ydl.extract_info(url, download=True)
         path = ydl.prepare_filename(info)
         audio_path = os.path.splitext(path)[0] + ".mp3"
     return audio_path, info
 
 
-@_bot.on_callback_query(filters=filters.regex("ytm"))
+@_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
-    
-    audio_path, info = await asyncio.to_thread(_download_audio, callback_query.message)
+
+    ytm_link = callback_query.text.strip("y_")
+    audio_path, info = await asyncio.to_thread(_download_audio, ytm_link)
 
     await bot.send_audio(
         chat_id=callback_query.message.chat.id,
