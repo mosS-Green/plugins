@@ -3,7 +3,7 @@ import os
 from pyrogram.enums import ParseMode
 
 from app import BOT, Message, bot, Config
-from .aicore import ask_ai, QUICK, DEFAULT, run_basic_check
+from .aicore import ask_ai, QUICK, LEAF_CONFIG, DEFAULT, run_basic_check
 
 
 LEAF = None
