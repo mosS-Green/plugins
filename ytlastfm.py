@@ -13,7 +13,7 @@ from app import Config
 from ub_core import BOT, Message, bot
 from ub_core.utils import aio
 
-from .text import ask_ai, LEAF
+from .aicore import ask_ai, MODEL
 from .yt import get_ytm_link
 
 _bot: BOT = bot.bot
@@ -70,7 +70,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         "\n\nIMPORTANT - KEEP FORMAT OF HREF INTACT."
     )
 
-    sentence = await ask_ai(prompt=prompts, **LEAF)
+    sentence = await ask_ai(prompt=prompts, **MODEL["LEAF"])
 
 
     button = [InlineKeyboardButton(text="Download song", callback_data=f"y_{ytm_link}")]
