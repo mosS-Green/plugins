@@ -5,8 +5,7 @@ import asyncio
 from app import bot, Message
 from pyrogram.enums import ParseMode
 
-from .aicore import ask_ai, DEFAULT, run_basic_check
-from app.plugins.files.upload import upload_to_tg
+from .aicore import ask_ai, MODEL, run_basic_check
 
 
 def get_ytm_link(song_name: str) -> str:
@@ -44,7 +43,7 @@ async def ytm_link(bot, message: Message):
         "Or guess the song based on description. Use search for getting the name. Reply only with song name and artist. "
         "If you are unable to guess, just reply with 'Unknown Song'."
     )
-    song_name = await ask_ai(prompt=prompts, query=reply, **DEFAULT)
+    song_name = await ask_ai(prompt=prompts, query=reply, **MODEL["DEFAULT"])
 
     if "unknown song" in song_name.lower() or not song_name.strip():
         await message_response.edit("Couldn't determine the song title.")
@@ -57,7 +56,7 @@ async def ytm_link(bot, message: Message):
         await message_response.edit("No search results found.")
 
     await message_response.edit(
-        f"**>\n**[{song_name}]({ytm_link_result})**<**",
+        f"__[{song_name}]({ytm_link_result})__",
         parse_mode=ParseMode.MARKDOWN,
         disable_preview=True,
     )
