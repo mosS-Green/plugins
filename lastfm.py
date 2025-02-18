@@ -66,15 +66,16 @@ async def sn_now_playing(bot: BOT, message: Message):
         song_name = f"{track_name} by {artist}"
         ytm_link = await asyncio.to_thread(get_ytm_link, song_name)
 
-        prompt = [(
+        prompts = (
             "Generate this short sentence in a fun/chill tone:"
             f"{user.first_name} is listening to {song_name}."
             "Ensure both track and artist name are used."
             "In this format - **__[{text}]({url})__**, "
             f"hyperlink them with {ytm_link}"
             "Don't hyperlink the whole text."
-            )]
-        sentence = await ask_ai(prompt=prompt, **LEAF)
+        )
+        
+        sentence = await ask_ai(prompt=prompts, **LEAF)
 
         """
         button = [InlineKeyboardButton(text="Download song", callback_data="ytmdl")]
