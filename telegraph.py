@@ -2,22 +2,19 @@ from pyrogram.enums import ParseMode
 from ub_core.utils.helpers import TELEGRAPH, post_to_telegraph
 
 from app import BOT, Message, bot
-from .aicore import ask_ai, DEFAULT, THINK, QUICK, run_basic_check
+from .aicore import ask_ai, MODEL, run_basic_check
 
 
 @bot.add_cmd(cmd="rg")
 @run_basic_check
 async def generate_article(bot: BOT, message: Message):
     reply = message.replied
-    if reply and reply.text:
-        content = [str(reply.text), message.input or "answer"]
-    else:
-        content = [message.input]
+    content = [message.input]
         
     load_msg = await message.reply("<code>...</code>")
 
     base_prompt = (
-        f"Write a well-structured, informative, and engaging article based on the following input: {content}. "
+        f"{content}\n\nWrite a well-structured, informative, and engaging article based on the above input."
         "Ensure proper formatting with paragraphs, bullet points if necessary, and a natural flow."
         "Note - use HTML formatting. You are writing on the Telegra.ph platform."
         "IMPORTANT - Do not include a title."
@@ -25,14 +22,15 @@ async def generate_article(bot: BOT, message: Message):
         "IMPORTANT - Do not any give pretext. Immediately start with article."
     )
     
-    article_content = await ask_ai(prompt=base_prompt, **DEFAULT)
+    article_content = await ask_ai(prompt=base_prompt, query=reply, **MODEL["DEFAULT"])
+    article = article_content.strip("'")
 
-    title_prompt = f"Generate a very concise and short title for this article: {article_content}. Only reply with the Title."
-    title = await ask_ai(prompt=title_prompt, **QUICK)
+    title_prompt = f"Generate a very concise and short title for this article: {article_content}. IMPORTANT - Only reply with the Title."
+    title = await ask_ai(prompt=title_prompt, **MODEL["QUICK"])
 
-    page_url = await post_to_telegraph(title, article_content)
+    page_url = await post_to_telegraph(title, article)
 
-    await load_msg.edit(f"**>\n**[{title}]({page_url})**<**", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
+    await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
 
 
 @bot.add_cmd(cmd="tf")
@@ -50,4 +48,4 @@ async def tf(bot: BOT, message: Message):
 
     page_url = await post_to_telegraph(title, content)
 
-    await load_msg.edit(f"**>\n**[{title}]({page_url})**<**", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
+    await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
