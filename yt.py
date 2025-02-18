@@ -75,7 +75,7 @@ def extract_link(markdown_text):
 
 @bot.add_cmd(cmd="ytdl")
 async def ytdl_upload(bot, message: Message):
-    reply = message.reply_to_message
+    reply = message.replied
     link = reply.text if reply and reply.text else message.input
     link = extract_link(link) if link else None
 
