@@ -40,12 +40,12 @@ async def sn_now_playing(bot: BOT, message: Message):
         return await message.reply("Initialization incomplete.")
 
     load_msg = await message.reply("<code>...</code>")
-    
+
     user = message.from_user
     username = FRENS.get(user.username)
     if not username:
         return await load_msg.edit("Username not found.")
-    
+
     url = (
         f"http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={username}"
         f"&api_key={API_KEY}&format=json"
@@ -59,23 +59,23 @@ async def sn_now_playing(bot: BOT, message: Message):
         )
         if not current_track:
             raise Exception("No track currently playing.")
-        
+
         artist = current_track.get("artist", {}).get("#text", "Unknown Artist")
         track_name = current_track.get("name", "Unknown Track")
 
         song_name = f"{track_name} by {artist}"
         ytm_link = await asyncio.to_thread(get_ytm_link, song_name)
-        
+
         prompt = (
             "Generate this short sentence in a fun/chill tone:"
             f"{user.first_name} is listening to {song_name}."
             "Ensure both track and artist name are used."
-            "In this format - **__[{text}]({url})__**,"
-            f" hyperlink them with {ytm_link}"
+            "In this format - **__[{text}]({url})__**, "
+            f"hyperlink them with {ytm_link}"
             "Don't hyperlink the whole text."
         )
         sentence = await ask_ai(prompt=prompt, **LEAF)
-        
+
         """
         button = [InlineKeyboardButton(text="Download song", callback_data="ytmdl")]
         """
@@ -84,11 +84,12 @@ async def sn_now_playing(bot: BOT, message: Message):
             parse_mode=ParseMode.MARKDOWN,
             disable_preview=True,
         )
-            """
-            reply_markup=InlineKeyboardMarkup([button])
-            """
+        """
+        reply_markup=InlineKeyboardMarkup([button])
+        """
     except Exception as e:
         await message.reply(str(e))
+
 
 """
 def download_audio(ytm_link: str):
