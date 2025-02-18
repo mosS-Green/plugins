@@ -15,7 +15,7 @@ async def _transcribe_with_retry(message: Message, edit_msg: Message):
         try:
             transcribed_str = await ask_ai(
                 prompt="",
-                media_message=message,
+                query=message,
                 quote=True
                 **DEFAULT,
             )
