@@ -48,43 +48,39 @@ async def sn_now_playing(bot: BOT, message: Message):
         f"http://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user={username}"
         f"&api_key={API_KEY}&format=json"
     )
-    try:
-        data = await aio.get_json(f"{url}")
-        tracks = data.get("recenttracks", {}).get("track", [])
-        current_track = next(
-            (track for track in tracks if track.get("@attr", {}).get("nowplaying") == "true"),
-            None
-        )
-        if not current_track:
-            raise Exception("No track currently playing.")
+    data = await aio.get_json(url)
+    tracks = data.get("recenttracks", {}).get("track", [])
+    current_track = next(
+        (track for track in tracks if track.get("@attr", {}).get("nowplaying") == "true"),
+        None
+    )
+    if not current_track:
+        raise Exception("No track currently playing.")
 
-        artist = current_track.get("artist", {}).get("#text", "Unknown Artist")
-        track_name = current_track.get("name", "Unknown Track")
+    artist = current_track.get("artist", {}).get("#text", "Unknown Artist")
+    track_name = current_track.get("name", "Unknown Track")
 
-        ytm_link = await asyncio.to_thread(get_ytm_link, f"{track_name} by {artist}")
-        song = f"**__[{track_name}]({ytm_link})__**"
+    ytm_link = await asyncio.to_thread(get_ytm_link, f"{track_name} by {artist}")
+    song = f"**__[{track_name}]({ytm_link})__**"
 
-        prompts = (
-            "Write listening status message based on the vibe of the song."
-            f"\n\n{user.first_name} is listening to {song} by __{artist}__."
-            "Ensure both track and artist name are used."
-            "\n\nIMPORTANT - KEEP FORMAT OF HREF INTACT."
-        )
+    prompts = (
+        "Write listening status message based on the vibe of the song."
+        f"\n\n{user.first_name} is listening to {song} by __{artist}__."
+        "Ensure both track and artist name are used."
+        "\n\nIMPORTANT - KEEP FORMAT OF HREF INTACT."
+    )
 
-        sentence = await ask_ai(prompt=prompts, **LEAF)
+    sentence = await ask_ai(prompt=prompts, **LEAF)
 
 
-        button = [InlineKeyboardButton(text="Download song", callback_data=f"y_{ytm_link}")]
+    button = [InlineKeyboardButton(text="Download song", callback_data=f"y_{ytm_link}")]
         
-        await load_msg.edit(
-            text=sentence,
-            parse_mode=ParseMode.MARKDOWN,
-            disable_preview=True,
-            reply_markup=InlineKeyboardMarkup([button])
-        )
-    except Exception as e:
-        await message.reply(str(e))
-
+    await load_msg.edit(
+        text=sentence,
+        parse_mode=ParseMode.MARKDOWN,
+        disable_preview=True,
+        reply_markup=InlineKeyboardMarkup([button])
+    )
 
 
 def download_audio(url: str):
