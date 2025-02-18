@@ -33,7 +33,8 @@ def create_config(model, instruction, temp, tokens):
         )
     }
 
-def init_task():
+@bot.add_cmd(cmd="mt")
+def model_task():
     return {
         "LEAF": create_config(
             "gemini-2.0-flash",
@@ -73,7 +74,7 @@ def init_task():
         ),
     }
 
-MODEL = init_task()
+MODEL = model_task()
 
 
 PROMPT_MAP = {
