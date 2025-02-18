@@ -1,7 +1,6 @@
 import json
 import asyncio
 import aiohttp
-import uuid
 
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.enums import ParseMode
@@ -9,12 +8,10 @@ from pyrogram.enums import ParseMode
 from app import Config
 from ub_core import BOT, Message, bot
 
-from app.modules.aicore import ask_ai, DEFAULT
+from .text import ask_ai, LEAF
 from .yt import get_ytm_link
 
 _bot: BOT = bot.bot
-
-YTM_LINK_CACHE = {}
 
 
 @bot.add_cmd(cmd="fren")
@@ -77,22 +74,23 @@ async def sn_now_playing(bot: BOT, message: Message):
             f" hyperlink them with {ytm_link}"
             "Don't hyperlink the whole text."
         )
-        sentence = await ask_ai(prompt=prompt, **DEFAULT)
-
-        key = str(uuid.uuid4())
-        YTM_LINK_CACHE[key] = ytm_link
-
-        button = [InlineKeyboardButton(text="Download song", callback_data="ytmdl:{key}")]
+        sentence = await ask_ai(prompt=prompt, **LEAF)
+        
+        """
+        button = [InlineKeyboardButton(text="Download song", callback_data="ytmdl")]
+        """
         await load_msg.edit(
             text=sentence,
             parse_mode=ParseMode.MARKDOWN,
             disable_preview=True,
+            """
             reply_markup=InlineKeyboardMarkup([button])
+            """
         )
     except Exception as e:
         await message.reply(str(e))
 
-
+"""
 def download_audio(ytm_link: str):
     ydl_opts = {
         'format': 'bestaudio/best',
@@ -114,9 +112,6 @@ def download_audio(ytm_link: str):
 
 @_bot.on_callback_query(filters=filters.regex("ytmdl"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
-    _, key = callback_query.data.split(":", 1)
-    ytm_link = YTM_LINK_CACHE.get(key)
-
     await callback_query.edit_message_text("uploading...")
     audio_path, info = await asyncio.to_thread(download_audio, ytm_link)
     await bot.send_audio(
@@ -126,3 +121,4 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
         reply_to_message_id=callback_query.message.message_id
     )
     os.remove(audio_path)
+"""
