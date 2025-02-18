@@ -64,7 +64,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         artist = current_track.get("artist", {}).get("#text", "Unknown Artist")
         track_name = current_track.get("name", "Unknown Track")
 
-        ytm_link = await asyncio.to_thread(get_ytm_link, song_name)
+        ytm_link = await asyncio.to_thread(get_ytm_link, song)
         song = f"**__[{{track_name}}]({{ytm_link}})__**"
 
         prompts = (
