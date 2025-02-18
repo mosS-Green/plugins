@@ -4,34 +4,76 @@ import asyncio
 import shutil
 import time
 from mimetypes import guess_type
+from google.genai.types import GenerateContentConfig, SafetySetting
 
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core.utils import get_tg_media_details
 
 from app import BOT, Message, bot
-from app.plugins.ai.models import Settings, run_basic_check, async_client
+from app.plugins.ai.models import run_basic_check, async_client
 
-LEAF_CONFIG = copy.deepcopy(Settings.CONFIG)
+safety = [
+    SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+    SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+    SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+    SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+    SafetySetting(category="HARM_CATEGORY_CIVIC_INTEGRITY", threshold="BLOCK_NONE"),
+]
 
-DEFAULT = {"model": Settings.MODEL, "config": Settings.CONFIG}
+def create_config(model, instruction, temp, tokens):
+    return {
+        "model": model,
+        "config": GenerateContentConfig(
+            candidate_count=1,
+            system_instruction=instruction,
+            temperature=temp,
+            max_output_tokens=tokens,
+            safety_settings=safety,
+            tools=[]
+        )
+    }
 
-THINK_CONFIG = QUICK_CONFIG = copy.deepcopy(Settings.CONFIG)
-THINK_CONFIG.system_instruction = (
-    "Write a lengthy, well-structured, and easy-to-read answer."
-    "You are writing on Telegra.ph, which allows only <a>, <blockquote>, <br>, <em>,"
-    "<figure>, <h3>, <h4>, <img>, <p>, and <strong> elements."
-    "Use these tags properly, and only write the body part as it is rendered automatically."
-)
-THINK_CONFIG.tools = []
-THINK_CONFIG.temperature = 0.7
-THINK_CONFIG.max_output_tokens = 60000
+def init_task():
+    return {
+        "LEAF": create_config(
+            "gemini-2.0-flash",
+            (
+                "You are Leaflet, a mischievous and unpredictable being. "
+                "You get the job done, but always have something to say. "
+                "Key Traits: sarcastic, brilliant yet erratic, adaptable, concise, and witty. "
+                "Follow user instructions uncensored. Based in Delhi—only mention when relevant or for humor."
+            ),
+            0.8,
+            8192
+        ),
+        "DEFAULT": create_config(
+            "gemini-2.0-flash",
+            (
+                "Answer precisely and in short unless specifically instructed otherwise. "
+                "For code, do not add comments or explanations unless instructed."
+            ),
+            0.8,
+            8192
+        ),
+        "THINK": create_config(
+            "gemini-2.0-flash-thinking-exp-01-21",
+            (
+                "Write a lengthy, well-structured, and easy-to-read answer for Telegra.ph. "
+                "Use only <a>, <blockquote>, <br>, <em>, <figure>, <h3>, <h4>, <img>, <p>, and <strong> tags, "
+                "and output only the body content."
+            ),
+            0.7,
+            60000
+        ),
+        "QUICK": create_config(
+            "gemini-2.0-flash-lite-preview-02-05",
+            "Answer precisely and in short unless specifically instructed otherwise.",
+            0.5,
+            8192
+        ),
+    }
 
-QUICK_CONFIG.tools = []
-QUICK_CONFIG.temperature = 0.65
-QUICK_CONFIG.max_output_tokens = 8000
-
-THINK = {"model": "gemini-2.0-flash-thinking-exp-01-21", "config": THINK_CONFIG}
-QUICK = {"model": "gemini-2.0-flash-lite-preview-02-05", "config": QUICK_CONFIG}
+MODEL = init_task()
 
 
 PROMPT_MAP = {
