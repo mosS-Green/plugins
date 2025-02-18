@@ -70,7 +70,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         "\n\nIMPORTANT - KEEP FORMAT OF HREF INTACT."
     )
 
-    sentence = await ask_ai(prompt=prompts, **MODEL["LEAF"])
+    sentence = await ask_ai(prompt=prompts, **MODEL["QUICK"])
 
 
     button = [InlineKeyboardButton(text="Download song", callback_data=f"y_{ytm_link}")]
@@ -112,6 +112,5 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
         chat_id=callback_query.message.chat.id,
         audio=audio_path,
         caption=info.get('title', 'Song'),
-        reply_to_message_id=callback_query.message.message_id
     )
     os.remove(audio_path)
