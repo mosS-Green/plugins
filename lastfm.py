@@ -69,13 +69,17 @@ async def sn_now_playing(bot: BOT, message: Message):
     )
     sentence = await ask_ai(prompt=prompts, **MODEL["QUICK"])
 
-    button = [InlineKeyboardButton(text="Download song", callback_data=f"y_{ytm_link}")]
-
+    buttons = [
+        InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link_result}"),
+        InlineKeyboardButton(text="▷", callback_data=f"v_{ytm_link_result}"),
+        InlineKeyboardButton(text="↻", callback_data="r_refresh")
+    ]
+    
     await load_msg.edit(
         text=sentence,
         parse_mode=ParseMode.MARKDOWN,
         disable_preview=True,
-        reply_markup=InlineKeyboardMarkup([button]),
+        reply_markup=InlineKeyboardMarkup([buttons])
     )
 
 
