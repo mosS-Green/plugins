@@ -16,15 +16,15 @@ _bot: BOT = bot.bot
 
 YTM_LINK_CACHE = {}
 
+
 @bot.add_cmd(cmd="fren")
 async def init_task(bot=bot, message=None):
     lastfm_names = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4027)
     apikey = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4025)
-
     global FRENS, API_KEY
     FRENS = json.loads(lastfm_names.text)
     API_KEY = apikey.text.strip()
-    
+
     if message is not None:
         await message.reply("Done.", del_in=2)
 
@@ -112,7 +112,7 @@ def download_audio(ytm_link: str):
     return audio_path, info
 
 
-@_bot.on_callback_query(filters=filter.regex("ytmdl"))
+@_bot.on_callback_query(filters=filters.regex("ytmdl"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     _, key = callback_query.data.split(":", 1)
     ytm_link = YTM_LINK_CACHE.get(key)
