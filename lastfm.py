@@ -36,6 +36,7 @@ async def fetch_json(url: str) -> dict:
 
 @bot.add_cmd(cmd="st")
 async def sn_now_playing(bot: BOT, message: Message):
+      
     if not FRENS or not API_KEY:
         return await message.reply("Initialization incomplete.")
 
@@ -63,37 +64,33 @@ async def sn_now_playing(bot: BOT, message: Message):
         artist = current_track.get("artist", {}).get("#text", "Unknown Artist")
         track_name = current_track.get("name", "Unknown Track")
 
-        song_name = f"{track_name} by {artist}"
         ytm_link = await asyncio.to_thread(get_ytm_link, song_name)
+        song = f"**__[{{track_name}}]({{ytm_link}})__**"
 
         prompts = (
-            "Generate this short sentence in a fun/chill tone:"
-            f"{user.first_name} is listening to {song_name}."
+            "Rewrite this short sentence depending on the type of song:"
+            f"{user.first_name} is listening to {song} by {artist}."
             "Ensure both track and artist name are used."
-            "In this format - **__[{text}]({url})__**, "
-            f"hyperlink them with {ytm_link}"
-            "Don't hyperlink the whole text."
+            "\n\nIMPORTANT - KEEP FORMAT OF HREF INTACT."
         )
-        
+
         sentence = await ask_ai(prompt=prompts, **DEFAULT)
 
-        """
-        button = [InlineKeyboardButton(text="Download song", callback_data="ytmdl")]
-        """
+
+        button = [InlineKeyboardButton(text="Download song", callback_data="ytm")]
+        
         await load_msg.edit(
             text=sentence,
             parse_mode=ParseMode.MARKDOWN,
             disable_preview=True,
+            reply_markup=InlineKeyboardMarkup([button])
         )
-        """
-        reply_markup=InlineKeyboardMarkup([button])
-        """
     except Exception as e:
         await message.reply(str(e))
 
 
-"""
-def download_audio(ytm_link: str):
+
+def _download_audio(message: Message):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(tempfile.gettempdir(), '%(id)s.%(ext)s'),
@@ -106,16 +103,17 @@ def download_audio(ytm_link: str):
         'no_warnings': True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(ytm_link, download=True)
+        info = ydl.extract_info(message, download=True)
         path = ydl.prepare_filename(info)
         audio_path = os.path.splitext(path)[0] + ".mp3"
     return audio_path, info
 
 
-@_bot.on_callback_query(filters=filters.regex("ytmdl"))
+@_bot.on_callback_query(filters=filters.regex("ytm"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
-    await callback_query.edit_message_text("uploading...")
-    audio_path, info = await asyncio.to_thread(download_audio, ytm_link)
+    
+    audio_path, info = await asyncio.to_thread(_download_audio, callback_query.message)
+
     await bot.send_audio(
         chat_id=callback_query.message.chat.id,
         audio=audio_path,
@@ -123,4 +121,3 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
         reply_to_message_id=callback_query.message.message_id
     )
     os.remove(audio_path)
-"""
