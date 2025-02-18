@@ -1,14 +1,19 @@
 import json
 import asyncio
 import aiohttp
+import yt_dlp
+import os
+import tempfile
 
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.enums import ParseMode
+from pyrogram import filters
 
 from app import Config
 from ub_core import BOT, Message, bot
+from ub_core.utils import aio
 
-from .text import ask_ai, DEFAULT
+from .text import ask_ai, LEAF
 from .yt import get_ytm_link
 
 _bot: BOT = bot.bot
@@ -16,22 +21,14 @@ _bot: BOT = bot.bot
 
 @bot.add_cmd(cmd="fren")
 async def init_task(bot=bot, message=None):
-    lastfm_names = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4027)
-    apikey = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=4025)
+    vars = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=[4027, 4025])
+    lastfm_names, apikey = vars
     global FRENS, API_KEY
     FRENS = json.loads(lastfm_names.text)
     API_KEY = apikey.text.strip()
 
     if message is not None:
         await message.reply("Done.", del_in=2)
-
-
-async def fetch_json(url: str) -> dict:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status != 200:
-                raise Exception("Error fetching data from last.fm.")
-            return await response.json()
 
 
 @bot.add_cmd(cmd="st")
@@ -52,7 +49,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         f"&api_key={API_KEY}&format=json"
     )
     try:
-        data = await fetch_json(url)
+        data = await aio.get_json(f"{url}")
         tracks = data.get("recenttracks", {}).get("track", [])
         current_track = next(
             (track for track in tracks if track.get("@attr", {}).get("nowplaying") == "true"),
@@ -68,13 +65,13 @@ async def sn_now_playing(bot: BOT, message: Message):
         song = f"**__[{track_name}]({ytm_link})__**"
 
         prompts = (
-            "Rewrite this short sentence depending on the type of song:"
-            f"{user.first_name} is listening to {song} by {artist}."
+            "Write listening status message based on the vibe of the song."
+            f"\n\n{user.first_name} is listening to {song} by __{artist}__."
             "Ensure both track and artist name are used."
             "\n\nIMPORTANT - KEEP FORMAT OF HREF INTACT."
         )
 
-        sentence = await ask_ai(prompt=prompts, **DEFAULT)
+        sentence = await ask_ai(prompt=prompts, **LEAF)
 
 
         button = [InlineKeyboardButton(text="Download song", callback_data=f"y_{ytm_link}")]
@@ -90,7 +87,7 @@ async def sn_now_playing(bot: BOT, message: Message):
 
 
 
-def _download_audio(url: str):
+def download_audio(url: str):
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(tempfile.gettempdir(), '%(id)s.%(ext)s'),
@@ -112,8 +109,8 @@ def _download_audio(url: str):
 @_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
 
-    ytm_link = callback_query.text.strip("y_")
-    audio_path, info = await asyncio.to_thread(_download_audio, ytm_link)
+    ytm_link = callback_query.data[2:]
+    audio_path, info = await asyncio.to_thread(download_audio, ytm_link)
 
     await bot.send_audio(
         chat_id=callback_query.message.chat.id,
