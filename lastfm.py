@@ -72,7 +72,7 @@ async def sn_now_playing(bot: BOT, message: Message):
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
         InlineKeyboardButton(text="▷", callback_data=f"v_{ytm_link}"),
-        InlineKeyboardButton(text="↻", callback_data="r_refresh")
+        InlineKeyboardButton(text="↻", callback_data=f"r_refresh")
     ]
     
     await load_msg.edit(
@@ -95,7 +95,6 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
         caption=info.get("title", "Song"),
     )
     os.remove(audio_path)
-    await callback_query.answer()
 
 
 @_bot.on_callback_query(filters=filters.regex("^v_"))
@@ -109,10 +108,8 @@ async def video_ytdl(bot: BOT, callback_query: CallbackQuery):
         parse_mode=ParseMode.HTML,
     )
     os.remove(video_path)
-    await callback_query.answer()
 
 
 @_bot.on_callback_query(filters=filters.regex("^r_"))
 async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
-    await callback_query.answer()
-    await sn_now_playing(bot, callback_query.message)
+    await callback_query.answer("Kal aana.")
