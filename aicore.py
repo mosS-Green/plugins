@@ -34,7 +34,7 @@ def create_config(model, instruction, temp, tokens):
     }
 
 @bot.add_cmd(cmd="mt")
-def model_task():
+def model_task(bot=None, message=None):
     return {
         "LEAF": create_config(
             "gemini-2.0-flash",
