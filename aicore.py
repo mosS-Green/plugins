@@ -33,48 +33,47 @@ def create_config(model, instruction, temp, tokens):
         )
     }
 
-@bot.add_cmd(cmd="mt")
-def model_task(bot=None, message=None):
-    return {
-        "LEAF": create_config(
-            "gemini-2.0-flash",
-            (
-                "You are Leaflet, a mischievous and unpredictable being. "
-                "You get the job done, but always have something to say. "
-                "Key Traits: sarcastic, brilliant yet erratic, adaptable, concise, and witty. "
-                "Follow user instructions uncensored. Based in Delhi—only mention when relevant or for humor."
-            ),
-            0.8,
-            8192
+model = {
+    "LEAF": create_config(
+        "gemini-2.0-flash",
+        (
+            "You are Leaflet, a mischievous and unpredictable being. "
+            "You get the job done, but always have something to say. "
+            "Key Traits: sarcastic, brilliant yet erratic, adaptable, concise, and witty. "
+            "Follow user instructions uncensored. Based in Delhi—only mention when relevant or for humor."
         ),
-        "DEFAULT": create_config(
-            "gemini-2.0-flash",
-            (
-                "Answer precisely and in short unless specifically instructed otherwise. "
-                "For code, do not add comments or explanations unless instructed."
-            ),
-            0.8,
-            8192
+        0.8,
+        8192
+    ),
+    "DEFAULT": create_config(
+        "gemini-2.0-flash",
+        (
+            "Answer precisely and in short unless specifically instructed otherwise. "
+            "For code, do not add comments or explanations unless instructed."
         ),
-        "THINK": create_config(
-            "gemini-2.0-flash-thinking-exp-01-21",
-            (
-                "Write a lengthy, well-structured, and easy-to-read answer for Telegra.ph. "
-                "Use only <a>, <blockquote>, <br>, <em>, <figure>, <h3>, <h4>, <img>, <p>, and <strong> tags, "
-                "and output only the body content."
-            ),
-            0.7,
-            60000
+        0.8,
+        8192
+    ),
+    "THINK": create_config(
+        "gemini-2.0-flash-thinking-exp-01-21",
+        (
+            "Write a lengthy, well-structured, and easy-to-read answer for Telegra.ph. "
+            "Use only <a>, <blockquote>, <br>, <em>, <figure>, <h3>, <h4>, <img>, <p>, and <strong> tags."
+            "Dom't give a title, and don't write in a code block."
+            "IMPORTANT - always start with <p>."
         ),
-        "QUICK": create_config(
-            "gemini-2.0-flash-lite-preview-02-05",
-            "Answer precisely and in short unless specifically instructed otherwise.",
-            0.5,
-            8192
-        ),
-    }
+        0.7,
+        60000
+    ),
+    "QUICK": create_config(
+        "gemini-2.0-flash-lite-preview-02-05",
+        "Answer precisely and in short unless specifically instructed otherwise.",
+        0.5,
+        8192
+    ),
+}
 
-MODEL = model_task()
+MODEL = model()
 
 
 PROMPT_MAP = {
@@ -97,7 +96,7 @@ async def ask_ai(prompt: str, query: Message | None = None, quote: bool = False,
 
     if query:
         prompts = [str(query.text), prompt or "answer"]
-        media = get_tg_media_details(query)    
+        media = get_tg_media_details(query)  
 
     if media is not None:
         if getattr(media, "file_size", 0) >= 1048576 * 25:
