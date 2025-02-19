@@ -2,7 +2,7 @@ import json
 import asyncio
 import os
 
-from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, LinkPreviewOptions
 from pyrogram.enums import ParseMode
 from pyrogram import filters
 
@@ -10,7 +10,6 @@ from app import Config
 from ub_core import BOT, Message, bot
 from ub_core.utils import aio
 
-from .aicore import ask_ai, MODEL
 from .yt import get_ytm_link, ytdl_audio, ytdl_video
 
 _bot: BOT = bot.bot
@@ -53,7 +52,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         None,
     )
     if not current_track:
-        raise Exception("No track currently playing.")
+        return await load_msg.edit("No track currently playing.")
 
     artist = current_track.get("artist", {}).get("#text", "Unknown Artist")
     track_name = current_track.get("name", "Unknown Track")
@@ -61,13 +60,7 @@ async def sn_now_playing(bot: BOT, message: Message):
     ytm_link = await asyncio.to_thread(get_ytm_link, f"{track_name} by {artist}")
     song = f"**__[{track_name}]({ytm_link})__**"
     
-    prompts = (
-        "Write listening status message based on the vibe of the song."
-        f"\n\n{user.first_name} is listening to {song} by __{artist}__."
-        "Ensure both track and artist name are used."
-        "\n\nIMPORTANT - KEEP FORMAT OF HREF INTACT."
-    )
-    sentence = await ask_ai(prompt=prompts, **MODEL["QUICK"])
+    sentence = f"{user.first_name} is vibing to {song} by __{artist}__."
 
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
@@ -79,6 +72,7 @@ async def sn_now_playing(bot: BOT, message: Message):
         text=sentence,
         parse_mode=ParseMode.MARKDOWN,
         disable_preview=True,
+        link_preview_options= LinkPreviewOptions(is_disabled=True),
         reply_markup=InlineKeyboardMarkup([buttons])
     )
 
