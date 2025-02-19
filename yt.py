@@ -79,27 +79,32 @@ async def ytdl_upload(bot, message: Message):
 
     response = await message.reply("<code>Processing...</code>")
 
+
     try:
         if 'music.youtube.com' in link:
-            filename, info = ytdl_audio(link)
+            filename, info = await asyncio.to_thread(ytdl_audio, link)
         else:
-            filename, info = ytdl_video(link)
+            filename, info = await asyncio.to_thread(ytdl_video, link)
     except Exception:
         return await response.edit("Download failed.")
 
     await response.edit("Uploading...")
 
-    try:
-        send_func = bot.send_audio if 'music.youtube.com' in link else bot.send_video
-        await send_func(
+    if 'music.youtube.com' in link:
+        await bot.send_audio(
             chat_id=message.chat.id,
-            audio=filename if 'music.youtube.com' in link else None,
-            video=filename if 'music.youtube.com' not in link else None,
+            audio=filename,
             caption=info.get("title", "No Title Found"),
             parse_mode=ParseMode.HTML,
         )
-    except Exception:
-        return await response.edit("Upload failed.")
+    else:
+        await bot.send_video(
+            chat_id=message.chat.id,
+            video=filename,
+            caption=info.get("title", "No Title Found"),
+            parse_mode=ParseMode.HTML,
+        )
+
     finally:
         os.remove(filename)
 
