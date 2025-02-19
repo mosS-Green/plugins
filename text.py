@@ -30,7 +30,7 @@ async def r_question(bot: BOT, message: Message):
 
 @bot.add_cmd(cmd="rt")
 @run_basic_check
-async def fix(bot: BOT, message: Message):
+async def ai_think(bot: BOT, message: Message):
     reply = message.replied
     prompts = message.input
 
