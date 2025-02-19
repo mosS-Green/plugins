@@ -33,7 +33,7 @@ def create_config(model, instruction, temp, tokens):
         )
     }
 
-model = {
+model_cfg = {
     "LEAF": create_config(
         "gemini-2.0-flash",
         (
@@ -59,7 +59,7 @@ model = {
         (
             "Write a lengthy, well-structured, and easy-to-read answer for Telegra.ph. "
             "Use only <a>, <blockquote>, <br>, <em>, <figure>, <h3>, <h4>, <img>, <p>, and <strong> tags."
-            "Dom't give a title, and don't write in a code block."
+            "Don't give a title, and don't write in a code block."
             "IMPORTANT - always start with <p>."
         ),
         0.7,
@@ -73,7 +73,7 @@ model = {
     ),
 }
 
-MODEL = model()
+MODEL = model_cfg
 
 
 PROMPT_MAP = {
