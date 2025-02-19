@@ -8,6 +8,7 @@ from app import bot, Message
 from pyrogram.enums import ParseMode
 
 from .aicore import ask_ai, MODEL, run_basic_check
+from app.plugins.misc.song import extract_link_from_reply
 
 
 def get_ytm_link(song_name: str) -> str:
@@ -67,17 +68,11 @@ async def ytm_link(bot, message: Message):
 
 
 
-def extract_link(markdown_text):
-    match = re.search(r"\[.*?\]\((https?://[^\s]+)\)", markdown_text)
-    return match.group(1) if match else None
-
-
 
 @bot.add_cmd(cmd="ytdl")
 async def ytdl_upload(bot, message: Message):
     reply = message.replied
-    link = reply.text if reply and reply.text else message.input
-    link = extract_link(link) if link else None
+    link = extract_link_from_reply(reply) or message.input
 
     if not link:
         return await message.reply("No valid link found.")
