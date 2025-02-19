@@ -105,8 +105,7 @@ async def ytdl_upload(bot, message: Message):
             parse_mode=ParseMode.HTML,
         )
 
-    finally:
-        os.remove(filename)
+    os.remove(filename)
 
     await response.delete()
 
