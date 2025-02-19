@@ -4,6 +4,7 @@ from pyrogram.enums import ParseMode
 
 from app import BOT, Message, bot, Config
 from .aicore import ask_ai, MODEL, run_basic_check
+from .telegraph import post_to_telegraph
 
 
 @bot.add_cmd(cmd=["r", "rx"])
