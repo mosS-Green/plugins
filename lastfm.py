@@ -7,7 +7,8 @@ from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     LinkPreviewOptions,
-    InputMediaPhoto,
+    InputMediaAudio,
+    InputMediaVideo,
     User
     )
 from pyrogram.enums import ParseMode
@@ -60,7 +61,7 @@ async def lastfm_fetch(username):
             artist_name = track.artist.name
             track_name = track.title
             c_track = pylast.Track(
-                artist=artist_name, title=track, network=lastfm_network, username=username
+                artist=artist_name, title=track_name, network=lastfm_network, username=username
             )
             play_count = c_track.get_userplaycount()
             is_now_playing = True
@@ -73,7 +74,7 @@ async def lastfm_fetch(username):
                 artist_name = track.artist.name
                 track_name = track.title
                 c_track = pylast.Track(
-                    artist=artist_name, title=track, network=lastfm_network, username=username
+                    artist=artist_name, title=track_name, network=lastfm_network, username=username
                 )
                 play_count = c_track.get_userplaycount()
                 is_now_playing = False
