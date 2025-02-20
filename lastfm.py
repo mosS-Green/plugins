@@ -7,7 +7,8 @@ from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     LinkPreviewOptions,
-    InputMediaPhoto
+    InputMediaPhoto,
+    User
     )
 from pyrogram.enums import ParseMode
 from pyrogram import filters
@@ -103,9 +104,9 @@ async def lastfm_fetch(username):
 async def sn_now_playing(bot: BOT, message: Message):
     load_msg = await message.reply("<code>...</code>")
     user = message.from_user
-    await fn_now_playing(bot, message)
+    await fn_now_playing(user, load_msg)
 
-async def fn_now_playing(bot: BOT, message: Message, edit_mode: str = "edit"):
+async def fn_now_playing(user: User, load_msg: Message, edit_mode: str = "edit"):
     username = FRENS.get(user.username)
     if not username:
         return await getattr(load_msg, edit_mode)("u fren, no no")
@@ -184,4 +185,4 @@ async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
     user = callback_query.data[2:]
     load_msg = await callback_query.edit_message_text("<code>...</code>")
     user = message.from_user
-    await fn_now_playing(bot, callback_query, edit_mode="edit_message_text")
+    await fn_now_playing(user, load_msg, edit_mode="edit_message_text")
