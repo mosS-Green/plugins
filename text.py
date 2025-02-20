@@ -37,7 +37,7 @@ async def ai_think(bot: BOT, message: Message):
 
     load_msg = await message.reply("<code>...</code>")
 
-    title = "Scroll of Truth"
+    title = "the Answer"
     article = await ask_ai(
         prompt=prompts, query=reply, **MODEL["THINK"]
     )
