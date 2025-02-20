@@ -58,8 +58,8 @@ model_cfg = {
         "gemini-2.0-flash-thinking-exp-01-21",
         (
             "Write a lengthy, well-structured, and easy-to-read answer for Telegra.ph. "
-            "Use only <a>, <blockquote>, <br>, <em>, <figure>, <h3>, <h4>, <img>, <p>, and <strong> tags."
-            "Don't give a title, and don't write in a code block."
+            "Use only <a>, <blockquote>, <br>, <em>, <h3>, <h4>, <p>, and <strong> tags."
+            "IMPORTANT - Don't give a starting title, and don't write in a code block."
             "IMPORTANT - always start with <p>."
         ),
         0.7,
