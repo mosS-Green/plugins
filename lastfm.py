@@ -200,8 +200,6 @@ async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
 
     song = f"**__[{track_name}]({ytm_link})__**"
 
-    user_firstname=user.
-
     if is_now_playing:
         sentence = f"{user_firstname} is vibing to {song} by __{artist}__."
     else:
