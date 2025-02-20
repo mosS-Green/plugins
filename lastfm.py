@@ -102,16 +102,18 @@ async def lastfm_fetch(username):
 @bot.add_cmd(cmd="st")
 async def sn_now_playing(bot: BOT, message: Message):
     load_msg = await message.reply("<code>...</code>")
-
     user = message.from_user
+    await fn_now_playing(bot, message)
+
+async def fn_now_playing(bot: BOT, message: Message, edit_mode: str = "edit"):
     username = FRENS.get(user.username)
     if not username:
-        return await load_msg.edit("Username not found in fren list. Add your lastfm username to frens using admin command.")
+        return await getattr(load_msg, edit_mode)("u fren, no no")
 
     lastfm_data = await lastfm_fetch(username)
 
     if "error" in lastfm_data:
-        return await load_msg.edit(lastfm_data["error"])
+        return await getattr(load_msg, edit_mode)(lastfm_data["error"])
 
     track_name = lastfm_data["track_name"]
     artist = lastfm_data["artist_name"]
@@ -129,21 +131,19 @@ async def sn_now_playing(bot: BOT, message: Message):
         if last_played_string:
             sentence += f" ({last_played_string})"
 
-
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
         InlineKeyboardButton(text=f"{play_count} plays", callback_data=f"v_{ytm_link}"),
-        InlineKeyboardButton(text="↻", callback_data=f"r_{user}") # Changed callback data to include username
+        InlineKeyboardButton(text="↻", callback_data=f"r_{user}")  # Includes username
     ]
 
-    await load_msg.edit(
+    await getattr(load_msg, edit_mode)(
         text=sentence,
         parse_mode=ParseMode.MARKDOWN,
         disable_preview=True,
-        link_preview_options= LinkPreviewOptions(is_disabled=True),
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
         reply_markup=InlineKeyboardMarkup([buttons])
     )
-
 
 
 @_bot.on_callback_query(filters=filters.regex("^y_"))
@@ -152,7 +152,7 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
 
     audio_path, info = await asyncio.to_thread(ytdl_audio, ytm_link)
 
-    await callback_query.edit_media(
+    await callback_query.message.edit_media(
         InputMediaAudio(
             media=audio_path,
             caption=info.get("title", "Song"),
@@ -168,7 +168,7 @@ async def video_ytdl(bot: BOT, callback_query: CallbackQuery):
 
     video_path, info = await asyncio.to_thread(ytdl_video, link)
 
-    await callback_query.edit_media(
+    await callback_query.message.edit_media(
         InputMediaAudio(
             media=video_path,
             caption=info.get("title", "Song"),
@@ -182,42 +182,6 @@ async def video_ytdl(bot: BOT, callback_query: CallbackQuery):
 async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
     await callback_query.answer("Refreshing...")
     user = callback_query.data[2:]
-    username = FRENS.get(user.username)
-    user_firstname = callback_query.message.user.from_user
-    load_msg = callback_query.message
-
-    lastfm_data = await lastfm_fetch(username) # Fetch new data
-
-    if "error" in lastfm_data:
-        return await load_msg.edit(text=lastfm_data["error"])
-
-    track_name = lastfm_data["track_name"]
-    artist = lastfm_data["artist_name"]
-    is_now_playing = lastfm_data["is_now_playing"]
-    play_count = lastfm_data["play_count"]
-    ytm_link = lastfm_data["ytm_link"]
-    last_played_string = lastfm_data["last_played_string"]
-
-    song = f"**__[{track_name}]({ytm_link})__**"
-
-    if is_now_playing:
-        sentence = f"{user_firstname} is vibing to {song} by __{artist}__."
-    else:
-        sentence = f"{user_firstname} last listened to {song} by __{artist}__."
-        if last_played_string:
-            sentence += f" ({last_played_string})"
-
-
-    buttons = [
-        InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
-        InlineKeyboardButton(text=f"{play_count} plays", callback_data=f"v_{ytm_link}"),
-        InlineKeyboardButton(text="↻", callback_data=f"r_{username}") # Refresh button callback data remains same
-    ]
-
-    await load_msg.edit(
-        text=sentence,
-        parse_mode=ParseMode.MARKDOWN,
-        disable_preview=True,
-        link_preview_options= LinkPreviewOptions(is_disabled=True),
-        reply_markup=InlineKeyboardMarkup([buttons])
-    )
+    load_msg = await callback_query.edit_message_text("<code>...</code>")
+    user = message.from_user
+    await fn_now_playing(bot, callback_query, edit_mode="edit_message_text")
