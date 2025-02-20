@@ -28,7 +28,7 @@ async def generate_article(bot: BOT, message: Message):
     title_prompt = f"Generate a very concise and short title for this article: {article_content}. IMPORTANT - Only reply with the Title."
     title = await ask_ai(prompt=title_prompt, **MODEL["QUICK"])
 
-    page_url = await post_to_telegraph(title, article)
+    page_url = await post_to_telegraph(title, article, "leaflet", "t.me/leafinferno")
 
     await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
 
