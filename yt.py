@@ -4,6 +4,7 @@ import asyncio
 import re
 import tempfile
 
+from pyrogram.types import InputMediaAudio, InputMediaVideo
 from app import bot, Message
 from pyrogram.enums import ParseMode
 
@@ -66,7 +67,9 @@ async def ytm_link(bot, message: Message):
         disable_preview=True,
     )
 
-
+    if  "-dl" in message.flags:
+        message_response.replied = message_response
+        await ytdl_upload(bot, message_response)
 
 
 @bot.add_cmd(cmd="ytdl")
@@ -82,27 +85,28 @@ async def ytdl_upload(bot, message: Message):
 
     try:
         if 'music.youtube.com' in link:
-            filename, info = await asyncio.to_thread(ytdl_audio, link)
+            filename, info = await ytdl_audio(link)
         else:
-            filename, info = await asyncio.to_thread(ytdl_video, link)
+            filename, info = await ytdl_video(link)
     except Exception:
         return await response.edit("Download failed.")
 
     await response.edit("Uploading...")
 
     if 'music.youtube.com' in link:
-        await bot.send_audio(
-            chat_id=message.chat.id,
-            audio=filename,
-            caption=info.get("title", "No Title Found"),
-            parse_mode=ParseMode.HTML,
+        await response.edit_media(
+            InputMediaAudio(
+                media=filename,
+            )
         )
+    
     else:
-        await bot.send_video(
-            chat_id=message.chat.id,
-            video=filename,
-            caption=info.get("title", "No Title Found"),
-            parse_mode=ParseMode.HTML,
+        await response.edit_media(
+            InputMediaVideo(
+                media=filename,
+                caption=info.get("title", ""),
+                parse_mode=ParseMode.HTML
+            )
         )
 
     os.remove(filename)
@@ -110,6 +114,7 @@ async def ytdl_upload(bot, message: Message):
     await response.delete()
 
 
+@bot.make_async
 def ytdl_video(url: str):
     o = {
         'format': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
@@ -124,6 +129,7 @@ def ytdl_video(url: str):
     return fn, info
 
 
+@bot.make_async
 def ytdl_audio(url: str):
     ydl_opts = {
         'format': 'bestaudio/best',
