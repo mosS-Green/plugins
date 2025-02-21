@@ -1,7 +1,7 @@
 import os
 from app import BOT, Config, Message, bot
 from .aicore import ask_ai, MODEL
-from .telegraph import post_to_telegraph
+from .telegraph import tele_graph
 
 Config.CMD_DICT["eu"] = Config.CMD_DICT["extupdate"]
 
@@ -37,11 +37,12 @@ async def plugin_info(bot: BOT, message: Message):
             f"performance, readability, and efficiency. Highlight potential bugs, "
             f"redundant code, and areas for improvement.\n\nCode:\n```{content}```"
         )
-        article = await ask_ai(prompt=prompts, **MODEL["THINK"])
-        page_url = await post_to_telegraph(title, article, "leaflet", "t.me/leafinferno")
+        analysis = await ask_ai(prompt=prompts, **MODEL["THINK"])
+        
+        await tele_graph(load_msg, title, analysis)
 
-        await load_msg.edit(
-            f"[{title}]({page_url})",
-            parse_mode=ParseMode.MARKDOWN,
-            disable_preview=True
-        )
+    if "-v" in message.flags:
+        with open(plugin_path, 'r') as file:
+            content = file.read()
+        load_msg = await response.reply("...")
+        await tele_graph(load_msg, title, content)
