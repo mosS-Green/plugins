@@ -139,6 +139,9 @@ async def fn_now_playing(user: User, load_msg):
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}")  # Includes username
     ]
 
+    await message.edit(buttons)
+    return
+
     await load_msg.edit(
         text=sentence,
         parse_mode=ParseMode.MARKDOWN,
