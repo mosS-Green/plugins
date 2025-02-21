@@ -4,6 +4,21 @@ from ub_core.utils.helpers import TELEGRAPH, post_to_telegraph
 from app import BOT, Message, bot
 from .aicore import ask_ai, MODEL, run_basic_check
 
+async def tele_graph(
+    load_msg: Message,
+    title: str,
+    text: str,
+    author_name: str = "leaflet",
+    author_url: str = "https://t.me/leafinferno",
+):
+    page_url = await post_to_telegraph(title, text, author_name, author_url)
+
+    await load_msg.edit(
+        f"[{title}]({page_url})",
+        parse_mode=ParseMode.MARKDOWN,
+        disable_preview=True
+    )
+
 
 @bot.add_cmd(cmd="rg")
 @run_basic_check
@@ -28,9 +43,8 @@ async def generate_article(bot: BOT, message: Message):
     title_prompt = f"Generate a very concise and short title for this article: {article_content}. IMPORTANT - Only reply with the Title."
     title = await ask_ai(prompt=title_prompt, **MODEL["QUICK"])
 
-    page_url = await post_to_telegraph(title, article, "leaflet", "t.me/leafinferno")
+    await tele_graph(load_msg, title, article)
 
-    await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
 
 
 @bot.add_cmd(cmd="tf")
@@ -46,6 +60,4 @@ async def tf(bot: BOT, message: Message):
         content = message.input
         title = "Click to read"
 
-    page_url = await post_to_telegraph(title, content, "leaflet", "t.me/leafinferno")
-
-    await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
+    await tele_graph(load_msg, title, content)
