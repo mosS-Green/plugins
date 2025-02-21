@@ -104,11 +104,13 @@ async def lastfm_fetch(username):
 @bot.add_cmd(cmd="st")
 async def sn_now_playing(bot: BOT, message: Message):
     load_msg = await message.reply("<code>...</code>")
-    user = message.from_user
+    user = message.from_user.username
     await fn_now_playing(user, load_msg)
 
-async def fn_now_playing(user: User, load_msg):
-    username = FRENS.get(user.username)
+async def fn_now_playing(user: str, load_msg):
+    username = FRENS[user]["username"]
+    first_name = FRENS[user]["first_name"]
+    
     if not username:
         return await load_msg.edit("u fren, no no")
 
@@ -127,20 +129,18 @@ async def fn_now_playing(user: User, load_msg):
     song = f"**__[{track_name}]({ytm_link})__**"
 
     if is_now_playing:
-        sentence = f"{user.first_name} is vibing to {song} by __{artist}__."
+        vb = "leafing" if first_name == "Leaf" else "vibing"
+        sentence = f"{first_name} is {vb} to {song} by __{artist}__."
     else:
-        sentence = f"{user.first_name} last listened to {song} by __{artist}__."
+        sentence = f"{first_name} last listened to {song} by __{artist}__."
         if last_played_string:
             sentence += f" ({last_played_string})"
 
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
         InlineKeyboardButton(text=f"{play_count} plays", callback_data=f"v_{ytm_link}"),
-        InlineKeyboardButton(text="↻", callback_data=f"r_{user}")  # Includes username
+        InlineKeyboardButton(text="↻", callback_data=f"r_{user}")
     ]
-
-    await load_msg.edit(buttons)
-    return
 
     await load_msg.edit(
         text=sentence,
@@ -187,4 +187,4 @@ async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
     await callback_query.answer("Refreshing...")
     user = callback_query.data[2:]
     load_msg = await callback_query.edit("<code>...</code>")
-    await fn_now_playing(user)
+    await fn_now_playing(user, load_msg)
