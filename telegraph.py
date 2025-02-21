@@ -46,6 +46,6 @@ async def tf(bot: BOT, message: Message):
         content = message.input
         title = "Click to read"
 
-    page_url = await post_to_telegraph(title, content)
+    page_url = await post_to_telegraph(title, content, "leaflet", "t.me/leafinferno")
 
     await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
