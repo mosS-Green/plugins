@@ -4,7 +4,7 @@ from pyrogram.enums import ParseMode
 
 from app import BOT, Message, bot, Config
 from .aicore import ask_ai, MODEL, run_basic_check
-from .telegraph import post_to_telegraph
+from .telegraph import tele_graph
 
 
 @bot.add_cmd(cmd=["r", "rx"])
@@ -38,13 +38,11 @@ async def ai_think(bot: BOT, message: Message):
     load_msg = await message.reply("<code>...</code>")
 
     title = "the Answer"
-    article = await ask_ai(
+    content = await ask_ai(
         prompt=prompts, query=reply, **MODEL["THINK"]
     )
 
-    page_url = await post_to_telegraph(title, article, "leaflet", "t.me/leafinferno")
-
-    await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
+    await tele_graph(load_msg, title, content)
 
 
 @bot.add_cmd(cmd="f")
