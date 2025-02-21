@@ -42,7 +42,7 @@ async def ai_think(bot: BOT, message: Message):
         prompt=prompts, query=reply, **MODEL["THINK"]
     )
 
-    page_url = await post_to_telegraph(title, article)
+    page_url = await post_to_telegraph(title, article, "leaflet", "t.me/leafinferno")
 
     await load_msg.edit(f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True)
 
