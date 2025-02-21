@@ -107,15 +107,15 @@ async def sn_now_playing(bot: BOT, message: Message):
     user = message.from_user
     await fn_now_playing(user, load_msg)
 
-async def fn_now_playing(user: User, load_msg: Message, edit_mode: str = "edit"):
+async def fn_now_playing(user: User, load_msg):
     username = FRENS.get(user.username)
     if not username:
-        return await getattr(load_msg, edit_mode)("u fren, no no")
+        return await load_msg.edit("u fren, no no")
 
     lastfm_data = await lastfm_fetch(username)
 
     if "error" in lastfm_data:
-        return await getattr(load_msg, edit_mode)(lastfm_data["error"])
+        return await load_msg.edit(lastfm_data["error"])
 
     track_name = lastfm_data["track_name"]
     artist = lastfm_data["artist_name"]
@@ -139,10 +139,9 @@ async def fn_now_playing(user: User, load_msg: Message, edit_mode: str = "edit")
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}")  # Includes username
     ]
 
-    await getattr(load_msg, edit_mode)(
+    await load_msg.edit(
         text=sentence,
         parse_mode=ParseMode.MARKDOWN,
-        disable_preview=True,
         link_preview_options=LinkPreviewOptions(is_disabled=True),
         reply_markup=InlineKeyboardMarkup([buttons])
     )
@@ -152,12 +151,12 @@ async def fn_now_playing(user: User, load_msg: Message, edit_mode: str = "edit")
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     ytm_link = callback_query.data[2:]
 
-    audio_path, info = await asyncio.to_thread(ytdl_audio, ytm_link)
+    audio_path, info = await ytdl_audio(ytm_link)
 
     await callback_query.message.edit_media(
         InputMediaAudio(
             media=audio_path,
-            caption=info.get("title", "Song"),
+            caption=info.get("title", ""),
             parse_mode=ParseMode.MARKDOWN,
         )
     )
@@ -168,12 +167,12 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
 async def video_ytdl(bot: BOT, callback_query: CallbackQuery):
     link = callback_query.data[2:]
 
-    video_path, info = await asyncio.to_thread(ytdl_video, link)
+    video_path, info = await ytdl_video(link)
 
     await callback_query.message.edit_media(
-        InputMediaAudio(
+        InputMediaVideo(
             media=video_path,
-            caption=info.get("title", "Song"),
+            caption=info.get("title", ""),
             parse_mode=ParseMode.MARKDOWN,
         )
     )
@@ -184,6 +183,5 @@ async def video_ytdl(bot: BOT, callback_query: CallbackQuery):
 async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
     await callback_query.answer("Refreshing...")
     user = callback_query.data[2:]
-    load_msg = await callback_query.edit_message_text("<code>...</code>")
-    user = message.from_user
-    await fn_now_playing(user, load_msg, edit_mode="edit_message_text")
+    load_msg = await callback_query.edit("<code>...</code>")
+    await fn_now_playing(user)
