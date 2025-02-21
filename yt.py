@@ -61,14 +61,14 @@ async def ytm_link(bot, message: Message):
     if not ytm_link_result:
         await message_response.edit("No search results found.")
 
-    await message_response.edit(
+    place_holder = await message_response.edit(
         f"__[{song_name}]({ytm_link_result})__",
         parse_mode=ParseMode.MARKDOWN,
         disable_preview=True,
     )
 
     if  "-dl" in message.flags:
-        message_response.replied = message_response
+        message_response.replied = place_holder
         await ytdl_upload(bot, message_response)
 
 
