@@ -111,8 +111,6 @@ async def ytdl_upload(bot, message: Message):
 
     os.remove(filename)
 
-    await response.delete()
-
 
 @bot.make_async
 def ytdl_video(url: str):
