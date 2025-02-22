@@ -45,4 +45,5 @@ async def plugin_info(bot: BOT, message: Message):
         with open(plugin_path, 'r') as file:
             content = file.read()
         load_msg = await response.reply("...")
+        title = f"{plugin} code"
         await tele_graph(load_msg, title, content)
