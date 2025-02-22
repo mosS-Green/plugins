@@ -143,7 +143,7 @@ async def fn_now_playing(user: str, load_msg):
 
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
-        InlineKeyboardButton(text=f"{play_count} plays", callback_data=""),
+        InlineKeyboardButton(text=f"{play_count} plays", callback_data="w_"),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
 
@@ -162,11 +162,18 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     audio_path, info = await ytdl_audio(ytm_link)
     sentence = callback_query.message.text
 
+    buttons = [
+        InlineKeyboardButton(
+            text=":)", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ),
+    ]
+
     await callback_query.message.edit_media(
         InputMediaAudio(
             media=audio_path,
             caption=sentence,
             parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([buttons]),
         )
     )
     os.remove(audio_path)
@@ -178,3 +185,8 @@ async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
     user = callback_query.data[2:]
     load_msg = await callback_query.edit("<code>...</code>")
     await fn_now_playing(user, load_msg)
+
+
+@_bot.on_callback_query(filters=filters.regex("w_"))
+async def handle_what_even(bot: BOT, callback_query: CallbackQuery):
+    await callback_query.answer("Tu fir aa gaya nirlajj?!")
