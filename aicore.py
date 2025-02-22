@@ -15,7 +15,7 @@ from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core.utils import get_tg_media_details
 
 from app import Message
-from app.plugins.ai.models import async_client, SEARCH_TOOL
+from app.plugins.ai.models import async_client
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
@@ -38,6 +38,14 @@ def create_config(model, instruction, temp, tokens, search):
             tools=search,
         ),
     }
+
+SEARCH_TOOL = Tool(
+            google_search=GoogleSearchRetrieval(
+                dynamic_retrieval_config=DynamicRetrievalConfig(
+                    dynamic_threshold=0.3
+                )
+            )
+        )
 
 
 
