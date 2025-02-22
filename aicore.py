@@ -15,7 +15,7 @@ from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core.utils import get_tg_media_details
 
 from app import Message
-from app.plugins.ai.models import async_client
+from app.plugins.ai.models import async_client, SEARCH_TOOL
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
@@ -26,7 +26,7 @@ safety = [
 ]
 
 
-def create_config(model, instruction, temp, tokens, tools=None):
+def create_config(model, instruction, temp, tokens, search):
     return {
         "model": model,
         "config": GenerateContentConfig(
@@ -35,16 +35,10 @@ def create_config(model, instruction, temp, tokens, tools=None):
             temperature=temp,
             max_output_tokens=tokens,
             safety_settings=safety,
-            tools=tools or [],
+            tools=search,
         ),
     }
 
-
-SEARCH_TOOL = Tool(
-    google_search=GoogleSearchRetrieval(
-        dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.3)
-    )
-)
 
 
 model_cfg = {
@@ -58,7 +52,7 @@ model_cfg = {
         ),
         0.8,
         8192,
-        tools=SEARCH_TOOL,
+        search=[SEARCH_TOOL],
     ),
     "DEFAULT": create_config(
         "gemini-2.0-flash",
@@ -68,7 +62,7 @@ model_cfg = {
         ),
         0.8,
         8192,
-        tools=SEARCH_TOOL,
+        search=[SEARCH_TOOL],
     ),
     "THINK": create_config(
         "gemini-2.0-flash-thinking-exp-01-21",
