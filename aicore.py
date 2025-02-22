@@ -15,7 +15,7 @@ from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core.utils import get_tg_media_details # type: ignore
 
 from app import Message # type: ignore
-from app.plugins.ai.models import async_client # type: ignore
+from app.plugins.ai.models import async_client, run_basic_check # type: ignore
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
