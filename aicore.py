@@ -39,14 +39,12 @@ def create_config(model, instruction, temp, tokens, search):
         ),
     }
 
-SEARCH_TOOL = Tool(
-            google_search=GoogleSearchRetrieval(
-                dynamic_retrieval_config=DynamicRetrievalConfig(
-                    dynamic_threshold=0.3
-                )
-            )
-        )
 
+SEARCH_TOOL = Tool(
+    google_search=GoogleSearchRetrieval(
+        dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.3)
+    )
+)
 
 
 model_cfg = {
@@ -82,12 +80,14 @@ model_cfg = {
         ),
         0.7,
         60000,
+        search=[],
     ),
     "QUICK": create_config(
         "gemini-2.0-flash-lite-preview-02-05",
         "Answer precisely and in short unless specifically instructed otherwise.",
         0.5,
         8192,
+        search=[],
     ),
 }
 
