@@ -171,11 +171,15 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     await callback_query.message.edit_media(
         InputMediaAudio(
             media=audio_path,
-            caption=sentence,
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=InlineKeyboardMarkup([buttons]),
         )
     )
+
+    await callback_query.message.edit_caption(
+        caption=sentence,
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=InlineKeyboardMarkup([buttons]),
+    )
+
     os.remove(audio_path)
 
 
