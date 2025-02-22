@@ -1,30 +1,26 @@
-import json
 import asyncio
+import json
 import os
 
+import pylast
+from app import Config
+from pyrogram import filters
+from pyrogram.enums import ParseMode
 from pyrogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    LinkPreviewOptions,
     InputMediaAudio,
-    InputMediaVideo,
-    User
-    )
-from pyrogram.enums import ParseMode
-from pyrogram import filters
-import pylast
-
-from app import Config
+    LinkPreviewOptions,
+)
 from ub_core import BOT, Message, bot
-from ub_core.utils import aio
 
-from .yt import get_ytm_link, ytdl_audio, ytdl_video
+from .yt import get_ytm_link, ytdl_audio
 
 _bot: BOT = bot.bot
 
 API_KEY = None
-API_SECRET = "b6774b62bca666a84545e7ff4976914a" # this is constant, no need to fetch
+API_SECRET = "b6774b62bca666a84545e7ff4976914a"  # this is constant, no need to fetch
 FRENS = {}
 lastfm_network = None
 
@@ -61,7 +57,10 @@ async def lastfm_fetch(username):
             artist_name = track.artist.name
             track_name = track.title
             c_track = pylast.Track(
-                artist=artist_name, title=track_name, network=lastfm_network, username=username
+                artist=artist_name,
+                title=track_name,
+                network=lastfm_network,
+                username=username,
             )
             play_count = c_track.get_userplaycount()
             is_now_playing = True
@@ -69,12 +68,15 @@ async def lastfm_fetch(username):
         else:
             recent_tracks = user.get_recent_tracks(limit=1)
             if recent_tracks:
-                last_played_item = recent_tracks[0] # Get the pylast.PlayedTrack object
-                track = last_played_item.track # Get the pylast.Track object
+                last_played_item = recent_tracks[0]  # Get the pylast.PlayedTrack object
+                track = last_played_item.track  # Get the pylast.Track object
                 artist_name = track.artist.name
                 track_name = track.title
                 c_track = pylast.Track(
-                    artist=artist_name, title=track_name, network=lastfm_network, username=username
+                    artist=artist_name,
+                    title=track_name,
+                    network=lastfm_network,
+                    username=username,
                 )
                 play_count = c_track.get_userplaycount()
                 is_now_playing = False
@@ -83,14 +85,16 @@ async def lastfm_fetch(username):
             else:
                 return {"error": "No track currently playing or recently played."}
 
-        ytm_link = await asyncio.to_thread(get_ytm_link, f"{track_name} by {artist_name}")
+        ytm_link = await asyncio.to_thread(
+            get_ytm_link, f"{track_name} by {artist_name}"
+        )
         return {
             "track_name": track_name,
             "artist_name": artist_name,
             "is_now_playing": is_now_playing,
             "play_count": play_count,
             "ytm_link": ytm_link,
-            "last_played_string": last_played_string
+            "last_played_string": last_played_string,
         }
 
     except pylast.WSError as e:
@@ -107,10 +111,11 @@ async def sn_now_playing(bot: BOT, message: Message):
     user = message.from_user.username
     await fn_now_playing(user, load_msg)
 
+
 async def fn_now_playing(user: str, load_msg):
     username = FRENS[user]["username"]
     first_name = FRENS[user]["first_name"]
-    
+
     if not username:
         return await load_msg.edit("u fren, no no")
 
@@ -138,15 +143,15 @@ async def fn_now_playing(user: str, load_msg):
 
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
-        InlineKeyboardButton(text=f"{play_count} plays", callback_data=f"v_{ytm_link}"),
-        InlineKeyboardButton(text="↻", callback_data=f"r_{user}")
+        InlineKeyboardButton(text=f"{play_count} plays", callback_data=""),
+        InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
 
     await load_msg.edit(
         text=sentence,
         parse_mode=ParseMode.MARKDOWN,
         link_preview_options=LinkPreviewOptions(is_disabled=True),
-        reply_markup=InlineKeyboardMarkup([buttons])
+        reply_markup=InlineKeyboardMarkup([buttons]),
     )
 
 
@@ -155,31 +160,21 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     ytm_link = callback_query.data[2:]
 
     audio_path, info = await ytdl_audio(ytm_link)
+    sentence = callback_query.message.text
+
+    buttons = [
+        InlineKeyboardButton(text=":)", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+    ]
 
     await callback_query.message.edit_media(
         InputMediaAudio(
             media=audio_path,
-            caption=info.get("title", ""),
+            caption=sentence,
             parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([buttons]),
         )
     )
     os.remove(audio_path)
-
-
-@_bot.on_callback_query(filters=filters.regex("^v_"))
-async def video_ytdl(bot: BOT, callback_query: CallbackQuery):
-    link = callback_query.data[2:]
-
-    video_path, info = await ytdl_video(link)
-
-    await callback_query.message.edit_media(
-        InputMediaVideo(
-            media=video_path,
-            caption=info.get("title", ""),
-            parse_mode=ParseMode.MARKDOWN,
-        )
-    )
-    os.remove(video_path)
 
 
 @_bot.on_callback_query(filters=filters.regex("^r_"))
