@@ -1,5 +1,5 @@
 import os
-from app import BOT, Config, Message, bot
+from app import BOT, Config, Message
 from .aicore import ask_ai, MODEL
 from .telegraph import tele_graph
 
@@ -10,7 +10,6 @@ Config.CMD_DICT["ry"] = Config.CMD_DICT["reply"]
 
 @BOT.add_cmd(cmd="ch")
 async def plugin_info(bot: BOT, message: Message):
-
     cmd = message.filtered_input
     cmd_obj = Config.CMD_DICT.get(cmd)
 
@@ -28,8 +27,8 @@ async def plugin_info(bot: BOT, message: Message):
     if "-d" in message.flags:
         load_msg = await response.reply("<code>...</code>")
         title = f"Ainalysis of {plugin}"
-        
-        with open(plugin_path, 'r') as file:
+
+        with open(plugin_path, "r") as file:
             content = file.read()
 
         prompts = (
@@ -38,12 +37,5 @@ async def plugin_info(bot: BOT, message: Message):
             f"redundant code, and areas for improvement.\n\nCode:\n```{content}```"
         )
         analysis = await ask_ai(prompt=prompts, **MODEL["THINK"])
-        
-        await tele_graph(load_msg, title, analysis)
 
-    if "-v" in message.flags:
-        with open(plugin_path, 'r') as file:
-            content = file.read()
-        load_msg = await response.reply("...")
-        title = f"{plugin} code"
-        await tele_graph(load_msg, title, content)
+        await tele_graph(load_msg, title, analysis)
