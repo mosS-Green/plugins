@@ -158,9 +158,10 @@ async def fn_now_playing(user: str, load_msg):
 @_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     ytm_link = callback_query.data[2:]
+    sentence = callback_query.message.text
+    load_msg = await callback_query.edit("<code>...</code>")
 
     audio_path, info = await ytdl_audio(ytm_link)
-    sentence = callback_query.message.text
 
     buttons = [
         InlineKeyboardButton(
@@ -168,13 +169,13 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
         ),
     ]
 
-    await callback_query.message.edit_media(
+    await load_msg.edit_media(
         InputMediaAudio(
             media=audio_path,
         )
     )
 
-    await callback_query.message.edit_caption(
+    await load_msg.edit_caption(
         caption=sentence,
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup([buttons]),
