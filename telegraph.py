@@ -1,8 +1,9 @@
 from pyrogram.enums import ParseMode
-from ub_core.utils.helpers import TELEGRAPH, post_to_telegraph
+from ub_core.utils.helpers import post_to_telegraph  # type: ignore
 
-from app import BOT, Message, bot
+from app import BOT, Message, bot  # type: ignore
 from .aicore import ask_ai, MODEL, run_basic_check
+
 
 async def tele_graph(
     load_msg: Message,
@@ -14,9 +15,7 @@ async def tele_graph(
     page_url = await post_to_telegraph(title, text, author_name, author_url)
 
     await load_msg.edit(
-        f"[{title}]({page_url})",
-        parse_mode=ParseMode.MARKDOWN,
-        disable_preview=True
+        f"[{title}]({page_url})", parse_mode=ParseMode.MARKDOWN, disable_preview=True
     )
 
 
@@ -25,7 +24,7 @@ async def tele_graph(
 async def generate_article(bot: BOT, message: Message):
     reply = message.replied
     content = [message.input]
-        
+
     load_msg = await message.reply("<code>...</code>")
 
     base_prompt = (
@@ -36,7 +35,7 @@ async def generate_article(bot: BOT, message: Message):
         "IMPORTANT - Do not write inside an html code block."
         "IMPORTANT - Do not any give pretext. Immediately start with article."
     )
-    
+
     article_content = await ask_ai(prompt=base_prompt, query=reply, **MODEL["DEFAULT"])
     article = article_content.strip("'")
 
@@ -46,13 +45,12 @@ async def generate_article(bot: BOT, message: Message):
     await tele_graph(load_msg, title, article)
 
 
-
 @bot.add_cmd(cmd="tf")
 @run_basic_check
 async def tf(bot: BOT, message: Message):
     reply = message.replied
     load_msg = await message.reply("<code>...</code>")
-    
+
     if reply and reply.text:
         content = reply
         title = message.input

@@ -3,9 +3,9 @@ import asyncio
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from ub_core import BOT, Message, bot
+from ub_core import BOT, Message, bot  # type: ignore
 
-from .aicore import ask_ai, MODEL
+from .aicore import MODEL, ask_ai
 
 _bot: BOT = bot.bot
 
@@ -47,4 +47,3 @@ async def transcribe(bot: BOT, callback_query: CallbackQuery):
     await _transcribe_with_retry(
         callback_query.message.reply_to_message, callback_query.message
     )
-

@@ -1,34 +1,32 @@
-import yt_dlp
+import yt_dlp  # type: ignore
 import os
 import asyncio
-import re
 import tempfile
 
 from pyrogram.types import InputMediaAudio, InputMediaVideo
-from app import bot, Message
+from app import bot, Message  # type: ignore
 from pyrogram.enums import ParseMode
 
 from .aicore import ask_ai, MODEL, run_basic_check
-from app.plugins.misc.song import extract_link_from_reply
+from app.plugins.misc.song import extract_link_from_reply  # type: ignore
 
 
 def get_ytm_link(song_name: str) -> str:
     ydl_opts = {
-        'quiet': True,
-        'skip_download': True,
-        'extract_flat': True,
-        'format': 'bestaudio/best',
+        "quiet": True,
+        "skip_download": True,
+        "extract_flat": True,
+        "format": "bestaudio/best",
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         search_query = f"ytsearch:{song_name}"
         info = ydl.extract_info(search_query, download=False)
-        if info.get('entries'):
-            video = info['entries'][0]
-            video_id = video.get('id')
+        if info.get("entries"):
+            video = info["entries"][0]
+            video_id = video.get("id")
             if video_id:
                 return f"https://music.youtube.com/watch?v={video_id}"
     return None
-
 
 
 @bot.add_cmd(cmd="yt")
@@ -67,7 +65,7 @@ async def ytm_link(bot, message: Message):
         disable_preview=True,
     )
 
-    if  "-dl" in message.flags:
+    if "-dl" in message.flags:
         message_response.replied = place_holder
         await ytdl_upload(bot, message_response)
 
@@ -82,9 +80,8 @@ async def ytdl_upload(bot, message: Message):
 
     response = await message.reply("<code>Processing...</code>")
 
-
     try:
-        if 'music.youtube.com' in link:
+        if "music.youtube.com" in link:
             filename, info = await ytdl_audio(link)
         else:
             filename, info = await ytdl_video(link)
@@ -93,19 +90,17 @@ async def ytdl_upload(bot, message: Message):
 
     await response.edit("Uploading...")
 
-    if 'music.youtube.com' in link:
+    if "music.youtube.com" in link:
         await response.edit_media(
             InputMediaAudio(
                 media=filename,
             )
         )
-    
+
     else:
         await response.edit_media(
             InputMediaVideo(
-                media=filename,
-                caption=info.get("title", ""),
-                parse_mode=ParseMode.HTML
+                media=filename, caption=info.get("title", ""), parse_mode=ParseMode.HTML
             )
         )
 
@@ -115,11 +110,11 @@ async def ytdl_upload(bot, message: Message):
 @bot.make_async
 def ytdl_video(url: str):
     o = {
-        'format': 'bestvideo[height<=360]+bestaudio/best[height<=360]',
-        'merge_output_format': 'mp4',
-        'outtmpl': os.path.join(tempfile.gettempdir(), '%(title)s.%(ext)s'),
-        'quiet': True,
-        'no_warnings': True,
+        "format": "bestvideo[height<=360]+bestaudio/best[height<=360]",
+        "merge_output_format": "mp4",
+        "outtmpl": os.path.join(tempfile.gettempdir(), "%(title)s.%(ext)s"),
+        "quiet": True,
+        "no_warnings": True,
     }
     with yt_dlp.YoutubeDL(o) as ydl:
         info = ydl.extract_info(url, download=True)
@@ -130,15 +125,17 @@ def ytdl_video(url: str):
 @bot.make_async
 def ytdl_audio(url: str):
     ydl_opts = {
-        'format': 'bestaudio/best',
-        'outtmpl': os.path.join(tempfile.gettempdir(), '%(title)s.%(ext)s'),
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'quiet': True,
-        'no_warnings': True,
+        "format": "bestaudio/best",
+        "outtmpl": os.path.join(tempfile.gettempdir(), "%(title)s.%(ext)s"),
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
+        ],
+        "quiet": True,
+        "no_warnings": True,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)

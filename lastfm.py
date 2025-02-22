@@ -2,8 +2,8 @@ import asyncio
 import json
 import os
 
-import pylast
-from app import Config
+import pylast # type: ignore
+from app import Config # type: ignore
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import (
@@ -13,7 +13,7 @@ from pyrogram.types import (
     InputMediaAudio,
     LinkPreviewOptions,
 )
-from ub_core import BOT, Message, bot
+from ub_core import BOT, Message, bot # type: ignore
 
 from .yt import get_ytm_link, ytdl_audio
 
@@ -163,7 +163,9 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     sentence = callback_query.message.text
 
     buttons = [
-        InlineKeyboardButton(text=":)", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+        InlineKeyboardButton(
+            text=":)", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        ),
     ]
 
     await callback_query.message.edit_media(
