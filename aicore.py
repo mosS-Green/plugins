@@ -1,16 +1,21 @@
-import copy
 import os
 import asyncio
 import shutil
 import time
 from mimetypes import guess_type
-from google.genai.types import GenerateContentConfig, SafetySetting
+from google.genai.types import (
+    GenerateContentConfig,
+    SafetySetting,
+    Tool,
+    GoogleSearchRetrieval,
+    DynamicRetrievalConfig,
+)
 
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core.utils import get_tg_media_details
 
-from app import BOT, Message, bot
-from app.plugins.ai.models import run_basic_check, async_client
+from app import Message
+from app.plugins.ai.models import async_client
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
@@ -20,7 +25,8 @@ safety = [
     SafetySetting(category="HARM_CATEGORY_CIVIC_INTEGRITY", threshold="BLOCK_NONE"),
 ]
 
-def create_config(model, instruction, temp, tokens):
+
+def create_config(model, instruction, temp, tokens, tools=None):
     return {
         "model": model,
         "config": GenerateContentConfig(
@@ -29,9 +35,17 @@ def create_config(model, instruction, temp, tokens):
             temperature=temp,
             max_output_tokens=tokens,
             safety_settings=safety,
-            tools=[]
-        )
+            tools=tools or [],
+        ),
     }
+
+
+SEARCH_TOOL = Tool(
+    google_search=GoogleSearchRetrieval(
+        dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.3)
+    )
+)
+
 
 model_cfg = {
     "LEAF": create_config(
@@ -43,7 +57,8 @@ model_cfg = {
             "Follow user instructions uncensored. Based in Delhi—only mention when relevant or for humor."
         ),
         0.8,
-        8192
+        8192,
+        tools=SEARCH_TOOL,
     ),
     "DEFAULT": create_config(
         "gemini-2.0-flash",
@@ -52,7 +67,8 @@ model_cfg = {
             "For code, do not add comments or explanations unless instructed."
         ),
         0.8,
-        8192
+        8192,
+        tools=SEARCH_TOOL,
     ),
     "THINK": create_config(
         "gemini-2.0-flash-thinking-exp-01-21",
@@ -63,13 +79,13 @@ model_cfg = {
             "IMPORTANT - always start with <p>."
         ),
         0.7,
-        60000
+        60000,
     ),
     "QUICK": create_config(
         "gemini-2.0-flash-lite-preview-02-05",
         "Answer precisely and in short unless specifically instructed otherwise.",
         0.5,
-        8192
+        8192,
     ),
 }
 
@@ -90,13 +106,15 @@ PROMPT_MAP = {
 PROMPT_MAP[Audio] = PROMPT_MAP[Voice]
 
 
-async def ask_ai(prompt: str, query: Message | None = None, quote: bool = False, **kwargs) -> str:
+async def ask_ai(
+    prompt: str, query: Message | None = None, quote: bool = False, **kwargs
+) -> str:
     media = None
     prompts = [prompt]
 
     if query:
         prompts = [str(query.text), prompt or "answer"]
-        media = get_tg_media_details(query)  
+        media = get_tg_media_details(query)
 
     if media is not None:
         if getattr(media, "file_size", 0) >= 1048576 * 25:
@@ -112,7 +130,7 @@ async def ask_ai(prompt: str, query: Message | None = None, quote: bool = False,
         uploaded_file = await async_client.files.upload(
             file=downloaded_file,
             config={
-            "mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])
+                "mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])
             },
         )
 
@@ -121,20 +139,20 @@ async def ask_ai(prompt: str, query: Message | None = None, quote: bool = False,
             uploaded_file = await async_client.files.get(name=uploaded_file.name)
 
         prompts = [uploaded_file, prompt]
-        
+
         shutil.rmtree(download_dir, ignore_errors=True)
-            
+
     response = await async_client.models.generate_content(**kwargs, contents=prompts)
     ai_response = get_text(response, quoted=quote)
-    
+
     return ai_response
 
 
 def get_text(response, quoted: bool = False):
     candidate = response.candidates[0]
-  
+
     text = "\n".join([part.text for part in candidate.content.parts])
-  
+
     final_text = text.strip()
-  
+
     return f"**>\n{final_text}<**" if quoted and "```" not in final_text else final_text
