@@ -175,7 +175,7 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
         )
     )
 
-    await load_msg.edit_caption(
+    await load_msg.message.edit_caption(
         caption=sentence,
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=InlineKeyboardMarkup([buttons]),
