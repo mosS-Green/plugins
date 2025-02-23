@@ -6,13 +6,13 @@ from app import Config  # type: ignore
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import (
-    CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InputMediaAudio,
     LinkPreviewOptions,
 )
 from ub_core import BOT, Message, bot  # type: ignore
+from ub_core.core.types import CallbackQuery
 
 from .yt import get_ytm_link, ytdl_audio
 from datetime import datetime
@@ -22,7 +22,7 @@ _bot: BOT = bot.bot
 API_KEY = None
 API_SECRET = "b6774b62bca666a84545e7ff4976914a"  # this is constant, no need to fetch
 FRENS = {}
-lastfm_network = None
+lastfm_network: pylast.LastFMNetwork | None = None
 
 
 @bot.add_cmd(cmd="fren")
@@ -154,7 +154,7 @@ async def fn_now_playing(user: str, load_msg):
 
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
-        InlineKeyboardButton(text=play_count, callback_data=f"w_{user}"),
+        InlineKeyboardButton(text=play_count),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
 
@@ -164,46 +164,6 @@ async def fn_now_playing(user: str, load_msg):
         link_preview_options=LinkPreviewOptions(is_disabled=True),
         reply_markup=InlineKeyboardMarkup([buttons]),
     )
-
-
-@bot.make_async
-def get_library_count(username: str, what: str) -> int:
-    method = f"library.get{what.capitalize()}"
-    params = {"user": username, "limit": 1}
-    response = lastfm_network.request(method, params)
-    if what in response and "@attr" in response[what]:
-        return int(response[what]["@attr"]["total"])
-    return 0
-
-
-async def lastfm_flex(user: str, load_msg):
-    lastfm_username = FRENS[user]["username"]
-    first_name = FRENS[user]["first_name"]
-
-    try:
-        lastfm_user = pylast.User(lastfm_username, lastfm_network)
-        total_plays = await lastfm_user.get_playcount()
-        total_tracks = await get_library_count(lastfm_username, "tracks")
-        total_albums = await get_library_count(lastfm_username, "albums")
-        total_artists = await get_library_count(lastfm_username, "artists")
-
-        top_tracks_data = await lastfm_user.get_top_tracks()
-        top_tracks_lines = [
-            f"{i + 1}. **{item.item.title}** by *{item.item.artist.name}* ({item.weight} plays)"
-            for i, item in enumerate(top_tracks_data)
-        ]
-        top_tracks_str = "\n".join(top_tracks_lines)
-    except Exception as e:
-        await load_msg.edit(f"Last.fm API error: {e}")
-
-
-    summary = (
-        f"**{first_name}'s Stats**\n\n"
-        f"**Total Plays:** {total_plays}\n"
-        f"**Library:** {total_tracks} Tracks, {total_albums} Albums, {total_artists} Artists\n\n"
-        f"**Top 3 Songs:**\n{top_tracks_str}"
-    )
-    await load_msg.edit(text=summary, parse_mode=ParseMode.MARKDOWN)
 
 
 @_bot.on_callback_query(filters=filters.regex("^y_"))
@@ -240,10 +200,3 @@ async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
     user = callback_query.data[2:]
     load_msg = await callback_query.edit("<code>Refreshing...</code>")
     await fn_now_playing(user, load_msg)
-
-
-@_bot.on_callback_query(filters=filters.regex("^w_"))
-async def handle_what_even(bot: BOT, callback_query: CallbackQuery):
-    user = callback_query.data[2:]
-    load_msg = await callback_query.edit("<code>Flexing...</code>")
-    await lastfm_flex(user, load_msg)
