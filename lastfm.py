@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 
@@ -16,6 +15,7 @@ from pyrogram.types import (
 from ub_core import BOT, Message, bot  # type: ignore
 
 from .yt import get_ytm_link, ytdl_audio
+from datetime import datetime
 
 _bot: BOT = bot.bot
 
@@ -81,13 +81,24 @@ async def lastfm_fetch(username):
                 play_count = c_track.get_userplaycount()
                 is_now_playing = False
                 last_played_timestamp = last_played_item.timestamp
-                last_played_string = f"<t:{int(last_played_timestamp)}:R>"
+                last_played_datetime = datetime.fromtimestamp(
+                    int(last_played_timestamp)
+                )
+                now = datetime.now()
+                time_diff = now - last_played_datetime
+
+                if time_diff.days > 0:
+                    last_played_string = f"{time_diff.days} days ago"
+                elif time_diff.seconds // 3600 > 0:
+                    last_played_string = f"{time_diff.seconds // 3600} hours ago"
+                elif time_diff.seconds // 60 > 0:
+                    last_played_string = f"{time_diff.seconds // 60} minutes ago"
+                else:
+                    last_played_string = "just now"
             else:
                 return {"error": "No track currently playing or recently played."}
 
-        ytm_link = await asyncio.to_thread(
-            get_ytm_link, f"{track_name} by {artist_name}"
-        )
+        ytm_link = await get_ytm_link(f"{track_name} by {artist_name}")
         return {
             "track_name": track_name,
             "artist_name": artist_name,
@@ -127,7 +138,7 @@ async def fn_now_playing(user: str, load_msg):
     track_name = lastfm_data["track_name"]
     artist = lastfm_data["artist_name"]
     is_now_playing = lastfm_data["is_now_playing"]
-    play_count = lastfm_data["play_count"]
+    play_count = f"{lastfm_data['play_count']} plays"
     ytm_link = lastfm_data["ytm_link"]
     last_played_string = lastfm_data["last_played_string"]
 
@@ -143,7 +154,7 @@ async def fn_now_playing(user: str, load_msg):
 
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
-        InlineKeyboardButton(text=f"{play_count} plays", callback_data="w_"),
+        InlineKeyboardButton(text=play_count, callback_data=f"w_{user}"),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
 
@@ -155,43 +166,94 @@ async def fn_now_playing(user: str, load_msg):
     )
 
 
+@bot.make_async
+def get_library_count(username: str, what: str) -> int:
+    method = f"library.get{what.capitalize()}"
+    params = {"user": username, "limit": 1}
+    response = lastfm_network.request(method, params)
+    if what in response and "@attr" in response[what]:
+        return int(response[what]["@attr"]["total"])
+    return 0
+
+
+async def lastfm_flex(user: str, load_msg):
+    try:
+        lastfm_username = FRENS[user]["username"]
+        first_name = FRENS[user]["first_name"]
+
+    except KeyError:
+        return await load_msg.edit("You're not in my records yet!")
+
+    if not lastfm_username:
+        return await load_msg.edit("You haven't set your Last.fm username!")
+
+    try:
+        lastfm_user = pylast.User(lastfm_username, lastfm_network)
+        total_plays = await lastfm_user.get_playcount()
+        total_tracks = await get_library_count(lastfm_username, "tracks")
+        total_albums = await get_library_count(lastfm_username, "albums")
+        total_artists = await get_library_count(lastfm_username, "artists")
+
+        top_tracks_data = await lastfm_user.get_top_tracks(3)
+        top_tracks_lines = [
+            f"{i + 1}. **{item.item.title}** by *{item.item.artist.name}* ({item.weight} plays)"
+            for i, item in enumerate(top_tracks_data)
+        ]
+        top_tracks_str = "\n".join(top_tracks_lines)
+    except pylast.WSError as e:
+        return await load_msg.edit(f"Last.fm API error: {e}")
+    except pylast.NetworkError as e:
+        return await load_msg.edit(f"Network error: {e}")
+    except Exception as e:
+        return await load_msg.edit(f"Unknown error: {e}")
+
+    summary = (
+        f"**{first_name}'s Stats**\n\n"
+        f"**Total Plays:** {total_plays}\n"
+        f"**Library:** {total_tracks} Tracks, {total_albums} Albums, {total_artists} Artists\n\n"
+        f"**Top 3 Songs:**\n{top_tracks_str}"
+    )
+    await load_msg.edit(text=summary, parse_mode=ParseMode.MARKDOWN)
+
+
 @_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     ytm_link = callback_query.data[2:]
     sentence = callback_query.message.text
-    load_msg = await callback_query.edit("<code>...</code>")
+    user = callback_query.reply_markup.inline_keyboard[0][-1].callback_data[2:]
+    play_count = callback_query.reply_markup.inline_keyboard[0][1].text
+
+    await callback_query.edit("<code>abra...</code>")
 
     audio_path, info = await ytdl_audio(ytm_link)
 
     buttons = [
-        InlineKeyboardButton(
-            text=":)", url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        ),
+        InlineKeyboardButton(text=play_count, callback_data=f"w_{user}"),
+        InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
 
-    await load_msg.edit_media(
+    load_msg = await callback_query.edit("<code>kadabra...</code>")
+
+    await load_msg.edit_message_media(
         InputMediaAudio(
             media=audio_path,
+            caption=sentence,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([buttons]),
         )
     )
-
-    await load_msg.message.edit_caption(
-        caption=sentence,
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=InlineKeyboardMarkup([buttons]),
-    )
-
     os.remove(audio_path)
 
 
 @_bot.on_callback_query(filters=filters.regex("^r_"))
 async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
-    await callback_query.answer("Refreshing...")
     user = callback_query.data[2:]
-    load_msg = await callback_query.edit("<code>...</code>")
+    load_msg = await callback_query.edit("<code>Refreshing...</code>")
     await fn_now_playing(user, load_msg)
 
 
-@_bot.on_callback_query(filters=filters.regex("w_"))
+@_bot.on_callback_query(filters=filters.regex("^w_"))
 async def handle_what_even(bot: BOT, callback_query: CallbackQuery):
-    await callback_query.answer("Tu fir aa gaya nirlajj?!")
+    user = callback_query.data[2:]
+    load_msg = await callback_query.edit("<code>Flexing...</code>")
+    await lastfm_flex(user, load_msg)

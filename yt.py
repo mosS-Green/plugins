@@ -1,6 +1,5 @@
 import yt_dlp  # type: ignore
 import os
-import asyncio
 import tempfile
 
 from pyrogram.types import InputMediaAudio, InputMediaVideo
@@ -11,6 +10,7 @@ from .aicore import ask_ai, MODEL, run_basic_check
 from app.plugins.misc.song import extract_link_from_reply  # type: ignore
 
 
+@bot.make_async
 def get_ytm_link(song_name: str) -> str:
     ydl_opts = {
         "quiet": True,
@@ -55,7 +55,7 @@ async def ytm_link(bot, message: Message):
 
     await message_response.edit("<code>......</code>")
 
-    ytm_link_result = await asyncio.to_thread(get_ytm_link, song_name)
+    ytm_link_result = await get_ytm_link(song_name)
     if not ytm_link_result:
         await message_response.edit("No search results found.")
 
