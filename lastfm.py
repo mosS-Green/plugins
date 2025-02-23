@@ -154,7 +154,7 @@ async def fn_now_playing(user: str, load_msg):
 
     buttons = [
         InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
-        InlineKeyboardButton(text=play_count),
+        InlineKeyboardButton(text=play_count, callback_data="nice"),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
 
