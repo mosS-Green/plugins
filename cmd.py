@@ -1,5 +1,5 @@
 import os
-from app import BOT, Config, Message # type: ignore
+from app import BOT, Config, Message  # type: ignore
 from .aicore import ask_ai, MODEL
 from .telegraph import tele_graph
 
@@ -31,12 +31,17 @@ async def plugin_info(bot: BOT, message: Message):
         with open(plugin_path, "r") as file:
             content = file.read()
 
-        prompts = (
-            f"Analyze the following code for errors and suggest optimizations for "
-            f"performance, readability, and efficiency. Highlight potential bugs, "
-            f"redundant code, and areas for improvement.\n\nCode:\n```{content}```"
+        analyze_prompt = (
+            "Analyze the following code for errors and suggest optimizations for "
+            "performance, readability, and efficiency. Highlight potential bugs, "
+            "redundant code, and areas for improvement."
         )
+
+        input = message.filtered_input or analyze_prompt
+        prompts = f"{input}\n\nCode:\n```{content}```"
         analysis = await ask_ai(prompt=prompts, **MODEL["THINK"])
 
         await tele_graph(load_msg, title, analysis)
- # type: ignore
+
+
+# type: ignore

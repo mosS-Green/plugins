@@ -220,8 +220,8 @@ async def lastfm_flex(user: str, load_msg):
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     ytm_link = callback_query.data[2:]
     sentence = callback_query.message.text
-    user = callback_query.reply_markup.inline_keyboard[0][-1].callback_data[2:]
-    play_count = callback_query.reply_markup.inline_keyboard[0][1].text
+    user = callback_query.message.reply_markup.inline_keyboard[0][-1].callback_data[2:]
+    play_count = callback_query.message.reply_markup.inline_keyboard[0][1].text
 
     await callback_query.edit("<code>abra...</code>")
 
