@@ -177,15 +177,8 @@ def get_library_count(username: str, what: str) -> int:
 
 
 async def lastfm_flex(user: str, load_msg):
-    try:
-        lastfm_username = FRENS[user]["username"]
-        first_name = FRENS[user]["first_name"]
-
-    except KeyError:
-        return await load_msg.edit("You're not in my records yet!")
-
-    if not lastfm_username:
-        return await load_msg.edit("You haven't set your Last.fm username!")
+    lastfm_username = FRENS[user]["username"]
+    first_name = FRENS[user]["first_name"]
 
     try:
         lastfm_user = pylast.User(lastfm_username, lastfm_network)
@@ -194,18 +187,15 @@ async def lastfm_flex(user: str, load_msg):
         total_albums = await get_library_count(lastfm_username, "albums")
         total_artists = await get_library_count(lastfm_username, "artists")
 
-        top_tracks_data = await lastfm_user.get_top_tracks(3)
+        top_tracks_data = await lastfm_user.get_top_tracks()
         top_tracks_lines = [
             f"{i + 1}. **{item.item.title}** by *{item.item.artist.name}* ({item.weight} plays)"
             for i, item in enumerate(top_tracks_data)
         ]
         top_tracks_str = "\n".join(top_tracks_lines)
-    except pylast.WSError as e:
-        return await load_msg.edit(f"Last.fm API error: {e}")
-    except pylast.NetworkError as e:
-        return await load_msg.edit(f"Network error: {e}")
     except Exception as e:
-        return await load_msg.edit(f"Unknown error: {e}")
+        await load_msg.edit(f"Last.fm API error: {e}")
+
 
     summary = (
         f"**{first_name}'s Stats**\n\n"
@@ -219,7 +209,7 @@ async def lastfm_flex(user: str, load_msg):
 @_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
     ytm_link = callback_query.data[2:]
-    sentence = callback_query.message.text
+    sentence = callback_query.message.text.markdown
     user = callback_query.message.reply_markup.inline_keyboard[0][-1].callback_data[2:]
     play_count = callback_query.message.reply_markup.inline_keyboard[0][1].text
 
@@ -239,8 +229,8 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
             media=audio_path,
             caption=sentence,
             parse_mode=ParseMode.MARKDOWN,
-            reply_markup=InlineKeyboardMarkup([buttons]),
-        )
+        ),
+        reply_markup=InlineKeyboardMarkup([buttons]),
     )
     os.remove(audio_path)
 
