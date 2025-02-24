@@ -1,8 +1,8 @@
 import json
 import os
+from datetime import datetime
 
 import pylast  # type: ignore
-from app import Config  # type: ignore
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import (
@@ -10,12 +10,16 @@ from pyrogram.types import (
     InlineKeyboardMarkup,
     InputMediaAudio,
     LinkPreviewOptions,
+    InlineQuery,
+    InlineQueryResultArticle,
+    InputTextMessageContent,
+    ChosenInlineResult,
 )
 from ub_core import BOT, Message, bot  # type: ignore
 from ub_core.core.types import CallbackQuery  # type: ignore
 
+from app import Config  # type: ignore
 from .yt import get_ytm_link, ytdl_audio
-from datetime import datetime
 
 _bot: BOT = bot.bot
 
@@ -118,22 +122,12 @@ async def lastfm_fetch(username):
 
 @bot.add_cmd(cmd="st")
 async def sn_now_playing(bot: BOT, message: Message):
-    load_msg = await message.reply("<code>...</code>")
     user = message.from_user.username
-    await fn_now_playing(user, load_msg)
+    await send_now_playing(bot, message, user)
 
 
-async def fn_now_playing(user: str, load_msg):
-    username = FRENS[user]["username"]
-    first_name = FRENS[user]["first_name"]
-
-    if not username:
-        return await load_msg.edit("u fren, no no")
-
+async def parse_lastfm_json(username):
     lastfm_data = await lastfm_fetch(username)
-
-    if "error" in lastfm_data:
-        return await load_msg.edit(lastfm_data["error"])
 
     track_name = lastfm_data["track_name"]
     artist = lastfm_data["artist_name"]
@@ -143,6 +137,34 @@ async def fn_now_playing(user: str, load_msg):
     last_played_string = lastfm_data["last_played_string"]
 
     song = f"**__[{track_name}]({ytm_link})__**"
+    return song, artist, is_now_playing, play_count, ytm_link, last_played_string
+
+
+async def send_now_playing(
+    bot: BOT,
+    update: Message | CallbackQuery | ChosenInlineResult,
+    user: str = None,
+    inline_message_id=None,
+):
+    username = FRENS[user]["username"]
+    first_name = FRENS[user]["first_name"]
+    if not username:
+        return await update.edit("u fren, no no")
+
+    if isinstance(update, Message):
+        load_msg = await update.reply("<code>...</code>")
+    elif isinstance(update, CallbackQuery):
+        load_msg = await update.edit("<code>...</code>")
+    elif isinstance(update, ChosenInlineResult):
+        load_msg = await bot.edit_inline_text(
+            inline_message_id=inline_message_id, text="<code>...</code>"
+        )
+    else:
+        load_msg = None
+
+    song, artist, is_now_playing, play_count, ytm_link, last_played_string = (
+        await parse_lastfm_json(username)
+    )
 
     if is_now_playing:
         vb = "leafing" if first_name == "Leaf" else "vibing"
@@ -157,13 +179,23 @@ async def fn_now_playing(user: str, load_msg):
         InlineKeyboardButton(text=play_count, callback_data="nice"),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
+    markup = InlineKeyboardMarkup([buttons])
 
-    await load_msg.edit(
-        text=sentence,
-        parse_mode=ParseMode.MARKDOWN,
-        link_preview_options=LinkPreviewOptions(is_disabled=True),
-        reply_markup=InlineKeyboardMarkup([buttons]),
-    )
+    if load_msg:  # For command and callback queries, edit the message
+        await load_msg.edit(
+            text=sentence,
+            parse_mode=ParseMode.MARKDOWN,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+            reply_markup=markup,
+        )
+    elif isinstance(update, ChosenInlineResult):  # For inline query, edit inline text
+        await bot.edit_inline_text(
+            inline_message_id=inline_message_id,
+            text=sentence,
+            parse_mode=ParseMode.MARKDOWN,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+            reply_markup=markup,
+        )
 
 
 @_bot.on_callback_query(filters=filters.regex("^y_"))
@@ -198,5 +230,38 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
 @_bot.on_callback_query(filters=filters.regex("^r_"))
 async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
     user = callback_query.data[2:]
-    load_msg = await callback_query.edit("<code>Refreshing...</code>")
-    await fn_now_playing(user, load_msg)
+    if user in FRENS:
+        await send_now_playing(bot, callback_query, user)
+    else:
+        await callback_query.answer("ask Leaf wen?", show_alert=True)
+
+
+@bot.on_inline_query(group=4)
+async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
+    user = inline_query.from_user.username
+    buttons = [InlineKeyboardButton(text="Status", callback_data=f"r_{user}")]
+    if user not in FRENS:
+        result = [
+            InlineQueryResultArticle(
+                title="Ask leaf wen?",
+                input_message_content=InputTextMessageContent("u fren, no no"),
+            )
+        ]
+    else:
+        result = [
+            InlineQueryResultArticle(
+                title="Now Playing",
+                input_message_content=InputTextMessageContent("..."),
+                reply_markup=InlineKeyboardMarkup([buttons]),
+            )
+        ]
+    await inline_query.answer(results=result, cache_time=0, is_personal=True)
+
+
+@bot.on_chosen_inline_result(group=4)
+async def chosen_np_inline(client: BOT, chosen_inline_result: ChosenInlineResult):
+    user = chosen_inline_result.from_user.username
+    inline_message_id = chosen_inline_result.inline_message_id
+    await send_now_playing(
+        client, chosen_inline_result, user, inline_message_id=inline_message_id
+    )
