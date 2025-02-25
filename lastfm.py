@@ -263,5 +263,6 @@ async def chosen_np_inline(client: BOT, chosen_inline_result: ChosenInlineResult
     user = chosen_inline_result.from_user.username
     inline_message_id = chosen_inline_result.inline_message_id
     await bot.edit_inline_text(
-        text=f"{chosen_inline_result}", inline_message_id=inline_message_id
+        text=f"{inline_message_id}\n{chosen_inline_result.result_id}\n{chosen_inline_result.query}",
+        inline_message_id=inline_message_id,
     )
