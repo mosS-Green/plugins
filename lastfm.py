@@ -252,7 +252,7 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
             InlineQueryResultArticle(
                 title="Now Playing",
                 input_message_content=InputTextMessageContent("..."),
-                id=123,
+                id=123
                 reply_markup=InlineKeyboardMarkup([buttons]),
             )
         ]
