@@ -1,14 +1,13 @@
+import yt_dlp  # type: ignore
 import os
 import tempfile
 
-import yt_dlp
-from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaAudio, InputMediaVideo
+from app import bot, Message  # type: ignore
+from pyrogram.enums import ParseMode
 
-from app import Message, bot
-from app.plugins.misc.song import extract_link_from_reply
-
-from .aicore import MODEL, ask_ai, run_basic_check
+from .aicore import ask_ai, MODEL, run_basic_check
+from app.plugins.misc.song import extract_link_from_reply  # type: ignore
 
 
 @bot.make_async

@@ -1,8 +1,6 @@
 import os
-
-from app import BOT, Config, Message
-
-from .aicore import MODEL, ask_ai
+from app import BOT, Config, Message  # type: ignore
+from .aicore import ask_ai, MODEL
 from .telegraph import tele_graph
 
 Config.CMD_DICT["eu"] = Config.CMD_DICT["extupdate"]
@@ -44,3 +42,6 @@ async def plugin_info(bot: BOT, message: Message):
         analysis = await ask_ai(prompt=prompts, **MODEL["THINK"])
 
         await tele_graph(load_msg, title, analysis)
+
+
+# type: ignore
