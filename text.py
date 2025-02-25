@@ -1,7 +1,7 @@
-from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 
-from .aicore import MODEL, ask_ai, run_basic_check
+from app import BOT, Message, bot  # type: ignore
+from .aicore import ask_ai, MODEL, run_basic_check
 from .telegraph import tele_graph
 
 

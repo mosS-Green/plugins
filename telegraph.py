@@ -1,8 +1,8 @@
-from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
-from ub_core.utils.helpers import post_to_telegraph
+from ub_core.utils.helpers import post_to_telegraph  # type: ignore
 
-from .aicore import MODEL, ask_ai, run_basic_check
+from app import BOT, Message, bot  # type: ignore
+from .aicore import ask_ai, MODEL, run_basic_check
 
 
 async def tele_graph(
