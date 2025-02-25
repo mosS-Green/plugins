@@ -181,7 +181,7 @@ async def send_now_playing(
     ]
     markup = InlineKeyboardMarkup([buttons])
 
-    if load_msg:  # For command and callback queries, edit the message
+    if load_msg and (isinstance(update, Message) or isinstance(update, CallbackQuery)):
         await load_msg.edit(
             text=sentence,
             parse_mode=ParseMode.MARKDOWN,
