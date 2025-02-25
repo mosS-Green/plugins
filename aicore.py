@@ -1,21 +1,20 @@
-import os
 import asyncio
+import os
 import shutil
 import time
 from mimetypes import guess_type
-from google.genai.types import ( # type: ignore
+
+from app import Message
+from app.plugins.ai.models import async_client
+from google.genai.types import (
+    DynamicRetrievalConfig,
     GenerateContentConfig,
+    GoogleSearchRetrieval,
     SafetySetting,
     Tool,
-    GoogleSearchRetrieval,
-    DynamicRetrievalConfig,
 )
-
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
-from ub_core.utils import get_tg_media_details # type: ignore
-
-from app import Message # type: ignore
-from app.plugins.ai.models import async_client, run_basic_check # type: ignore
+from ub_core.utils import get_tg_media_details
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),

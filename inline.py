@@ -1,7 +1,6 @@
+from app.plugins.misc.inline_bot_results import run_with_timeout_guard
 from pyrogram.raw.types.messages import BotResults
-from ub_core import BOT, Message # type: ignore
-
-from app.plugins.misc.inline_bot_results import run_with_timeout_guard # type: ignore
+from ub_core import BOT, Message
 
 
 @BOT.add_cmd("dl")
