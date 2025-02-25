@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 
 import pylast
+from app import Config
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import (
@@ -17,8 +18,6 @@ from pyrogram.types import (
 )
 from ub_core import BOT, Message, bot
 from ub_core.core.types import CallbackQuery
-
-from app import Config
 
 from .yt import get_ytm_link, ytdl_audio
 

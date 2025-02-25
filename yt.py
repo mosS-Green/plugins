@@ -2,11 +2,10 @@ import os
 import tempfile
 
 import yt_dlp
-from pyrogram.enums import ParseMode
-from pyrogram.types import InputMediaAudio, InputMediaVideo
-
 from app import Message, bot
 from app.plugins.misc.song import extract_link_from_reply
+from pyrogram.enums import ParseMode
+from pyrogram.types import InputMediaAudio, InputMediaVideo
 
 from .aicore import MODEL, ask_ai, run_basic_check
 
