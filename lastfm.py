@@ -19,7 +19,7 @@ from ub_core import BOT, Message, bot  # type: ignore
 from ub_core.core.types import CallbackQuery  # type: ignore
 
 from app import Config  # type: ignore
-from .yt import get_ytm_link, ytdl_audio
+from app.modules.yt import get_ytm_link, ytdl_audio
 
 _bot: BOT = bot.bot
 
@@ -262,6 +262,6 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
 async def chosen_np_inline(client: BOT, chosen_inline_result: ChosenInlineResult):
     user = chosen_inline_result.from_user.username
     inline_message_id = chosen_inline_result.inline_message_id
-    await send_now_playing(
-        client, chosen_inline_result, user, inline_message_id=inline_message_id
+    await bot.edit_inline_text(
+        text=f"{chosen_inline_result}", inline_message_id=inline_message_id
     )
