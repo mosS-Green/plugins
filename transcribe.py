@@ -3,7 +3,7 @@ import asyncio
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from ub_core import BOT, Message, bot  # type: ignore
+from ub_core import BOT, Message, bot
 
 from .aicore import MODEL, ask_ai
 

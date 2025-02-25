@@ -2,23 +2,24 @@ import json
 import os
 from datetime import datetime
 
-import pylast  # type: ignore
+import pylast
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import (
+    ChosenInlineResult,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    InputMediaAudio,
-    LinkPreviewOptions,
     InlineQuery,
     InlineQueryResultArticle,
+    InputMediaAudio,
     InputTextMessageContent,
-    ChosenInlineResult,
+    LinkPreviewOptions,
 )
-from ub_core import BOT, Message, bot  # type: ignore
-from ub_core.core.types import CallbackQuery  # type: ignore
+from ub_core import BOT, Message, bot
+from ub_core.core.types import CallbackQuery
 
-from app import Config  # type: ignore
+from app import Config
+
 from .yt import get_ytm_link, ytdl_audio
 
 _bot: BOT = bot.bot
