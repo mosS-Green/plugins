@@ -236,7 +236,7 @@ async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
         await callback_query.answer("ask Leaf wen?", show_alert=True)
 
 
-@_bot.on_inline_query(group=4)
+@bot.on_inline_query(group=4)
 async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
     user = inline_query.from_user.username
     buttons = [InlineKeyboardButton(text="Status", callback_data=f"r_{user}")]
@@ -258,7 +258,7 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
     await inline_query.answer(results=result, cache_time=0, is_personal=True)
 
 
-@_bot.on_chosen_inline_result(group=4)
+@bot.on_chosen_inline_result(group=4)
 async def chosen_np_inline(client: BOT, chosen_inline_result: ChosenInlineResult):
     user = chosen_inline_result.from_user.username
     inline_message_id = chosen_inline_result.inline_message_id
