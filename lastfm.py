@@ -252,7 +252,6 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
             InlineQueryResultArticle(
                 title="Now Playing",
                 input_message_content=InputTextMessageContent("..."),
-                id=123
                 reply_markup=InlineKeyboardMarkup([buttons]),
             )
         ]
@@ -262,7 +261,7 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
 @_bot.on_chosen_inline_result(group=4)
 async def chosen_np_inline(client: BOT, chosen_inline_result: ChosenInlineResult):
     user = chosen_inline_result.from_user.username
-    inline_message_id=123
+    inline_message_id = chosen_inline_result.inline_message_id
     await send_now_playing(
         client, chosen_inline_result, user, inline_message_id=inline_message_id
     )
