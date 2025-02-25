@@ -4,8 +4,6 @@ import shutil
 import time
 from mimetypes import guess_type
 
-from app import Message
-from app.plugins.ai.models import async_client
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
@@ -15,6 +13,9 @@ from google.genai.types import (
 )
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core.utils import get_tg_media_details
+
+from app import Message
+from app.plugins.ai.models import async_client
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
