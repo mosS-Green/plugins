@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import datetime
 
 import pylast  # type: ignore
@@ -134,21 +135,23 @@ async def parse_lastfm_json(username):
     return song, artist, is_now_playing, play_count, ytm_link, last_played_string
 
 
-# Modified send_now_playing to work with Message, CallbackQuery, and InlineResult
 async def send_now_playing(
     bot: BOT,
     message: Message | CallbackQuery | InlineResult,
     user: str = None,
 ):
+    if isinstance(message, Message):
+        load_msg = await message.reply("<code>...</code>")
+    else:
+        if isinstance(message, InlineResult):
+            load_msg = await message.edit_text("<code>...</code>")
+        else:
+            load_msg = await message.edit("<code>...</code>")
+
     username = FRENS[user]["username"]
     first_name = FRENS[user]["first_name"]
     if not username:
         await message.reply("ask Leaf wen?")
-
-    if isinstance(message, Message):
-        load_msg = await message.reply("<code>...</code>")
-    else:
-        load_msg = message.edit("<code>...</code>")
 
     song, artist, is_now_playing, play_count, ytm_link, last_played_string = (
         await parse_lastfm_json(username)
@@ -169,12 +172,20 @@ async def send_now_playing(
     ]
     markup = InlineKeyboardMarkup([buttons])
 
-    await load_msg.edit(
-        text=sentence,
-        parse_mode=ParseMode.MARKDOWN,
-        link_preview_options=LinkPreviewOptions(is_disabled=True),
-        reply_markup=markup,
-    )
+    if isinstance(message, InlineResult):
+        await load_msg.edit_text(
+            text=sentence,
+            parse_mode=ParseMode.MARKDOWN,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+            reply_markup=markup,
+        )
+    else:
+        await load_msg.edit(
+            text=sentence,
+            parse_mode=ParseMode.MARKDOWN,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+            reply_markup=markup,
+        )
 
 
 @bot.add_cmd(cmd="st")
@@ -221,7 +232,6 @@ async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
         await callback_query.answer("ask Leaf wen?", show_alert=True)
 
 
-# INLINE QUERY HANDLER (unchanged except for the placeholder message)
 @_bot.on_inline_query(group=4)
 async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
     user = inline_query.from_user.username
@@ -244,9 +254,12 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
     await inline_query.answer(results=result, cache_time=0, is_personal=True)
 
 
-# NEW: Handle the chosen inline result using our InlineResult wrapper.
-@_bot.on_chosen_inline_result(filters=filters.text("Now Playing..."))
-async def chosen_inline_handler(client, chosen_result: InlineResultUpdate):
+def regex_empty_query_filter(_, __, InlineResultUpdate):
+    return re.fullmatch(r"^\s*$", InlineResultUpdate.query) is not None
+
+
+@_bot.on_chosen_inline_result(filters=filters.create(regex_empty_query_filter))
+async def chosen_inline_handler(bot: BOT, chosen_result: InlineResultUpdate):
     inline_result = InlineResult(chosen_result)
     user = inline_result.from_user.username
     await send_now_playing(_bot, inline_result, user)
