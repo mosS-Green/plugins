@@ -1,9 +1,9 @@
 import json
 import os
 import re
+import aiohttp
 from datetime import datetime
 
-import pylast  # type: ignore
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 from pyrogram.types import (
@@ -27,7 +27,7 @@ _bot: BOT = bot.bot
 API_KEY = None
 API_SECRET = "b6774b62bca666a84545e7ff4976914a"  # this is constant, no need to fetch
 FRENS = {}
-lastfm_network: pylast.LastFMNetwork | None = None
+BASE_URL = "http://ws.audioscrobbler.com/2.0/"
 
 
 @bot.add_cmd(cmd="fren")
@@ -35,87 +35,99 @@ async def init_task(bot=bot, message=None):
     msgs = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=[4027, 4025])
     lastfm_names, apikey_msg = msgs
 
-    global FRENS, API_KEY, lastfm_network
+    global FRENS, API_KEY
     FRENS = json.loads(lastfm_names.text)
     API_KEY = apikey_msg.text.strip()
-
-    if API_KEY:
-        lastfm_network = pylast.LastFMNetwork(
-            api_key=API_KEY,
-            api_secret=API_SECRET,
-        )
 
     if message is not None:
         await message.reply("Done.", del_in=2)
 
 
 async def lastfm_fetch(username):
-    """Fetches Last.fm data for a given username using pylast."""
-    if not lastfm_network:
+    """Fetches Last.fm data for a given username using the Last.fm API directly."""
+    if not API_KEY:
         return {"error": "Last.fm API key not initialized."}
+
     try:
-        user = pylast.User(username, lastfm_network)
-        now_playing = user.get_now_playing()
+        async with aiohttp.ClientSession() as session:
+            # First check what the user is currently playing
+            params = {
+                "method": "user.getrecenttracks",
+                "user": username,
+                "api_key": API_KEY,
+                "format": "json",
+                "limit": 1,
+            }
 
-        if now_playing:
-            track = now_playing
-            artist_name = track.artist.name
-            track_name = track.title
-            c_track = pylast.Track(
-                artist=artist_name,
-                title=track_name,
-                network=lastfm_network,
-                username=username,
-            )
-            play_count = c_track.get_userplaycount()
-            is_now_playing = True
-            last_played_string = None
-        else:
-            recent_tracks = user.get_recent_tracks(limit=1)
-            if recent_tracks:
-                last_played_item = recent_tracks[0]  # Get the pylast.PlayedTrack object
-                track = last_played_item.track  # Get the pylast.Track object
-                artist_name = track.artist.name
-                track_name = track.title
-                c_track = pylast.Track(
-                    artist=artist_name,
-                    title=track_name,
-                    network=lastfm_network,
-                    username=username,
+            async with session.get(BASE_URL, params=params) as response:
+                if response.status != 200:
+                    return {"error": f"Last.fm API Error: HTTP {response.status}"}
+
+                data = await response.json()
+
+                if "error" in data:
+                    return {"error": f"Last.fm API Error: {data['message']}"}
+
+                track_list = data.get("recenttracks", {}).get("track", [])
+                if not track_list:
+                    return {"error": "No track currently playing or recently played."}
+
+                track = track_list[0]
+                is_now_playing = (
+                    "@attr" in track and track["@attr"].get("nowplaying") == "true"
                 )
-                play_count = c_track.get_userplaycount()
-                is_now_playing = False
-                last_played_timestamp = last_played_item.timestamp
-                last_played_datetime = datetime.fromtimestamp(
-                    int(last_played_timestamp)
-                )
-                now = datetime.now()
-                time_diff = now - last_played_datetime
+                artist_name = track["artist"]["#text"]
+                track_name = track["name"]
 
-                if time_diff.days > 0:
-                    last_played_string = f"{time_diff.days} days ago"
-                elif time_diff.seconds // 3600 > 0:
-                    last_played_string = f"{time_diff.seconds // 3600} hours ago"
-                elif time_diff.seconds // 60 > 0:
-                    last_played_string = f"{time_diff.seconds // 60} minutes ago"
-                else:
-                    last_played_string = "just now"
-            else:
-                return {"error": "No track currently playing or recently played."}
+                # Get play count for this track
+                params = {
+                    "method": "track.getInfo",
+                    "api_key": API_KEY,
+                    "artist": artist_name,
+                    "track": track_name,
+                    "username": username,
+                    "format": "json",
+                }
 
-        ytm_link = await get_ytm_link(f"{track_name} by {artist_name}")
-        return {
-            "track_name": track_name,
-            "artist_name": artist_name,
-            "is_now_playing": is_now_playing,
-            "play_count": play_count,
-            "ytm_link": ytm_link,
-            "last_played_string": last_played_string,
-        }
+                async with session.get(BASE_URL, params=params) as track_response:
+                    if track_response.status != 200:
+                        play_count = "0"  # Default if we can't fetch play count
+                    else:
+                        track_data = await track_response.json()
+                        if "error" in track_data:
+                            play_count = "0"
+                        else:
+                            play_count = track_data.get("track", {}).get(
+                                "userplaycount", "0"
+                            )
 
-    except pylast.WSError as e:
-        return {"error": f"Last.fm API Error: {e}"}
-    except pylast.NetworkError as e:
+                last_played_string = None
+                if not is_now_playing and "date" in track:
+                    last_played_timestamp = int(track["date"]["uts"])
+                    last_played_datetime = datetime.fromtimestamp(last_played_timestamp)
+                    now = datetime.now()
+                    time_diff = now - last_played_datetime
+
+                    if time_diff.days > 0:
+                        last_played_string = f"{time_diff.days} days ago"
+                    elif time_diff.seconds // 3600 > 0:
+                        last_played_string = f"{time_diff.seconds // 3600} hours ago"
+                    elif time_diff.seconds // 60 > 0:
+                        last_played_string = f"{time_diff.seconds // 60} minutes ago"
+                    else:
+                        last_played_string = "just now"
+
+                ytm_link = await get_ytm_link(f"{track_name} by {artist_name}")
+                return {
+                    "track_name": track_name,
+                    "artist_name": artist_name,
+                    "is_now_playing": is_now_playing,
+                    "play_count": play_count,
+                    "ytm_link": ytm_link,
+                    "last_played_string": last_played_string,
+                }
+
+    except aiohttp.ClientError as e:
         return {"error": f"Network Error: {e}"}
     except Exception as e:
         return {"error": f"Unknown error: {e}"}
@@ -123,6 +135,9 @@ async def lastfm_fetch(username):
 
 async def parse_lastfm_json(username):
     lastfm_data = await lastfm_fetch(username)
+
+    if "error" in lastfm_data:
+        return None, None, None, None, None, None
 
     track_name = lastfm_data["track_name"]
     artist = lastfm_data["artist_name"]
@@ -148,14 +163,31 @@ async def send_now_playing(
         else:
             load_msg = await message.edit("<code>...</code>")
 
+    if user not in FRENS:
+        if isinstance(message, InlineResult):
+            await load_msg.edit_text("ask Leaf wen?")
+        else:
+            await load_msg.edit("ask Leaf wen?")
+        return
+
     username = FRENS[user]["username"]
     first_name = FRENS[user]["first_name"]
     if not username:
-        await message.reply("ask Leaf wen?")
+        if isinstance(message, InlineResult):
+            await load_msg.edit_text("ask Leaf wen?")
+        else:
+            await load_msg.edit("ask Leaf wen?")
+        return
 
-    song, artist, is_now_playing, play_count, ytm_link, last_played_string = (
-        await parse_lastfm_json(username)
-    )
+    parsed_data = await parse_lastfm_json(username)
+    if not parsed_data[0]:  # Check if parsing returned None
+        if isinstance(message, InlineResult):
+            await load_msg.edit_text(f"Error fetching data for {username}")
+        else:
+            await load_msg.edit(f"Error fetching data for {username}")
+        return
+
+    song, artist, is_now_playing, play_count, ytm_link, last_played_string = parsed_data
 
     if is_now_playing:
         vb = "leafing" if first_name == "Leaf" else "vibing"
@@ -165,8 +197,11 @@ async def send_now_playing(
         if last_played_string:
             sentence += f" ({last_played_string})"
 
+    # Create a normal ytm link callback to maintain compatibility with the existing filter
+    ytm_callback = f"y_{ytm_link}|{user}|{play_count}"
+
     buttons = [
-        InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
+        InlineKeyboardButton(text="♫", callback_data=ytm_callback),
         InlineKeyboardButton(text=play_count, callback_data="nice"),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
@@ -196,10 +231,17 @@ async def sn_now_playing(bot: BOT, message: Message):
 
 @_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
-    ytm_link = callback_query.data[2:]
+    # Extract data from the callback using simple parsing
+    callback_data = callback_query.data
+    parts = callback_data[2:].split("|")
+
+    # Parse the parts
+    ytm_link = parts[0]
+    user = parts[1]
+    play_count = parts[2]
+
+    # Get the sentence from the message
     sentence = callback_query.message.text.markdown if callback_query.message else ""
-    user = callback_query.message.reply_markup.inline_keyboard[0][-1].callback_data[2:]
-    play_count = callback_query.message.reply_markup.inline_keyboard[0][1].text
 
     await callback_query.edit("<code>abra...</code>")
 
