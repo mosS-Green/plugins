@@ -155,36 +155,22 @@ async def send_now_playing(
     message: Message | CallbackQuery | InlineResult,
     user: str = None,
 ):
-    if isinstance(message, Message):
-        load_msg = await message.reply("<code>...</code>")
-    else:
-        if isinstance(message, InlineResult):
-            load_msg = await message.edit_text("<code>...</code>")
-        else:
-            load_msg = await message.edit("<code>...</code>")
+    # Use .reply for all message types
+    load_msg = await message.reply("<code>...</code>")
 
     if user not in FRENS:
-        if isinstance(message, InlineResult):
-            await load_msg.edit_text("ask Leaf wen?")
-        else:
-            await load_msg.edit("ask Leaf wen?")
+        await load_msg.edit("ask Leaf wen?")
         return
 
     username = FRENS[user]["username"]
     first_name = FRENS[user]["first_name"]
     if not username:
-        if isinstance(message, InlineResult):
-            await load_msg.edit_text("ask Leaf wen?")
-        else:
-            await load_msg.edit("ask Leaf wen?")
+        await load_msg.edit("ask Leaf wen?")
         return
 
     parsed_data = await parse_lastfm_json(username)
     if not parsed_data[0]:  # Check if parsing returned None
-        if isinstance(message, InlineResult):
-            await load_msg.edit_text(f"Error fetching data for {username}")
-        else:
-            await load_msg.edit(f"Error fetching data for {username}")
+        await load_msg.edit(f"Error fetching data for {username}")
         return
 
     song, artist, is_now_playing, play_count, ytm_link, last_played_string = parsed_data
@@ -197,30 +183,19 @@ async def send_now_playing(
         if last_played_string:
             sentence += f" ({last_played_string})"
 
-    # Create a normal ytm link callback to maintain compatibility with the existing filter
-    ytm_callback = f"y_{ytm_link}|{user}|{play_count}"
-
     buttons = [
-        InlineKeyboardButton(text="♫", callback_data=ytm_callback),
+        InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
         InlineKeyboardButton(text=play_count, callback_data="nice"),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
     ]
     markup = InlineKeyboardMarkup([buttons])
 
-    if isinstance(message, InlineResult):
-        await load_msg.edit_text(
-            text=sentence,
-            parse_mode=ParseMode.MARKDOWN,
-            link_preview_options=LinkPreviewOptions(is_disabled=True),
-            reply_markup=markup,
-        )
-    else:
-        await load_msg.edit(
-            text=sentence,
-            parse_mode=ParseMode.MARKDOWN,
-            link_preview_options=LinkPreviewOptions(is_disabled=True),
-            reply_markup=markup,
-        )
+    await load_msg.edit(
+        text=sentence,
+        parse_mode=ParseMode.MARKDOWN,
+        link_preview_options=LinkPreviewOptions(is_disabled=True),
+        reply_markup=markup,
+    )
 
 
 @bot.add_cmd(cmd="st")
@@ -231,17 +206,10 @@ async def sn_now_playing(bot: BOT, message: Message):
 
 @_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
-    # Extract data from the callback using simple parsing
-    callback_data = callback_query.data
-    parts = callback_data[2:].split("|")
-
-    # Parse the parts
-    ytm_link = parts[0]
-    user = parts[1]
-    play_count = parts[2]
-
-    # Get the sentence from the message
+    ytm_link = callback_query.data[2:]
     sentence = callback_query.message.text.markdown if callback_query.message else ""
+    user = callback_query.message.reply_markup.inline_keyboard[0][-1].callback_data[2:]
+    play_count = callback_query.message.reply_markup.inline_keyboard[0][1].text
 
     await callback_query.edit("<code>abra...</code>")
 
