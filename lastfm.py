@@ -31,7 +31,7 @@ API_SECRET = "b6774b62bca666a84545e7ff4976914a"  # this is constant, no need to 
 
 
 @bot.add_cmd(cmd="fren")
-async def init_task(_, message=None):
+async def init_task(_=bot, message=None):
     async for u in LASTFM_DB.find():
         FRENS.add(u["_id"])
 
