@@ -1,21 +1,23 @@
-import os
 import asyncio
+import os
 import shutil
 import time
 from mimetypes import guess_type
-from google.genai.types import ( # type: ignore
+
+from google.genai.types import (
+    DynamicRetrievalConfig,
     GenerateContentConfig,
+    GoogleSearchRetrieval,
     SafetySetting,
     Tool,
-    GoogleSearchRetrieval,
-    DynamicRetrievalConfig,
 )
-
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
-from ub_core.utils import get_tg_media_details # type: ignore
+from ub_core import Message
+from ub_core.utils import get_tg_media_details
 
-from app import Message # type: ignore
-from app.plugins.ai.models import async_client, run_basic_check # type: ignore
+# isort: skip
+# noinspection PyUnresolvedReferences
+from app.plugins.ai.models import async_client, get_response_text, run_basic_check
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
@@ -47,7 +49,7 @@ SEARCH_TOOL = Tool(
 )
 
 
-model_cfg = {
+MODEL = {
     "LEAF": create_config(
         "gemini-2.0-flash",
         (
@@ -91,8 +93,6 @@ model_cfg = {
     ),
 }
 
-MODEL = model_cfg
-
 
 PROMPT_MAP = {
     Video: "Summarize video and audio from the file",
@@ -109,7 +109,11 @@ PROMPT_MAP[Audio] = PROMPT_MAP[Voice]
 
 
 async def ask_ai(
-    prompt: str, query: Message | None = None, quote: bool = False, **kwargs
+    prompt: str,
+    query: Message | None = None,
+    quote: bool = False,
+    add_sources: bool = False,
+    **kwargs
 ) -> str:
     media = None
     prompts = [prompt]
@@ -144,17 +148,7 @@ async def ask_ai(
 
         shutil.rmtree(download_dir, ignore_errors=True)
 
-    response = await async_client.models.generate_content(**kwargs, contents=prompts)
-    ai_response = get_text(response, quoted=quote)
+    response = await async_client.models.generate_content(contents=prompts, **kwargs)
+    ai_response = get_response_text(response, quoted=quote, add_sources=add_sources)
 
     return ai_response
-
-
-def get_text(response, quoted: bool = False):
-    candidate = response.candidates[0]
-
-    text = "\n".join([part.text for part in candidate.content.parts])
-
-    final_text = text.strip()
-
-    return f"**>\n{final_text}<**" if quoted and "```" not in final_text else final_text

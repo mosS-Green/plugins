@@ -1,17 +1,18 @@
-import yt_dlp  # type: ignore
 import os
 import tempfile
 
-from pyrogram.types import InputMediaAudio, InputMediaVideo
-from app import bot, Message  # type: ignore
+import yt_dlp
 from pyrogram.enums import ParseMode
+from pyrogram.types import InputMediaAudio, InputMediaVideo
 
-from .aicore import ask_ai, MODEL, run_basic_check
-from app.plugins.misc.song import extract_link_from_reply  # type: ignore
+from app import Message, bot
+from app.plugins.misc.song import extract_link_from_reply
+
+from .aicore import MODEL, ask_ai, run_basic_check
 
 
 @bot.make_async
-def get_ytm_link(song_name: str) -> str:
+def get_ytm_link(song_name: str) -> str | None:
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
@@ -55,9 +56,12 @@ async def ytm_link(bot, message: Message):
 
     await message_response.edit("<code>......</code>")
 
+    # noinspection PyUnresolvedReferences
     ytm_link_result = await get_ytm_link(song_name)
+
     if not ytm_link_result:
         await message_response.edit("No search results found.")
+        return
 
     place_holder = await message_response.edit(
         f"__[{song_name}]({ytm_link_result})__",

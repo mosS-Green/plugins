@@ -1,6 +1,8 @@
 import os
-from app import BOT, Config, Message  # type: ignore
-from .aicore import ask_ai, MODEL
+
+from app import BOT, Config, Message
+
+from .aicore import MODEL, ask_ai
 from .telegraph import tele_graph
 
 Config.CMD_DICT["eu"] = Config.CMD_DICT["extupdate"]
@@ -13,7 +15,11 @@ async def plugin_info(bot: BOT, message: Message):
     cmd = message.filtered_input
     cmd_obj = Config.CMD_DICT.get(cmd)
 
-    plugin_path = os.path.relpath(cmd_obj.cmd_path, os.curdir)
+    if not cmd_obj:
+        await message.reply("cmd not found", del_in=8)
+        return
+
+    plugin_path = os.path.relpath(cmd_obj.cmd_path, os.path.curdir)
     plugin = os.path.basename(plugin_path)
     repo = os.environ.get("EXTRA_MODULES_REPO")
     branch = "main"
@@ -42,6 +48,3 @@ async def plugin_info(bot: BOT, message: Message):
         analysis = await ask_ai(prompt=prompts, **MODEL["THINK"])
 
         await tele_graph(load_msg, title, analysis)
-
-
-# type: ignore

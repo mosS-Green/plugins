@@ -1,7 +1,4 @@
-import json
 import os
-import re
-import aiohttp
 from datetime import datetime
 
 from pyrogram import filters
@@ -9,185 +6,264 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    InputMediaAudio,
-    LinkPreviewOptions,
     InlineQuery,
     InlineQueryResultArticle,
+    InputMediaAudio,
     InputTextMessageContent,
-    ChosenInlineResult as InlineResultUpdate,  # used by our InlineResult wrapper
+    LinkPreviewOptions,
+    User,
 )
-from ub_core import BOT, Message, bot  # type: ignore
-from ub_core.core.types import CallbackQuery, InlineResult  # type: ignore
+from ub_core import BOT, CustomDB, Message, bot
+from ub_core.core.types import CallbackQuery, InlineResult
+from ub_core.utils import aio, extract_user_data
 
-from app import Config  # type: ignore
-from app.modules.yt import get_ytm_link, ytdl_audio
+from .yt import get_ytm_link, ytdl_audio
 
 _bot: BOT = bot.bot
 
-API_KEY = None
-API_SECRET = "b6774b62bca666a84545e7ff4976914a"  # this is constant, no need to fetch
-FRENS = {}
+LASTFM_DB = CustomDB("lastfm_users")
+FRENS = set()
+INLINE_CACHE: set[int] = set()
+
 BASE_URL = "http://ws.audioscrobbler.com/2.0/"
+API_KEY = os.getenv("LASTFM_KEY")
+API_SECRET = "b6774b62bca666a84545e7ff4976914a"  # this is constant, no need to fetch
 
 
 @bot.add_cmd(cmd="fren")
-async def init_task(bot=bot, message=None):
-    msgs = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=[4027, 4025])
-    lastfm_names, apikey_msg = msgs
-
-    global FRENS, API_KEY
-    FRENS = json.loads(lastfm_names.text)
-    API_KEY = apikey_msg.text.strip()
+async def init_task(_, message=None):
+    async for u in LASTFM_DB.find():
+        FRENS.add(u["_id"])
 
     if message is not None:
         await message.reply("Done.", del_in=2)
 
 
-async def lastfm_fetch(username):
+@bot.add_cmd(cmd="afren")
+async def add_fren(bot: BOT, message: Message):
+    response = await message.reply("Extracting User info...")
+
+    user, lastfm_username = await message.extract_user_n_reason()
+
+    if not isinstance(user, User):
+        await response.edit("unable to extract user info.")
+        return
+
+    if not lastfm_username:
+        await response.edit("LasfFM username not found.")
+        return
+
+    await LASTFM_DB.add_data(
+        {"_id": user.id, **extract_user_data(user), "lastfm_username": lastfm_username}
+    )
+    FRENS.add(user.id)
+    await response.edit(f"#LASTFM\n{user.mention} added to approved List.")
+    await response.log()
+
+
+@bot.add_cmd(cmd="dfren")
+async def add_fren(bot: BOT, message: Message):
+    response = await message.reply("Extracting User info...")
+
+    user, _ = await message.extract_user_n_reason()
+
+    if isinstance(user, User):
+        user_id = user.id
+        name = user.first_name
+    else:
+        user_id = int(message.input.strip())
+        name = user_id
+
+    FRENS.discard(user_id)
+
+    deleted = await LASTFM_DB.delete_data(id=user_id)
+
+    if deleted:
+        resp_str = f"{name} no longer fren."
+    else:
+        resp_str = f"{name} already not a fren."
+
+    await response.edit(resp_str)
+    if deleted:
+        await response.log()
+
+
+@bot.add_cmd(cmd="vfren")
+async def add_fren(bot: BOT, message: Message):
+    output: str = ""
+    total = 0
+
+    async for user in LASTFM_DB.find():
+        total += 1
+        output += f'\n<b>• {user["name"]}</b>'
+
+        if "-id" in message.flags:
+            output += f'\n  ID: <code>{user["_id"]}</code>'
+
+    if not total:
+        await message.reply("You don't have any FRENS.")
+        return
+
+    output: str = f"List of <b>{total}</b> FRENS:\n{output}"
+    await message.reply(output, del_in=30, block=True)
+
+
+async def fetch_track_list(username: str) -> str | list[dict]:
+    response_data = await aio.get_json(
+        url=BASE_URL,
+        params={
+            "method": "user.getrecenttracks",
+            "user": username,
+            "api_key": API_KEY,
+            "format": "json",
+            "limit": 1,
+        },
+    )
+
+    if not response_data:
+        return "failed to fetch information"
+
+    if "error" in response_data:
+        return f"Last.fm API Error: {response_data['message']}"
+
+    return response_data.get("recenttracks", {}).get("track", [])
+
+
+async def fetch_song_play_count(artist: str, track: str, username: str) -> int:
+    params = {
+        "method": "track.getInfo",
+        "api_key": API_KEY,
+        "artist": artist,
+        "track": track,
+        "username": username,
+        "format": "json",
+    }
+    response = await aio.get_json(url=BASE_URL, params=params)
+
+    if not isinstance(response, dict) or "error" in response:
+        return 0
+
+    return response.get("track", {}).get("userplaycount", 0)
+
+
+def format_time(date_time: datetime) -> str:
+    now = datetime.now()
+    time_diff = now - date_time
+    if time_diff.days > 0:
+        return f"{time_diff.days} days ago"
+    elif time_diff.seconds // 3600 > 0:
+        return f"{time_diff.seconds // 3600} hours ago"
+    elif time_diff.seconds // 60 > 0:
+        return f"{time_diff.seconds // 60} minutes ago"
+    else:
+        return "just now"
+
+
+async def get_now_playing_track(username) -> dict[str, str] | str:
     """Fetches Last.fm data for a given username using the Last.fm API directly."""
     if not API_KEY:
-        return {"error": "Last.fm API key not initialized."}
+        return "Last.fm API key not initialized."
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            # First check what the user is currently playing
-            params = {
-                "method": "user.getrecenttracks",
-                "user": username,
-                "api_key": API_KEY,
-                "format": "json",
-                "limit": 1,
-            }
+    track_list = await fetch_track_list(username=username)
 
-            async with session.get(BASE_URL, params=params) as response:
-                if response.status != 200:
-                    return {"error": f"Last.fm API Error: HTTP {response.status}"}
+    if isinstance(track_list, str):
+        return track_list
 
-                data = await response.json()
+    track_info: dict = track_list[0]
+    is_now_playing = track_info.get("@attr", {}).get("nowplaying") == "true"
+    artist_name = track_info["artist"]["#text"]
+    track_name = track_info["name"]
+    play_count = await fetch_song_play_count(
+        artist=artist_name, track=track_name, username=username
+    )
 
-                if "error" in data:
-                    return {"error": f"Last.fm API Error: {data['message']}"}
+    if not is_now_playing and "date" in track_info:
+        last_played_time = format_time(
+            datetime.fromtimestamp(int(track_info["date"]["uts"]))
+        )
+    else:
+        last_played_time = ""
 
-                track_list = data.get("recenttracks", {}).get("track", [])
-                if not track_list:
-                    return {"error": "No track currently playing or recently played."}
+    # noinspection PyUnresolvedReferences
+    ytm_link = await get_ytm_link(f"{track_name} by {artist_name}")
 
-                track = track_list[0]
-                is_now_playing = (
-                    "@attr" in track and track["@attr"].get("nowplaying") == "true"
-                )
-                artist_name = track["artist"]["#text"]
-                track_name = track["name"]
-
-                # Get play count for this track
-                params = {
-                    "method": "track.getInfo",
-                    "api_key": API_KEY,
-                    "artist": artist_name,
-                    "track": track_name,
-                    "username": username,
-                    "format": "json",
-                }
-
-                async with session.get(BASE_URL, params=params) as track_response:
-                    if track_response.status != 200:
-                        play_count = "0"  # Default if we can't fetch play count
-                    else:
-                        track_data = await track_response.json()
-                        if "error" in track_data:
-                            play_count = "0"
-                        else:
-                            play_count = track_data.get("track", {}).get(
-                                "userplaycount", "0"
-                            )
-
-                last_played_string = None
-                if not is_now_playing and "date" in track:
-                    last_played_timestamp = int(track["date"]["uts"])
-                    last_played_datetime = datetime.fromtimestamp(last_played_timestamp)
-                    now = datetime.now()
-                    time_diff = now - last_played_datetime
-
-                    if time_diff.days > 0:
-                        last_played_string = f"{time_diff.days} days ago"
-                    elif time_diff.seconds // 3600 > 0:
-                        last_played_string = f"{time_diff.seconds // 3600} hours ago"
-                    elif time_diff.seconds // 60 > 0:
-                        last_played_string = f"{time_diff.seconds // 60} minutes ago"
-                    else:
-                        last_played_string = "just now"
-
-                ytm_link = await get_ytm_link(f"{track_name} by {artist_name}")
-                return {
-                    "track_name": track_name,
-                    "artist_name": artist_name,
-                    "is_now_playing": is_now_playing,
-                    "play_count": play_count,
-                    "ytm_link": ytm_link,
-                    "last_played_string": last_played_string,
-                }
-
-    except aiohttp.ClientError as e:
-        return {"error": f"Network Error: {e}"}
-    except Exception as e:
-        return {"error": f"Unknown error: {e}"}
+    return {
+        "song_href_html": f"<b><i><a href='{ytm_link}'>{track_name}</a></b></i>",
+        "song_href_md": f"**__[{track_name}]({ytm_link})__**",
+        "track_name": track_name,
+        "artist_name": artist_name,
+        "is_now_playing": is_now_playing,
+        "play_count": play_count,
+        "ytm_link": ytm_link,
+        "last_played_time": last_played_time,
+    }
 
 
-async def parse_lastfm_json(username):
-    lastfm_data = await lastfm_fetch(username)
-
-    if "error" in lastfm_data:
-        return None, None, None, None, None, None
-
-    track_name = lastfm_data["track_name"]
-    artist = lastfm_data["artist_name"]
-    is_now_playing = lastfm_data["is_now_playing"]
-    play_count = f"{lastfm_data['play_count']} plays"
-    ytm_link = lastfm_data["ytm_link"]
-    last_played_string = lastfm_data["last_played_string"]
-
-    song = f"**__[{track_name}]({ytm_link})__**"
-    return song, artist, is_now_playing, play_count, ytm_link, last_played_string
+async def get_fren_info(user_id) -> dict:
+    return await LASTFM_DB.find_one({"_id": user_id}) or {}
 
 
+@bot.add_cmd(cmd="st")
+@_bot.on_chosen_inline_result(
+    filters=filters.create(
+        lambda _, __, u: u.from_user and u.from_user.id in INLINE_CACHE
+    )
+)
 async def send_now_playing(
     bot: BOT,
-    message: Message | CallbackQuery | InlineResult,
-    user: str = None,
+    update: Message | CallbackQuery | InlineResult,
+    user_id: int = None,
 ):
-    # Use .reply for all message types
-    load_msg = await message.reply("<code>...</code>")
+    user_id = user_id or update.from_user.id
 
-    if user not in FRENS:
-        await load_msg.edit("ask Leaf wen?")
+    if user_id not in FRENS:
+        if isinstance(update, CallbackQuery):
+            await update.answer(text="ask Leaf wen?", show_alert=True)
+        else:
+            await update.reply("ask Leaf wen?")
         return
 
-    username = FRENS[user]["username"]
-    first_name = FRENS[user]["first_name"]
-    if not username:
-        await load_msg.edit("ask Leaf wen?")
+    INLINE_CACHE.discard(user_id)
+
+    load_msg = await update.reply("<code>...</code>")
+
+    fren_info = await get_fren_info(user_id)
+    username = fren_info["lastfm_username"]
+    first_name = fren_info["name"]
+
+    parsed_data = await get_now_playing_track(username)
+
+    if isinstance(parsed_data, str):
+        await load_msg.edit(parsed_data)
         return
 
-    parsed_data = await parse_lastfm_json(username)
-    if not parsed_data[0]:  # Check if parsing returned None
-        await load_msg.edit(f"Error fetching data for {username}")
-        return
+    action_name = "leafing" if first_name == "Leaf" else "vibing"
+    action_type = "is" if parsed_data["is_now_playing"] else "was"
+    sentence = (
+        f"{first_name} "
+        f"{action_type} "
+        f"{action_name} "
+        f"to {parsed_data['song_href_md']} "
+        f"by __{parsed_data['artist_name']}__."
+    )
 
-    song, artist, is_now_playing, play_count, ytm_link, last_played_string = parsed_data
+    if parsed_data["last_played_time"]:
+        sentence += f" ({parsed_data['last_played_time']})"
 
-    if is_now_playing:
-        vb = "leafing" if first_name == "Leaf" else "vibing"
-        sentence = f"{first_name} is {vb} to {song} by __{artist}__."
-    else:
-        sentence = f"{first_name} last listened to {song} by __{artist}__."
-        if last_played_string:
-            sentence += f" ({last_played_string})"
+    try:
+        yt_shortcode = parsed_data["ytm_link"].split("=")[1]
+    except IndexError:
+        yt_shortcode = ""
 
     buttons = [
-        InlineKeyboardButton(text="♫", callback_data=f"y_{ytm_link}"),
-        InlineKeyboardButton(text=play_count, callback_data="nice"),
-        InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
+        InlineKeyboardButton(
+            text="♫",
+            callback_data=f"y_{yt_shortcode}|{parsed_data['play_count']}|{user_id}",
+        ),
+        InlineKeyboardButton(text=parsed_data["play_count"], callback_data="nice"),
+        InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
     ]
+
     markup = InlineKeyboardMarkup([buttons])
 
     await load_msg.edit(
@@ -198,35 +274,30 @@ async def send_now_playing(
     )
 
 
-@bot.add_cmd(cmd="st")
-async def sn_now_playing(bot: BOT, message: Message):
-    user = message.from_user.username
-    await send_now_playing(bot, message, user)
-
-
 @_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
-    ytm_link = callback_query.data[2:]
-    sentence = callback_query.message.text.markdown if callback_query.message else ""
-    user = callback_query.message.reply_markup.inline_keyboard[0][-1].callback_data[2:]
-    play_count = callback_query.message.reply_markup.inline_keyboard[0][1].text
-
     await callback_query.edit("<code>abra...</code>")
 
-    audio_path, info = await ytdl_audio(ytm_link)
+    shortcode, play_count, user_id = callback_query.data[2:].split("|")
+
+    caption = callback_query.message.text.html if callback_query.message else None
+
+    audio_path, info = await ytdl_audio(
+        f"https://music.youtube.com/watch?v={shortcode}"
+    )
+
+    await callback_query.edit("<code>kadabra...</code>")
 
     buttons = [
-        InlineKeyboardButton(text=play_count, callback_data=f"w_{user}"),
-        InlineKeyboardButton(text="↻", callback_data=f"r_{user}"),
+        InlineKeyboardButton(text=play_count, callback_data=f"nice"),
+        InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
     ]
-
-    load_msg = await callback_query.edit("<code>kadabra...</code>")
-
-    await load_msg.edit_message_media(
-        InputMediaAudio(
+    await callback_query.edit_media(
+        media=InputMediaAudio(
+            caption=caption,
             media=audio_path,
-            caption=sentence,
-            parse_mode=ParseMode.MARKDOWN,
+            parse_mode=ParseMode.HTML,
+            thumb=await aio.thumb_dl(info.get("thumbnail")),
         ),
         reply_markup=InlineKeyboardMarkup([buttons]),
     )
@@ -235,18 +306,14 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
 
 @_bot.on_callback_query(filters=filters.regex("^r_"))
 async def refresh_nowplaying(bot: BOT, callback_query: CallbackQuery):
-    user = callback_query.data[2:]
-    if user in FRENS:
-        await send_now_playing(bot, callback_query, user)
-    else:
-        await callback_query.answer("ask Leaf wen?", show_alert=True)
+    user_id = int(callback_query.data[2:])
+    await send_now_playing(bot, callback_query, user_id)
 
 
-@_bot.on_inline_query(group=4)
+@_bot.on_inline_query(filters=filters.create(lambda _, __, iq: not iq.query), group=4)
 async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
-    user = inline_query.from_user.username
-    buttons = [InlineKeyboardButton(text="Status", callback_data=f"r_{user}")]
-    if user not in FRENS:
+    user_id = inline_query.from_user.id
+    if user_id not in FRENS:
         result = [
             InlineQueryResultArticle(
                 title="Ask leaf wen?",
@@ -254,6 +321,7 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
             )
         ]
     else:
+        buttons = [InlineKeyboardButton(text="Status", callback_data=f"r_{user_id}")]
         result = [
             InlineQueryResultArticle(
                 title="Now Playing",
@@ -261,15 +329,5 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
                 reply_markup=InlineKeyboardMarkup([buttons]),
             )
         ]
+
     await inline_query.answer(results=result, cache_time=0, is_personal=True)
-
-
-def regex_empty_query_filter(_, __, InlineResultUpdate):
-    return re.fullmatch(r"^\s*$", InlineResultUpdate.query) is not None
-
-
-@_bot.on_chosen_inline_result(filters=filters.create(regex_empty_query_filter))
-async def chosen_inline_handler(bot: BOT, chosen_result: InlineResultUpdate):
-    inline_result = InlineResult(chosen_result)
-    user = inline_result.from_user.username
-    await send_now_playing(_bot, inline_result, user)
