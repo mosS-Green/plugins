@@ -16,6 +16,7 @@ from pyrogram.types import (
 from ub_core import BOT, CustomDB, Message, bot
 from ub_core.core.types import CallbackQuery, InlineResult
 from ub_core.utils import aio, extract_user_data
+from ub_core.core.handlers.dispatcher import make_custom_object
 
 from .yt import get_ytm_link, ytdl_audio
 
@@ -214,6 +215,9 @@ async def send_now_playing(
     update: Message | CallbackQuery | InlineResult,
     user_id: int = None,
 ):
+
+    update=make_custom_object(update)
+
     user_id = user_id or update.from_user.id
 
     if user_id not in FRENS:
