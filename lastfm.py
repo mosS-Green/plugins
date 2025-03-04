@@ -321,6 +321,7 @@ async def inline_now_playing(bot: BOT, inline_query: InlineQuery):
             )
         ]
     else:
+        INLINE_CACHE.add(user_id)
         buttons = [InlineKeyboardButton(text="Status", callback_data=f"r_{user_id}")]
         result = [
             InlineQueryResultArticle(
