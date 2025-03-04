@@ -58,7 +58,7 @@ async def add_fren(bot: BOT, message: Message):
         {"_id": user.id, **extract_user_data(user), "lastfm_username": lastfm_username}
     )
     FRENS.add(user.id)
-    await response.edit(f"#LASTFM\n{user.mention} added to approved List.")
+    await response.edit(f"#LASTFM\n{user.mention} added to frens.")
     await response.log()
 
 
@@ -82,7 +82,7 @@ async def add_fren(bot: BOT, message: Message):
     if deleted:
         resp_str = f"{name} no longer fren."
     else:
-        resp_str = f"{name} already not a fren."
+        resp_str = f"{name} was never a fren."
 
     await response.edit(resp_str)
     if deleted:
@@ -102,7 +102,7 @@ async def add_fren(bot: BOT, message: Message):
             output += f'\n  ID: <code>{user["_id"]}</code>'
 
     if not total:
-        await message.reply("You don't have any FRENS.")
+        await message.reply("You don't have any frens.")
         return
 
     output: str = f"List of <b>{total}</b> FRENS:\n{output}"
@@ -216,7 +216,7 @@ async def send_now_playing(
     user_id: int = None,
 ):
 
-    update=make_custom_object(update)
+    update = make_custom_object(update)
 
     user_id = user_id or update.from_user.id
 
@@ -264,7 +264,9 @@ async def send_now_playing(
             text="♫",
             callback_data=f"y_{yt_shortcode}|{parsed_data['play_count']}|{user_id}",
         ),
-        InlineKeyboardButton(text=parsed_data["play_count"], callback_data="nice"),
+        InlineKeyboardButton(
+            text=f"{parsed_data["play_count"]} plays", callback_data="-_-"
+        ),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
     ]
 
@@ -280,7 +282,7 @@ async def send_now_playing(
 
 @_bot.on_callback_query(filters=filters.regex("^y_"))
 async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
-    await callback_query.edit("<code>abra...</code>")
+    await callback_query.edit("<code>Uploa...wait for it...</code>")
 
     shortcode, play_count, user_id = callback_query.data[2:].split("|")
 
@@ -290,10 +292,10 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
         f"https://music.youtube.com/watch?v={shortcode}"
     )
 
-    await callback_query.edit("<code>kadabra...</code>")
+    await callback_query.edit("<code>ding! Uploading.</code>")
 
     buttons = [
-        InlineKeyboardButton(text=play_count, callback_data=f"nice"),
+        InlineKeyboardButton(text=f"{play_count} plays", callback_data=f"-_-"),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
     ]
     await callback_query.edit_media(
