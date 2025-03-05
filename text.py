@@ -1,4 +1,7 @@
+import os
+
 from pyrogram.enums import ParseMode
+from pyrogram.types import InputMediaDocument
 
 from app import BOT, Message, bot
 
@@ -40,3 +43,62 @@ async def fix(bot: BOT, message: Message):
     )
     response = await ask_ai(prompt=prompts, **MODEL["QUICK"])
     await message.replied.edit(response)
+
+
+@bot.add_cmd(cmd="hu")
+@run_basic_check
+async def humanize(bot: BOT, message: Message):
+    reply = message.replied
+
+    load_msg = await message.reply("`dumbing down...`")
+
+    prompts = (
+        "Please convert the following content into a concise, easily human readable & understandable info. "
+        "If the content includes lengthy logs, error messages, or commit entries, extract only the latest three entries "
+        "and provide concise, clear explanations for each. Preserve essential details while improving readability."
+        "\nIMPORTANT - Keep response concise."
+    )
+
+    response = await ask_ai(prompt=prompts, query=reply, quote=True, **MODEL["DEFAULT"])
+    await load_msg.edit(response)
+
+
+@bot.add_cmd(cmd="rh")
+@run_basic_check
+async def ai_page(bot: BOT, message: Message):
+    reply = message.replied
+    temp_html = "Answer.html"
+    prompt = (
+        f"{message.input}\n\n"
+        "Create a complete, standalone HTML page based on the above query. "
+        "REQUIREMENTS: \n"
+        "1. Use Material You/Monet design principles\n"
+        "2. Base color scheme: Light moss green (#8FBC8F)\n"
+        "3. Use rounded and proportional UI elements\n"
+        "4. Ensure responsive design\n"
+        "5. Include modern, clean typography\n"
+        "6. Provide full, self-contained HTML that can be directly rendered\n"
+        "7. Include meta tags for proper rendering\n"
+        "8. Add basic, elegant interactivity\n\n"
+        "IMPORTANT - Only write the code, do not include any comments or explanations.\n"
+        "IMPORTANT - Do not include any external resources or links."
+    )
+
+    load_msg = await message.reply("<code>doing ai things...</code>")
+
+    try:
+        content = await ask_ai(prompt=prompt, query=reply, **MODEL["THINK"])
+
+        with open(temp_html, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        await load_msg.edit_media(
+            media=InputMediaDocument(media=temp_html, caption="Here you go.")
+        )
+
+    except Exception as e:
+        await load_msg.edit_text(f"Error generating HTML: {str(e)}")
+
+    finally:
+        if os.path.exists(temp_html):
+            os.remove(temp_html)
