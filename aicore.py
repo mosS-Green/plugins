@@ -2,7 +2,7 @@ import asyncio
 import os
 import shutil
 import time
-from mimetypes import guess_type
+from mimetypes import guess_type, guess_extension
 
 from google.genai.types import (
     DynamicRetrievalConfig,
@@ -28,7 +28,7 @@ safety = [
 ]
 
 
-def create_config(model, instruction, temp, tokens, search):
+def create_config(model, instruction, temp, tokens, search, **kwargs):
     return {
         "model": model,
         "config": GenerateContentConfig(
@@ -38,6 +38,21 @@ def create_config(model, instruction, temp, tokens, search):
             max_output_tokens=tokens,
             safety_settings=safety,
             tools=search,
+            **kwargs,
+        ),
+    }
+
+
+def create_config_exp(model, temp, tokens, modals, mime_type):
+    return {
+        "model": model,
+        "config": GenerateContentConfig(
+            candidate_count=1,
+            temperature=temp,
+            max_output_tokens=tokens,
+            safety_settings=safety,
+            response_modalities=modals,
+            response_mime_type=mime_type,
         ),
     }
 
@@ -61,6 +76,13 @@ MODEL = {
         0.8,
         8192,
         search=[SEARCH_TOOL],
+    ),
+    "EXP": create_config_exp(
+        "gemini-2.0-flash-exp",
+        0.8,
+        8192,
+        ["image", "text"],
+        "text/plain",
     ),
     "DEFAULT": create_config(
         "gemini-2.0-flash",
@@ -113,7 +135,7 @@ async def ask_ai(
     query: Message | None = None,
     quote: bool = False,
     add_sources: bool = False,
-    **kwargs
+    **kwargs,
 ) -> str:
     media = None
     prompts = [prompt]
@@ -152,3 +174,51 @@ async def ask_ai(
     ai_response = get_response_text(response, quoted=quote, add_sources=add_sources)
 
     return ai_response
+
+
+async def ask_ai_exp(
+    prompt: str,
+    query: Message | None = None,
+    quote: bool = False,
+    add_sources: bool = False,
+    **kwargs,
+) -> dict:
+    media = None
+    prompts = [prompt]
+    if query:
+        prompts = [str(query.text), prompt or "answer"]
+        media = get_tg_media_details(query)
+    if media is not None:
+        if getattr(media, "file_size", 0) >= 1048576 * 25:
+            return {"text": "Error: File Size exceeds 25mb.", "image": None}
+        prompt = prompt.strip() or PROMPT_MAP.get(
+            type(media), "Analyse the file and explain."
+        )
+        download_dir = os.path.join("downloads", str(time.time())) + "/"
+        downloaded_file: str = await query.download(download_dir)
+        uploaded_file = await async_client.files.upload(
+            file=downloaded_file,
+            config={
+                "mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])
+            },
+        )
+        while uploaded_file.state.name == "PROCESSING":
+            await asyncio.sleep(5)
+            uploaded_file = await async_client.files.get(name=uploaded_file.name)
+        prompts = [uploaded_file, prompt]
+        shutil.rmtree(download_dir, ignore_errors=True)
+    response = await async_client.models.generate_content(contents=prompts, **kwargs)
+    text_response = ""
+    image_path = None
+    for candidate in response.candidates:
+        if candidate.content and candidate.content.parts:
+            for part in candidate.content.parts:
+                if hasattr(part, "inline_data") and part.inline_data:
+                    extension = guess_extension(part.inline_data.mime_type) or ".bin"
+                    temp_file = f"temp_generated{extension}"
+                    with open(temp_file, "wb") as f:
+                        f.write(part.inline_data.data)
+                    image_path = temp_file
+                elif hasattr(part, "text") and part.text:
+                    text_response += part.text
+    return {"text": text_response, "image": image_path}

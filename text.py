@@ -5,7 +5,7 @@ from pyrogram.types import InputMediaDocument
 
 from app import BOT, Message, bot
 
-from .aicore import MODEL, ask_ai, run_basic_check
+from .aicore import MODEL, ask_ai, run_basic_check, ask_ai_exp
 from .telegraph import tele_graph
 
 
@@ -102,3 +102,26 @@ async def ai_page(bot: BOT, message: Message):
     finally:
         if os.path.exists(temp_html):
             os.remove(temp_html)
+
+
+@bot.add_cmd(cmd="ri")
+@run_basic_check
+async def ri_question(bot: BOT, message: Message):
+    reply = message.replied
+    prompt = message.input
+    message_response = await message.reply("<code>...</code>")
+    response = await ask_ai_exp(prompt=prompt, query=reply, quote=True, **MODEL["EXP"])
+    text_response = response.get("text", "")
+    image_path = response.get("image")
+    if image_path:
+        # Delete the placeholder and send the generated image with caption
+        await message_response.delete()
+        await message.reply_photo(
+            photo=image_path, caption=text_response, parse_mode=ParseMode.MARKDOWN
+        )
+        # Clean up the temporary image file after sending
+        os.remove(image_path)
+    else:
+        await message_response.edit(
+            text=text_response, parse_mode=ParseMode.MARKDOWN, disable_preview=True
+        )
