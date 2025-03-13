@@ -114,14 +114,20 @@ async def ri_question(bot: BOT, message: Message):
     text_response = response.get("text", "")
     image_path = response.get("image")
     if image_path:
-        # Delete the placeholder and send the generated image with caption
         await message_response.delete()
-        await message.reply_photo(
-            photo=image_path, caption=text_response, parse_mode=ParseMode.MARKDOWN
-        )
-        # Clean up the temporary image file after sending
+        if len(text_response) <= 200:
+            await message.reply_photo(
+                photo=image_path,
+                caption=f"> {text_response}",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        else:
+            await message.reply_photo(photo=image_path)
+            await message.reply(f"> {text_response}", parse_mode=ParseMode.MARKDOWN)
         os.remove(image_path)
     else:
         await message_response.edit(
-            text=text_response, parse_mode=ParseMode.MARKDOWN, disable_preview=True
+            text=f"> {text_response}",
+            parse_mode=ParseMode.MARKDOWN,
+            disable_preview=True,
         )
