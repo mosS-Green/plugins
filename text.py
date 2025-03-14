@@ -109,24 +109,25 @@ async def ai_page(bot: BOT, message: Message):
 async def ri_question(bot: BOT, message: Message):
     reply = message.replied
     prompt = message.input
-    message_response = await message.reply("<code>...</code>")
+    loading_msg = await message.reply("<code>...</code>")
     response = await ask_ai_exp(prompt=prompt, query=reply, quote=True, **MODEL["EXP"])
     text_response = response.get("text", "")
     image_path = response.get("image")
     if image_path:
-        await message_response.delete()
         if len(text_response) <= 200:
-            await message.reply_photo(
-                photo=image_path,
-                caption=f"> {text_response}",
-                parse_mode=ParseMode.MARKDOWN,
+            await loading_msg.edit_media(
+                InputMediaPhoto(
+                    media=image_path,
+                    caption=f"**>\n{text_response}<**",
+                    parse_mode=ParseMode.MARKDOWN,
+                )
             )
         else:
-            await message.reply_photo(photo=image_path)
+            await loading_msg.edit_media(InputMediaPhoto(media=image_path))
             await message.reply(f"> {text_response}", parse_mode=ParseMode.MARKDOWN)
         os.remove(image_path)
     else:
-        await message_response.edit(
+        await loading_msg.edit(
             text=f"> {text_response}",
             parse_mode=ParseMode.MARKDOWN,
             disable_preview=True,
