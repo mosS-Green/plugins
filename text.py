@@ -1,7 +1,7 @@
 import os
 
 from pyrogram.enums import ParseMode
-from pyrogram.types import InputMediaDocument
+from pyrogram.types import InputMediaDocument, InputMediaPhoto
 
 from app import BOT, Message, bot
 
