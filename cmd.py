@@ -5,9 +5,10 @@ from app import BOT, Config, Message
 from .aicore import MODEL, ask_ai
 from .telegraph import tele_graph
 
-Config.CMD_DICT["eu"] = Config.CMD_DICT["extupdate"]
 
-Config.CMD_DICT["ry"] = Config.CMD_DICT["reply"]
+async def init_task(bot=bot, message=None):
+    Config.CMD_DICT["eu"] = Config.CMD_DICT["extupdate"]
+    Config.CMD_DICT["ry"] = Config.CMD_DICT["reply"]
 
 
 @BOT.add_cmd(cmd="ch")
