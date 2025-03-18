@@ -9,11 +9,8 @@ from app import BOT, Config, Message, bot
 
 GPT4O_MODEL = "gpt-4o"
 
-IMAGE_MODEL = "playground-v3"
+IMAGE_MODEL = "stable-diffusion-3.5-Iarge-turbo"
 IMAGE_SIZE = "1024x1024"
-
-GPT_BASE_URL = "https://fresedgpt.space/v1"
-GPT_API_KEY = os.environ.get("FAPI_KEY")
 
 ZUKI_BASE_URL = "https://api.zukijourney.com/v1"
 ZUKI_API_KEYS = [
@@ -74,10 +71,9 @@ async def send_image_reply(message, image_url, prompt, loading_msg):
 
 @bot.add_cmd(cmd="g")
 async def gpt(bot: BOT, message: Message):
-    if not GPT_API_KEY:
-        await message.reply("GPT API key is not set.")
-        return
-    client = AsyncOpenAI(api_key=GPT_API_KEY, base_url=GPT_BASE_URL)
+    global current_zuki_api_key_index
+    api_key = ZUKI_API_KEYS[current_zuki_api_key_index]
+    client = AsyncOpenAI(api_key=api_key, base_url=ZUKI_BASE_URL)
     prompt = message.input
     loading_msg = await message.reply("...")
 
