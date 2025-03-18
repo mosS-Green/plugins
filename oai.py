@@ -9,7 +9,7 @@ from app import BOT, Config, Message, bot
 
 GPT4O_MODEL = "gpt-4o"
 
-IMAGE_MODEL = "stable-diffusion-3.5-Iarge-turbo"
+IMAGE_MODEL = "stable-diffusion-3.5-large-turbo"
 IMAGE_SIZE = "1024x1024"
 
 ZUKI_BASE_URL = "https://api.zukijourney.com/v1"
