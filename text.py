@@ -16,7 +16,9 @@ async def r_question(bot: BOT, message: Message):
     message_response = await message.reply("<code>...</code>")
     model = MODEL["DEFAULT"] if message.cmd == "r" else MODEL["LEAF"]
     response = await ask_ai(prompt=prompt, query=reply, quote=True, **model)
-    await message_response.edit(text=response, parse_mode=ParseMode.MARKDOWN, disable_preview=True)
+    await message_response.edit(
+        text=response, parse_mode=ParseMode.MARKDOWN, disable_preview=True
+    )
 
 
 @bot.add_cmd(cmd="rt")
@@ -89,7 +91,9 @@ async def ai_page(bot: BOT, message: Message):
         with open(temp_html, "w", encoding="utf-8") as f:
             f.write(content)
 
-        await load_msg.edit_media(media=InputMediaDocument(media=temp_html, caption="Here you go."))
+        await load_msg.edit_media(
+            media=InputMediaDocument(media=temp_html, caption="Here you go.")
+        )
 
     except Exception as e:
         await load_msg.edit_text(f"Error generating HTML: {str(e)}")
@@ -119,9 +123,13 @@ async def ri_question(bot: BOT, message: Message):
             )
         else:
             await loading_msg.edit_media(InputMediaPhoto(media=image_path))
-            await message.reply(f"> {text_response}", parse_mode=ParseMode.MARKDOWN)
+            await message.reply(
+                f"**>\n{text_response}<**", parse_mode=ParseMode.MARKDOWN
+            )
         os.remove(image_path)
     else:
         await loading_msg.edit(
-            text=f"> {text_response}", parse_mode=ParseMode.MARKDOWN, disable_preview=True
+            text=f"**>\n{text_response}<**",
+            parse_mode=ParseMode.MARKDOWN,
+            disable_preview=True,
         )
