@@ -2,8 +2,11 @@ import asyncio
 import os
 import shutil
 import time
-from mimetypes import guess_type, guess_extension
+from mimetypes import guess_extension, guess_type
 
+# isort: skip
+# noinspection PyUnresolvedReferences
+from app.plugins.ai.gemini_core import async_client, get_response_text, run_basic_check
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
@@ -14,10 +17,6 @@ from google.genai.types import (
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core import Message
 from ub_core.utils import get_tg_media_details
-
-# isort: skip
-# noinspection PyUnresolvedReferences
-from app.plugins.ai.gemini_core import async_client, get_response_text, run_basic_check
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
@@ -77,13 +76,7 @@ MODEL = {
         8192,
         search=[SEARCH_TOOL],
     ),
-    "EXP": create_config_exp(
-        "gemini-2.0-flash-exp",
-        0.8,
-        8192,
-        ["image", "text"],
-        "text/plain",
-    ),
+    "EXP": create_config_exp("gemini-2.0-flash-exp", 0.65, 8192, ["image", "text"], "text/plain"),
     "DEFAULT": create_config(
         "gemini-2.0-flash",
         (
@@ -148,18 +141,14 @@ async def ask_ai(
         if getattr(media, "file_size", 0) >= 1048576 * 25:
             return "Error: File Size exceeds 25mb."
 
-        prompt = prompt.strip() or PROMPT_MAP.get(
-            type(media), "Analyse the file and explain."
-        )
+        prompt = prompt.strip() or PROMPT_MAP.get(type(media), "Analyse the file and explain.")
 
         download_dir = os.path.join("downloads", str(time.time())) + "/"
         downloaded_file: str = await query.download(download_dir)
 
         uploaded_file = await async_client.files.upload(
             file=downloaded_file,
-            config={
-                "mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])
-            },
+            config={"mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])},
         )
 
         while uploaded_file.state.name == "PROCESSING":
@@ -191,16 +180,12 @@ async def ask_ai_exp(
     if media is not None:
         if getattr(media, "file_size", 0) >= 1048576 * 25:
             return {"text": "Error: File Size exceeds 25mb.", "image": None}
-        prompt = prompt.strip() or PROMPT_MAP.get(
-            type(media), "Analyse the file and explain."
-        )
+        prompt = prompt.strip() or PROMPT_MAP.get(type(media), "Analyse the file and explain.")
         download_dir = os.path.join("downloads", str(time.time())) + "/"
         downloaded_file: str = await query.download(download_dir)
         uploaded_file = await async_client.files.upload(
             file=downloaded_file,
-            config={
-                "mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])
-            },
+            config={"mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])},
         )
         while uploaded_file.state.name == "PROCESSING":
             await asyncio.sleep(5)

@@ -1,6 +1,6 @@
 import os
 
-from app import bot, BOT, Config, Message
+from app import BOT, Config, Message, bot
 
 from .aicore import MODEL, ask_ai
 from .telegraph import tele_graph

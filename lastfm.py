@@ -14,9 +14,9 @@ from pyrogram.types import (
     User,
 )
 from ub_core import BOT, CustomDB, Message, bot
+from ub_core.core.handlers.dispatcher import make_custom_object
 from ub_core.core.types import CallbackQuery, InlineResult
 from ub_core.utils import aio, extract_user_data
-from ub_core.core.handlers.dispatcher import make_custom_object
 
 from .yt import get_ytm_link, ytdl_audio
 
@@ -179,9 +179,7 @@ async def get_now_playing_track(username) -> dict[str, str] | str:
     )
 
     if not is_now_playing and "date" in track_info:
-        last_played_time = format_time(
-            datetime.fromtimestamp(int(track_info["date"]["uts"]))
-        )
+        last_played_time = format_time(datetime.fromtimestamp(int(track_info["date"]["uts"])))
     else:
         last_played_time = ""
 
@@ -206,14 +204,10 @@ async def get_fren_info(user_id) -> dict:
 
 @bot.add_cmd(cmd="st")
 @_bot.on_chosen_inline_result(
-    filters=filters.create(
-        lambda _, __, u: u.from_user and u.from_user.id in INLINE_CACHE
-    )
+    filters=filters.create(lambda _, __, u: u.from_user and u.from_user.id in INLINE_CACHE)
 )
 async def send_now_playing(
-    bot: BOT,
-    update: Message | CallbackQuery | InlineResult,
-    user_id: int = None,
+    bot: BOT, update: Message | CallbackQuery | InlineResult, user_id: int = None
 ):
 
     update = make_custom_object(update)
@@ -261,12 +255,9 @@ async def send_now_playing(
 
     buttons = [
         InlineKeyboardButton(
-            text="♫",
-            callback_data=f"y_{yt_shortcode}|{parsed_data['play_count']}|{user_id}",
+            text="♫", callback_data=f"y_{yt_shortcode}|{parsed_data['play_count']}|{user_id}"
         ),
-        InlineKeyboardButton(
-            text=f"{parsed_data["play_count"]} plays", callback_data="-_-"
-        ),
+        InlineKeyboardButton(text=f"{parsed_data["play_count"]} plays", callback_data="-_-"),
         InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
     ]
 
@@ -288,9 +279,7 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
 
     caption = callback_query.message.text.html if callback_query.message else None
 
-    audio_path, info = await ytdl_audio(
-        f"https://music.youtube.com/watch?v={shortcode}"
-    )
+    audio_path, info = await ytdl_audio(f"https://music.youtube.com/watch?v={shortcode}")
 
     await callback_query.edit("<code>ding! Uploading.</code>")
 

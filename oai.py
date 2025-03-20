@@ -1,11 +1,8 @@
-import os
-
+from app import BOT, Config, Message, bot
 from openai import AsyncOpenAI
 from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
 from ub_core.utils import aio
-
-from app import BOT, Config, Message, bot
 
 GPT4O_MODEL = "gpt-4o"
 
@@ -13,10 +10,7 @@ IMAGE_MODEL = "stable-diffusion-3.5-large-turbo"
 IMAGE_SIZE = "1024x1024"
 
 ZUKI_BASE_URL = "https://api.zukijourney.com/v1"
-ZUKI_API_KEYS = [
-    "zu-89d98ff1db79a5601658fdbc832f14e5",
-    "zu-697462a11e0b0ef7525230309d421cfe",
-]
+ZUKI_API_KEYS = ["zu-89d98ff1db79a5601658fdbc832f14e5", "zu-697462a11e0b0ef7525230309d421cfe"]
 current_zuki_api_key_index = 0
 
 ELECTRON_BASE_URL = "https://api.electronhub.top/v1/"
@@ -81,10 +75,7 @@ async def gpt(bot: BOT, message: Message):
 
     if response_text:
         output_text = f"4o: {response_text}"
-        await loading_msg.edit(
-            text=f"**>\n{output_text}<**",
-            parse_mode=ParseMode.MARKDOWN,
-        )
+        await loading_msg.edit(text=f"**>\n{output_text}<**", parse_mode=ParseMode.MARKDOWN)
     else:
         await loading_msg.edit(f"Error: {error}")
 
@@ -97,9 +88,7 @@ async def zuki_image(bot: BOT, message: Message):
     prompt = message.input
 
     if not prompt:
-        current_zuki_api_key_index = (current_zuki_api_key_index + 1) % len(
-            ZUKI_API_KEYS
-        )
+        current_zuki_api_key_index = (current_zuki_api_key_index + 1) % len(ZUKI_API_KEYS)
         await message.reply(f"API {current_zuki_api_key_index + 1}")
         return
 

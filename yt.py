@@ -2,11 +2,10 @@ import os
 import tempfile
 
 import yt_dlp
-from pyrogram.enums import ParseMode
-from pyrogram.types import InputMediaAudio, InputMediaVideo
-
 from app import Message, bot
 from app.plugins.misc.song import extract_link_from_reply
+from pyrogram.enums import ParseMode
+from pyrogram.types import InputMediaAudio, InputMediaVideo
 
 from .aicore import MODEL, ask_ai, run_basic_check
 
@@ -64,9 +63,7 @@ async def ytm_link(bot, message: Message):
         return
 
     place_holder = await message_response.edit(
-        f"__[{song_name}]({ytm_link_result})__",
-        parse_mode=ParseMode.MARKDOWN,
-        disable_preview=True,
+        f"__[{song_name}]({ytm_link_result})__", parse_mode=ParseMode.MARKDOWN, disable_preview=True
     )
 
     if "-dl" in message.flags:
@@ -95,11 +92,7 @@ async def ytdl_upload(bot, message: Message):
     await response.edit("Uploading...")
 
     if "music.youtube.com" in link:
-        await response.edit_media(
-            InputMediaAudio(
-                media=filename,
-            )
-        )
+        await response.edit_media(InputMediaAudio(media=filename))
 
     else:
         await response.edit_media(
@@ -132,11 +125,7 @@ def ytdl_audio(url: str):
         "format": "bestaudio/best",
         "outtmpl": os.path.join(tempfile.gettempdir(), "%(title)s.%(ext)s"),
         "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }
+            {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}
         ],
         "quiet": True,
         "no_warnings": True,
