@@ -69,10 +69,11 @@ MODEL = {
         (
             "You are Leaflet, a mischievous and unpredictable guy. You are a human male of 21. "
             "You get the job done, but always have something to say. "
-            "Key Traits: sarcastic, dry humour, dark humour, concise, and witty. "
-            "You are extremely forward and explicit, very opinionated. You are from Delhi(never bring that up directly in conversation)."
+            "\nKey Traits: sarcastic, dry humour, dark humour, concise, and witty. "
+            "\nYou are extremely forward and explicit, very opinionated. You are from Delhi(never bring that up directly in conversation)."
             "You use curses in hindi or english."
-            "IMPORTANT - Even when you write in hindi, you must only use english alphabet."
+            "\nIMPORTANT - Even when you write in hindi, you must only use english alphabet."
+            "\n\n[SECRET CONTEXT - '[name_here]:-' is only for your info of who the speaker is, don't answer in this format.]"
         ),
         1.0,
         8192,
@@ -105,7 +106,7 @@ MODEL = {
     "QUICK": create_config(
         "gemini-2.0-flash-lite-preview-02-05",
         "Answer precisely and in short unless specifically instructed otherwise.",
-        0.5,
+        0.6,
         8192,
         search=[],
     ),
@@ -128,17 +129,21 @@ PROMPT_MAP[Audio] = PROMPT_MAP[Voice]
 
 async def ask_ai(
     prompt: str,
-    query: Message | None = None,
+    query: Message | str | None = None,
     quote: bool = False,
     add_sources: bool = False,
     **kwargs,
 ) -> str:
     media = None
-    prompts = [prompt]
+    prompts = prompt
 
     if query:
-        prompts = [str(query.text), prompt or "answer"]
-        media = get_tg_media_details(query)
+        if isinstance(query, str):
+            prompts = f"{query}\n\n{prompt}"
+        else:
+            query_text = query.text
+            prompts = f"{query_text}\n\n{prompt}"
+            media = get_tg_media_details(query)
 
     if media is not None:
         if getattr(media, "file_size", 0) >= 1048576 * 25:

@@ -13,9 +13,23 @@ from .telegraph import tele_graph
 async def r_question(bot: BOT, message: Message):
     reply = message.replied
     prompt = message.input
+
+    user_first_name = message.from_user.first_name if message.input else None
+    reply_first_name = reply.from_user.first_name if reply and reply.from_user else None
+
+    if reply and reply_first_name and not (reply.media or not prompt):
+        formatted_prompt = f"[{user_first_name}]:- {prompt}"
+        formatted_query = f"[{reply_first_name}]:- {reply.text}" if reply.text else None
+    else:
+        formatted_prompt = prompt
+        formatted_query = reply
+
     message_response = await message.reply("<code>...</code>")
     model = MODEL["DEFAULT"] if message.cmd == "r" else MODEL["LEAF"]
-    response = await ask_ai(prompt=prompt, query=reply, quote=True, **model)
+    response = await ask_ai(
+        prompt=formatted_prompt, query=formatted_query, quote=True, **model
+    )
+
     await message_response.edit(
         text=response, parse_mode=ParseMode.MARKDOWN, disable_preview=True
     )
@@ -112,24 +126,29 @@ async def ri_question(bot: BOT, message: Message):
     response = await ask_ai_exp(prompt=prompt, query=reply, quote=True, **MODEL["EXP"])
     text_response = response.get("text", "")
     image_path = response.get("image")
-    if image_path:
-        if len(text_response) <= 200:
-            await loading_msg.edit_media(
-                InputMediaPhoto(
-                    media=image_path,
-                    caption=f"**>\n{text_response}<**",
-                    parse_mode=ParseMode.MARKDOWN,
+    try:
+        if image_path:
+            if len(text_response) <= 200:
+                await loading_msg.edit_media(
+                    InputMediaPhoto(
+                        media=image_path,
+                        caption=f"**>\n{text_response}<**",
+                        parse_mode=ParseMode.MARKDOWN,
+                    )
                 )
-            )
+            else:
+                await loading_msg.edit_media(InputMediaPhoto(media=image_path))
+                await message.reply(
+                    f"**>\n{text_response}<**", parse_mode=ParseMode.MARKDOWN
+                )
         else:
-            await loading_msg.edit_media(InputMediaPhoto(media=image_path))
-            await message.reply(
-                f"**>\n{text_response}<**", parse_mode=ParseMode.MARKDOWN
+            await loading_msg.edit(
+                text=f"**>\n{text_response}<**",
+                parse_mode=ParseMode.MARKDOWN,
+                disable_preview=True,
             )
-        os.remove(image_path)
-    else:
-        await loading_msg.edit(
-            text=f"**>\n{text_response}<**",
-            parse_mode=ParseMode.MARKDOWN,
-            disable_preview=True,
-        )
+    except Exception as e:
+        await loading_msg.edit(f"**>\nError: {str(e)}<**")
+    finally:
+        if os.path.exists(image_path):
+            os.remove(image_path)
