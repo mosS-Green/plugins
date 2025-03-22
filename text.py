@@ -41,20 +41,17 @@ async def r_question(bot: BOT, message: Message):
     ai_text, ai_image = await ask_ai(prompt=prompt, query=query, quote=True, **model)
 
     if ai_image:
-        try:
-            if len(ai_text) <= 200:
-                await loading_msg.edit_media(
-                    InputMediaPhoto(
-                        media=ai_image,
-                        caption=ai_text,
-                        parse_mode=ParseMode.MARKDOWN,
-                    )
+        if len(ai_text) <= 200:
+            await loading_msg.edit_media(
+                InputMediaPhoto(
+                    media=ai_image,
+                    caption=ai_text,
+                    parse_mode=ParseMode.MARKDOWN,
                 )
-            else:
-                await loading_msg.edit_media(InputMediaPhoto(media=ai_image))
-                await message.reply(f"{ai_text}", parse_mode=ParseMode.MARKDOWN)
-        finally:
-            os.remove(ai_image)
+            )
+        else:
+            await loading_msg.edit_media(InputMediaPhoto(media=ai_image))
+            await message.reply(f"{ai_text}", parse_mode=ParseMode.MARKDOWN)
     else:
         await loading_msg.edit(
             text=ai_text, parse_mode=ParseMode.MARKDOWN, disable_preview=True
