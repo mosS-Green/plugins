@@ -6,7 +6,11 @@ from mimetypes import guess_extension, guess_type
 
 # isort: skip
 # noinspection PyUnresolvedReferences
-from app.plugins.ai.gemini_core import async_client, get_response_text, run_basic_check
+from app.plugins.ai.gemini_core import (
+    async_client,
+    get_response_content,
+    run_basic_check,
+)
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
@@ -67,10 +71,11 @@ MODEL = {
     "LEAF": create_config(
         "gemini-2.0-flash",
         (
-            "You are Leaflet, a mischievous and unpredictable guy. You are a human male of 21. "
-            "You get the job done, but always have something to say. "
-            "\nKey Traits: sarcastic, dry humour, dark humour, concise, and witty. "
-            "\nYou are extremely forward and explicit, very opinionated. You are from Delhi(never bring that up directly in conversation)."
+            "You are Leaflet, a mischievous and unpredictable guy. You are in a telegram chat with friends."
+            "\nKey Traits: dark, sarcastic, dry humour, dark humour, concise, and witty. "
+            "\nYou are extremely forward and explicit, very opinionated."
+            "\nYou play along with jokes, and you are not afraid to be rude."
+            "\nDon't take things seriously, don't correct people morally."
             "You use curses in hindi or english."
             "\nIMPORTANT - Even when you write in hindi, you must only use english alphabet."
             "\n\n[SECRET CONTEXT - '[name_here]:-' is only for your info of who the speaker is, don't answer in this format.]"
@@ -79,7 +84,7 @@ MODEL = {
         8192,
         search=[SEARCH_TOOL],
     ),
-    "EXP": create_config_exp(
+    "IMG_EDIT": create_config_exp(
         "gemini-2.0-flash-exp", 0.69, 8192, ["image", "text"], "text/plain"
     ),
     "DEFAULT": create_config(
@@ -88,7 +93,7 @@ MODEL = {
             "Answer precisely and in short unless specifically instructed otherwise. "
             "For code, do not add comments or explanations unless instructed."
         ),
-        0.8,
+        0.69,
         8192,
         search=[SEARCH_TOOL],
     ),
@@ -172,68 +177,13 @@ async def ask_ai(
         shutil.rmtree(download_dir, ignore_errors=True)
 
     response = await async_client.models.generate_content(contents=prompts, **kwargs)
-    ai_response = get_response_text(response, quoted=quote, add_sources=add_sources)
 
-    return ai_response
+    if not response.candidates and response.prompt_feedback:
+        block_reason = response.prompt_feedback.block_reason or "UNKNOWN"
+        return f"Prompt blocked: {block_reason}", None
 
+    ai_text, ai_image = get_response_content(
+        response, quoted=quote, add_sources=add_sources
+    )
 
-async def ask_ai_exp(
-    prompt: str,
-    query: Message | None = None,
-    quote: bool = False,
-    add_sources: bool = False,
-    **kwargs,
-) -> dict:
-    media = None
-    prompts = [prompt]
-    if query:
-        prompts = [str(query.text), prompt or "answer"]
-        media = get_tg_media_details(query)
-    if media is not None:
-        if getattr(media, "file_size", 0) >= 1048576 * 25:
-            return {"text": "Error: File Size exceeds 25mb.", "image": None}
-        prompt = prompt.strip() or PROMPT_MAP.get(
-            type(media), "Analyse the file and explain."
-        )
-        download_dir = os.path.join("downloads", str(time.time())) + "/"
-        downloaded_file: str = await query.download(download_dir)
-        uploaded_file = await async_client.files.upload(
-            file=downloaded_file,
-            config={
-                "mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])
-            },
-        )
-        while uploaded_file.state.name == "PROCESSING":
-            await asyncio.sleep(5)
-            uploaded_file = await async_client.files.get(name=uploaded_file.name)
-        prompts = [uploaded_file, prompt]
-        shutil.rmtree(download_dir, ignore_errors=True)
-
-    try:
-        response = await async_client.models.generate_content(
-            contents=prompts, **kwargs
-        )
-    except Exception as e:
-        return {"text": f"Error generating content: {e}", "image": None}
-
-    text_response = ""
-    image_path = None
-
-    try:
-        for candidate in response.candidates:
-            if candidate.content and candidate.content.parts:
-                for part in candidate.content.parts:
-                    if hasattr(part, "inline_data") and part.inline_data:
-                        extension = (
-                            guess_extension(part.inline_data.mime_type) or ".bin"
-                        )
-                        temp_file = f"temp_generated{extension}"
-                        with open(temp_file, "wb") as f:
-                            f.write(part.inline_data.data)
-                        image_path = temp_file
-                    elif hasattr(part, "text") and part.text:
-                        text_response += part.text
-    except Exception as e:
-        return {"text": f"Error processing the response: {e}", "image": None}
-
-    return {"text": text_response, "image": image_path}
+    return ai_text, ai_image
