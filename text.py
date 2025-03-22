@@ -1,3 +1,5 @@
+from pyrogram.types import InputMediaPhoto
+
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 
@@ -32,13 +34,26 @@ async def r_question(bot: BOT, message: Message):
         "r": MODEL["DEFAULT"],
     }
     model = MODEL_MAP.get(message.cmd)
-    message_response = await message.reply("<code>...</code>")
+    loading_msg = await message.reply("<code>...</code>")
 
     ai_text, ai_image = await ask_ai(prompt=prompt, query=query, quote=True, **model)
 
-    await message_response.edit(
-        text=ai_text, parse_mode=ParseMode.MARKDOWN, disable_preview=True
-    )
+    if ai_image:
+        if len(ai_text) <= 200:
+            await loading_msg.edit_media(
+                InputMediaPhoto(
+                    media=ai_image,
+                    caption=ai_text,
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            )
+        else:
+            await loading_msg.edit_media(InputMediaPhoto(media=ai_image))
+            await message.reply(f"{ai_text}", parse_mode=ParseMode.MARKDOWN)
+    else:
+        await loading_msg.edit(
+            text=ai_text, parse_mode=ParseMode.MARKDOWN, disable_preview=True
+        )
 
 
 @bot.add_cmd(cmd="rt")
