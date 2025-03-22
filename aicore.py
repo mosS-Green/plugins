@@ -85,7 +85,7 @@ MODEL = {
         search=[SEARCH_TOOL],
     ),
     "IMG_EDIT": create_config_exp(
-        "gemini-2.0-flash-exp", 0.69, 75, ["image", "text"], "text/plain"
+        "gemini-2.0-flash-exp", 0.69, 750, ["image", "text"], "text/plain"
     ),
     "DEFAULT": create_config(
         "gemini-2.0-flash",
