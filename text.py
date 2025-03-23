@@ -29,6 +29,7 @@ async def r_question(bot: BOT, message: Message):
         query = reply
 
     loading_msg = await message.reply("<code>...</code>")
+    ai_image = None
 
     if message.cmd == "ri":
         ai_text, ai_image = await ask_ai(
