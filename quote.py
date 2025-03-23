@@ -25,6 +25,14 @@ async def quote_message(bot: BOT, message: Message):
     if message.input == "r":
         og_reply = reply.reply_to_message
         reply_user = og_reply.from_user
+        og_reply_quote = {
+            "from": {
+                "id": reply_user.id,
+                "name": reply_user.first_name,
+                "photo": {},
+            },
+            "text": og_reply.text if og_reply and og_reply.text else "",
+        }
 
     user = reply.from_user
     avatar = None
@@ -51,14 +59,7 @@ async def quote_message(bot: BOT, message: Message):
                     "photo": {"url": avatar} if avatar else {},
                 },
                 "text": reply.text,
-                "replyMessage": {
-                    "from": {
-                        "id": reply_user.id,
-                        "name": reply_user.first_name,
-                        "photo": {},
-                    },
-                    "text": og_reply.text if og_reply and og_reply.text else "",
-                },
+                "replyMessage": og_reply_quote if message.input == "r" else {},
             }
         ],
     }
