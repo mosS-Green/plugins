@@ -136,47 +136,47 @@ async def ask_ai(
     prompt: str,
     query: Message | str | None = None,
     quote: bool = False,
+    img: bool = False,
     add_sources: bool = False,
     **kwargs,
 ) -> str:
     media = None
-    prompts = prompt
 
     if query:
         if isinstance(query, str):
-            prompts = f"{query}\n\n{prompt}"
+            prompt_combined = f"{query}\n\n{prompt}"
         else:
-            query_text = query.text
-            prompts = f"{query_text}\n\n{prompt}"
+            prompt_combined = f"{query.text}\n\n{prompt}"
             media = get_tg_media_details(query)
+    else:
+        prompt_combined = prompt
 
     if media is not None:
-        if getattr(media, "file_size", 0) >= 1048576 * 25:
+        if getattr(media, "file_size", 0) >= 25 * 1048576:
             return "Error: File Size exceeds 25mb."
 
-        prompt = prompt.strip() or PROMPT_MAP.get(
+        prompt_clean = prompt.strip() or PROMPT_MAP.get(
             type(media), "Analyse the file and explain."
         )
-
         download_dir = os.path.join("downloads", str(time.time())) + "/"
-        downloaded_file: str = await query.download(download_dir)
+        downloaded_file = await query.download(download_dir)
 
+        mime_type = getattr(media, "mime_type", guess_type(downloaded_file)[0])
         uploaded_file = await async_client.files.upload(
             file=downloaded_file,
-            config={
-                "mime_type": getattr(media, "mime_type", guess_type(downloaded_file)[0])
-            },
+            config={"mime_type": mime_type},
         )
 
         while uploaded_file.state.name == "PROCESSING":
             await asyncio.sleep(5)
             uploaded_file = await async_client.files.get(name=uploaded_file.name)
 
-        prompts = [uploaded_file, prompt]
-
+        prompt_combined = [uploaded_file, prompt_clean]
         shutil.rmtree(download_dir, ignore_errors=True)
 
-    response = await async_client.models.generate_content(contents=prompts, **kwargs)
+    response = await async_client.models.generate_content(
+        contents=prompt_combined, **kwargs
+    )
 
     if not response.candidates and response.prompt_feedback:
         block_reason = response.prompt_feedback.block_reason or "UNKNOWN"
@@ -186,4 +186,4 @@ async def ask_ai(
         response, quoted=quote, add_sources=add_sources
     )
 
-    return ai_text, ai_image
+    return (ai_text, ai_image) if img else ai_text

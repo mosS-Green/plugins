@@ -28,15 +28,15 @@ async def r_question(bot: BOT, message: Message):
         prompt = input
         query = reply
 
-    MODEL_MAP = {
-        "ri": MODEL["IMG_EDIT"],
-        "rx": MODEL["LEAF"],
-        "r": MODEL["DEFAULT"],
-    }
-    model = MODEL_MAP.get(message.cmd)
     loading_msg = await message.reply("<code>...</code>")
 
-    ai_text, ai_image = await ask_ai(prompt=prompt, query=query, quote=True, **model)
+    if message.cmd == "ri":
+        ai_text, ai_image = await ask_ai(
+            prompt=prompt, query=query, quote=True, img=True, **MODEL["IMG_EDIT"]
+        )
+    else:
+        model = MODEL["LEAF"] if message.cmd == "rx" else MODEL["DEFAULT"]
+        ai_text = await ask_ai(prompt=prompt, query=query, quote=True, **model)
 
     if ai_image:
         await loading_msg.edit_media(
