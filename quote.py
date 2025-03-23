@@ -61,7 +61,7 @@ async def quote_message(bot: BOT, message: Message):
             "https://bot.lyo.su/quote/generate", json=json_payload
         ).json()
         image_data = base64.b64decode(response["result"]["image"].encode("utf-8"))
-        file_path = "Quotly.png"
+        file_path = "Quotly.webp"
         with open(file_path, "wb") as file:
             file.write(image_data)
 
