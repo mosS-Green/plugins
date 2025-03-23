@@ -5,6 +5,15 @@ import requests
 from app import BOT, Message, bot
 
 
+def upload_to_tph(file_path):
+    url = "https://telegra.ph/upload"
+    with open(file_path, "rb") as f:
+        response = requests.post(url, files={"file0": f}).json()
+    if isinstance(response, list) and len(response) > 0 and "src" in response[0]:
+        return "https://telegra.ph" + response[0]["src"]
+    return None
+
+
 @bot.add_cmd(cmd=["q"])
 async def quote_message(bot: BOT, message: Message):
     reply = message.replied
@@ -12,7 +21,12 @@ async def quote_message(bot: BOT, message: Message):
         return await message.reply("quote joe mama?")
 
     user = reply.from_user
-    avatar = user.photo.url if user.photo else None
+    avatar = None
+    if user.photo:
+        avatar_file_path = await bot.download_media(user.photo.small_file_id)
+        avatar = upload_to_tph(avatar_file_path)
+        if os.path.exists(avatar_file_path):
+            os.remove(avatar_file_path)
 
     json_payload = {
         "type": "quote",
