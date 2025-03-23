@@ -20,6 +20,12 @@ async def quote_message(bot: BOT, message: Message):
     if not reply or not reply.text:
         return await message.reply("quote joe mama?")
 
+    loading_msg = await message.reply("<code>...</code>")
+
+    if message.input == "r":
+        og_reply = reply.reply_to_message
+        reply_user = og_reply.from_user
+
     user = reply.from_user
     avatar = None
     if user.photo:
@@ -45,16 +51,17 @@ async def quote_message(bot: BOT, message: Message):
                     "photo": {"url": avatar} if avatar else {},
                 },
                 "text": reply.text,
+                "replyMessage": {
+                    "from": {
+                        "id": reply_user.id,
+                        "name": reply_user.first_name,
+                        "photo": {},
+                    },
+                    "text": og_reply.text if og_reply and og_reply.text else "",
+                },
             }
         ],
     }
-
-    if message.input == "r":
-        original_reply = reply.reply_to_message
-        if original_reply and original_reply.text:
-            json_payload["messages"][0]["replyMessage"] = {"text": original_reply.text}
-
-    loading_msg = await message.reply("<code>...</code>")
 
     try:
         response = requests.post(
