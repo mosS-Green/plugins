@@ -31,7 +31,7 @@ async def quote_message(bot: BOT, message: Message):
     json_payload = {
         "type": "quote",
         "format": "webp",
-        "backgroundColor": "#2D5243",
+        "backgroundColor": "#163930",
         "width": 512,
         "height": 768,
         "scale": 2,
@@ -50,7 +50,7 @@ async def quote_message(bot: BOT, message: Message):
     }
 
     if message.input == "r":
-        original_reply = reply.reply_to
+        original_reply = reply.reply_to_message
         if original_reply and original_reply.text:
             json_payload["messages"][0]["replyMessage"] = {"text": original_reply.text}
 
