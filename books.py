@@ -19,7 +19,7 @@ async def search_books_filtered(bot: BOT, message: Message):
     search_filters = {"Extension": "epub"}
 
     try:
-        results = s.search_default_filtered(query, search_filters, exact_match=True)
+        results = s.search_default_filtered(query, search_filters, exact_match=False)
 
         if not results:
             await loading_msg.edit_text(f"No EPUB results found for {query}.")
