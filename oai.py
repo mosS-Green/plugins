@@ -4,7 +4,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
 from ub_core.utils import aio
 
-GPT4O_MODEL = "grok-3-mini"
+GPT4O_MODEL = "gpt-4o"
 
 IMAGE_MODEL = "flux-pro"
 IMAGE_SIZE = "1024x1024"
