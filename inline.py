@@ -28,8 +28,8 @@ async def rsdl(bot: BOT, message: Message):
     INFO: use bitch's bot
     USAGE: .dl link
     """
-
-    result: BotResults = await bot.get_inline_bot_results("rsdl_bot", message.input)
+    link = message.input if message.input else message.replied.text
+    result: BotResults = await bot.get_inline_bot_results("rsdl_bot", link)
 
     if not result.results:
         return None, None, "No results found."
