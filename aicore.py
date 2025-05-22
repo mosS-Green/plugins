@@ -2,7 +2,7 @@ import asyncio
 import os
 import shutil
 import time
-from mimetypes import guess_extension, guess_type
+from mimetypes import guess_type
 
 # isort: skip
 # noinspection PyUnresolvedReferences
@@ -16,6 +16,7 @@ from google.genai.types import (
     GenerateContentConfig,
     GoogleSearchRetrieval,
     SafetySetting,
+    UrlContext,
     Tool,
 )
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
@@ -60,12 +61,16 @@ def create_config_exp(model, temp, tokens, modals, mime_type):
     }
 
 
-SEARCH_TOOL = Tool(
-    google_search=GoogleSearchRetrieval(
-        dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.3)
-    )
-)
-
+SEARCH_TOOL = [
+    Tool(
+        google_search=GoogleSearchRetrieval(
+            dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.3)
+        )
+    ),
+    Tool(
+        url_context=UrlContext(),
+    ),
+]
 
 MODEL = {
     "LEAF": create_config(
@@ -81,7 +86,7 @@ MODEL = {
         ),
         1.0,
         8192,
-        search=[SEARCH_TOOL],
+        search=SEARCH_TOOL,
     ),
     "IMG_EDIT": create_config_exp(
         "gemini-2.0-flash-exp", 0.69, 750, ["image", "text"], "text/plain"
@@ -94,7 +99,7 @@ MODEL = {
         ),
         0.69,
         8192,
-        search=[SEARCH_TOOL],
+        search=SEARCH_TOOL,
     ),
     "THINK": create_config(
         "gemini-2.5-pro-exp-03-25",
@@ -105,7 +110,7 @@ MODEL = {
         ),
         0.7,
         60000,
-        search=[],
+        search=SEARCH_TOOL,
     ),
     "QUICK": create_config(
         "gemini-2.0-flash-lite-preview-02-05",

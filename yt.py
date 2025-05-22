@@ -45,7 +45,8 @@ async def ytm_link(bot, message: Message):
     prompts = (
         f"{content}\n\nThe above text/image contains a song name, extract that. "
         "Or guess the song based on description. Use search for getting the name. Reply only with song name and artist. "
-        "If you are unable to guess, just reply with 'Unknown Song'."
+        "If no ovbious song name, then take input as inspiration and give a random song name. "
+        "If you can't even suggest any song, reply with 'unknown song'. "
     )
     song_name = await ask_ai(prompt=prompts, query=reply, **MODEL["DEFAULT"])
 
@@ -63,7 +64,9 @@ async def ytm_link(bot, message: Message):
         return
 
     place_holder = await message_response.edit(
-        f"__[{song_name}]({ytm_link_result})__", parse_mode=ParseMode.MARKDOWN, disable_preview=True
+        f"__[{song_name}]({ytm_link_result})__",
+        parse_mode=ParseMode.MARKDOWN,
+        disable_preview=True,
     )
 
     if "-dl" in message.flags:
@@ -125,7 +128,11 @@ def ytdl_audio(url: str):
         "format": "bestaudio/best",
         "outtmpl": os.path.join(tempfile.gettempdir(), "%(title)s.%(ext)s"),
         "postprocessors": [
-            {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
         ],
         "quiet": True,
         "no_warnings": True,
