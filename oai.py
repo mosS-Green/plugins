@@ -77,7 +77,7 @@ async def gpt(bot: BOT, message: Message):
     response_text, error = await generate_text_from_api(client, prompt)
 
     if response_text:
-        output_text = f"4o: {response_text}"
+        output_text = f"4.1: {response_text}"
         await loading_msg.edit(
             text=f"**>\n{output_text}<**", parse_mode=ParseMode.MARKDOWN
         )
