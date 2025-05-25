@@ -106,7 +106,7 @@ async def speak_command(bot: BOT, message: Message):
         return
 
     loading_msg = await message.reply_text(
-        "<code>Generating audio...</code> 🎙️", parse_mode=ParseMode.HTML
+        "<code>...</code>", parse_mode=ParseMode.HTML
     )
 
     file_path, audio_mime_type = await generate_speech_ai(
@@ -127,10 +127,9 @@ async def speak_command(bot: BOT, message: Message):
         # You can add title, performer, duration if you can get them.
         sent_message = await message.reply_audio(
             audio=file_path,
-            caption=f'🗣️: "<i>{script[:100]}{"..." if len(script) > 100 else ""}</i>"',
             parse_mode=ParseMode.HTML,
-            # title="Generated Speech", # Optional
-            # performer="Gemini AI",    # Optional
+            title="Voice",  # Optional
+            performer="leaflet",  # Optional
         )
         if sent_message:
             await loading_msg.delete()
