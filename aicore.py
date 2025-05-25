@@ -105,41 +105,6 @@ def parse_audio_mime_type(mime_type: str) -> dict[str, int | None]:
     return {"bits_per_sample": bits_per_sample, "rate": rate}
 
 
-def create_tts_config(model_name: str) -> dict:
-    """Creates a configuration dictionary for Text-to-Speech models."""
-    return {
-        "model": model_name,
-        "config": GenerateContentConfig(
-            temperature=1,
-            response_modalities=[
-                "audio",
-            ],
-            speech_config=SpeechConfig(
-                multi_speaker_voice_config=MultiSpeakerVoiceConfig(
-                    speaker_voice_configs=[
-                        SpeakerVoiceConfig(
-                            speaker="Speaker 1",
-                            voice_config=VoiceConfig(
-                                prebuilt_voice_config=PrebuiltVoiceConfig(
-                                    voice_name="Aoede"
-                                )
-                            ),
-                        ),
-                        SpeakerVoiceConfig(
-                            speaker="Speaker 2",
-                            voice_config=VoiceConfig(
-                                prebuilt_voice_config=PrebuiltVoiceConfig(
-                                    voice_name="Leda"
-                                )
-                            ),
-                        ),
-                    ]
-                ),
-            ),
-        ),
-    }
-
-
 #####-----------------------------------------------------######
 
 
@@ -201,9 +166,6 @@ MODEL = {
     ),
     "IMG_EDIT": create_config_exp(
         "gemini-2.0-flash-exp", 0.69, 750, ["image", "text"], "text/plain"
-    ),
-    "TTS_DEFAULT": create_tts_config(
-        model_name="gemini-2.5-flash-preview-tts",
     ),
     "DEFAULT": create_config(
         "gemini-2.5-flash-preview-04-17",
@@ -307,7 +269,7 @@ async def ask_ai(
     return (ai_text, ai_image) if img else ai_text
 
 
-async def generate_speech_ai(script: str, model: str, config: GenerateContentConfig):
+async def generate_speech_ai(script: str):
     """
     Generates speech from text using Gemini AI, saves it to a temporary file.
     Returns (file_path, final_mime_type) or (None, error_message).
@@ -318,20 +280,48 @@ async def generate_speech_ai(script: str, model: str, config: GenerateContentCon
     try:
         # Instantiate the GenerativeModel for TTS
         # The `config` (GenerateContentConfig) is passed to the generate_content method.
-        tts_model_instance = genai.GenerativeModel(model_name=model)
+        model = "gemini-2.5-flash-preview-tts"
+        config = GenerateContentConfig(
+            temperature=1,
+            response_modalities=[
+                "audio",
+            ],
+            speech_config=SpeechConfig(
+                multi_speaker_voice_config=MultiSpeakerVoiceConfig(
+                    speaker_voice_configs=[
+                        SpeakerVoiceConfig(
+                            speaker="Speaker 1",
+                            voice_config=VoiceConfig(
+                                prebuilt_voice_config=PrebuiltVoiceConfig(
+                                    voice_name="Aoede"
+                                )
+                            ),
+                        ),
+                        SpeakerVoiceConfig(
+                            speaker="Speaker 2",
+                            voice_config=VoiceConfig(
+                                prebuilt_voice_config=PrebuiltVoiceConfig(
+                                    voice_name="Leda"
+                                )
+                            ),
+                        ),
+                    ]
+                ),
+            ),
+        )
 
         # This inner function will run in a separate thread to handle synchronous iteration
-        def get_audio_data_sync():
+        async def get_audio_data_async():
             audio_data_buffer = b""
             captured_mime_type = None
 
-            response_stream = tts_model_instance.generate_content(
+            response_stream = async_client.models.generate_content_stream(
+                model=model,
                 contents=contents,
-                generation_config=config,  # Pass the full GenerateContentConfig here
-                stream=True,
+                config=config,  # Pass the full GenerateContentConfig here
             )
 
-            for chunk in response_stream:
+            async for chunk in response_stream:
                 if (
                     chunk.candidates is None
                     or not chunk.candidates
@@ -350,7 +340,7 @@ async def generate_speech_ai(script: str, model: str, config: GenerateContentCon
             return audio_data_buffer, captured_mime_type
 
         # Run the synchronous stream processing in a thread
-        audio_buffer, output_mime_type = await asyncio.to_thread(get_audio_data_sync)
+        audio_buffer, output_mime_type = await get_audio_data_async()
 
         if not audio_buffer:
             return None, "No audio data received from API."

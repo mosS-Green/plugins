@@ -105,24 +105,12 @@ async def speak_command(bot: BOT, message: Message):
         )
         return
 
-    # Get the TTS model configuration from aicore.MODEL
-    tts_model_key = "TTS_DEFAULT"  # Or allow user to specify via command args
-    tts_model_config = MODEL.get(tts_model_key)
-
-    if not tts_model_config:
-        await message.reply_text(
-            f"<code>TTS model configuration for '{tts_model_key}' is missing.</code>"
-        )
-        return
-
     loading_msg = await message.reply_text(
         "<code>Generating audio...</code> 🎙️", parse_mode=ParseMode.HTML
     )
 
     file_path, audio_mime_type = await generate_speech_ai(
         script=script,
-        model=tts_model_config["model"],
-        config=tts_model_config["config"],  # This is the GenerateContentConfig object
     )
 
     if not file_path:  # Error occurred, audio_mime_type here is the error message
