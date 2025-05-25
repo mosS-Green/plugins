@@ -18,13 +18,14 @@ from app.plugins.ai.gemini_core import (
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
-    GenerationConfig,
     GoogleSearchRetrieval,
     SafetySetting,
     UrlContext,
     Tool,
     SpeechConfig,
     VoiceConfig,
+    MultiSpeakerVoiceConfig,
+    SpeakerVoiceConfig,
     PrebuiltVoiceConfig,
 )
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
@@ -104,21 +105,37 @@ def parse_audio_mime_type(mime_type: str) -> dict[str, int | None]:
     return {"bits_per_sample": bits_per_sample, "rate": rate}
 
 
-def create_tts_config(model_name: str, temp: float = 0.7, voice_name: str = "Leda"):
+def create_tts_config(model_name: str) -> dict:
     """Creates a configuration dictionary for Text-to-Speech models."""
     return {
         "model": model_name,
-        "config": GenerationConfig(
-            temperature=temp,  # Controls randomness, higher is more creative
-            response_modalities=["audio"],  # Specify audio output
+        "config": GenerateContentConfig(
+            temperature=1,
+            response_modalities=[
+                "audio",
+            ],
             speech_config=SpeechConfig(
-                voice_config=VoiceConfig(
-                    prebuilt_voice_config=PrebuiltVoiceConfig(
-                        voice_name=voice_name  # Example: "Leda", "Aoede". Check Gemini docs for available voices.
-                    )
-                )
+                multi_speaker_voice_config=MultiSpeakerVoiceConfig(
+                    speaker_voice_configs=[
+                        SpeakerVoiceConfig(
+                            speaker="Speaker 1",
+                            voice_config=VoiceConfig(
+                                prebuilt_voice_config=PrebuiltVoiceConfig(
+                                    voice_name="Aoede"
+                                )
+                            ),
+                        ),
+                        SpeakerVoiceConfig(
+                            speaker="Speaker 2",
+                            voice_config=VoiceConfig(
+                                prebuilt_voice_config=PrebuiltVoiceConfig(
+                                    voice_name="Leda"
+                                )
+                            ),
+                        ),
+                    ]
+                ),
             ),
-            # Safety settings are typically not applied to TTS models in the same way.
         ),
     }
 
@@ -186,9 +203,7 @@ MODEL = {
         "gemini-2.0-flash-exp", 0.69, 750, ["image", "text"], "text/plain"
     ),
     "TTS_DEFAULT": create_tts_config(
-        model_name="gemini-2.5-flash-preview-tts",  # Check the correct TTS model name from Gemini
-        temp=0.7,
-        voice_name="Leda",  # Choose a default voice
+        model_name="gemini-2.5-flash-preview-tts",
     ),
     "DEFAULT": create_config(
         "gemini-2.5-flash-preview-04-17",
