@@ -18,6 +18,7 @@ from app.plugins.ai.gemini_core import (
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
+    GenerationConfig,
     GoogleSearchRetrieval,
     SafetySetting,
     UrlContext,
@@ -107,7 +108,7 @@ def create_tts_config(model_name: str, temp: float = 0.7, voice_name: str = "Led
     """Creates a configuration dictionary for Text-to-Speech models."""
     return {
         "model": model_name,
-        "config": GenerateContentConfig(
+        "config": GenerationConfig(
             temperature=temp,  # Controls randomness, higher is more creative
             response_modalities=["audio"],  # Specify audio output
             speech_config=SpeechConfig(
