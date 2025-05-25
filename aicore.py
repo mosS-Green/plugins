@@ -315,7 +315,7 @@ async def generate_speech_ai(script: str):
             audio_data_buffer = b""
             captured_mime_type = None
 
-            response_stream = async_client.models.generate_content_stream(
+            response_stream = await async_client.models.generate_content_stream(
                 model=model,
                 contents=contents,
                 config=config,  # Pass the full GenerateContentConfig here
