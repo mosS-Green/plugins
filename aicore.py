@@ -101,7 +101,7 @@ MODEL = {
         1.0,
         8192,
         search=SEARCH_TOOL,
-        thinking_config=ThinkingConfig(thinking_budget=0),
+        think=ThinkingConfig(thinking_budget=0),
     ),
     "IMG_EDIT": create_config(
         "gemini-2.0-flash-preview-image-generation",
