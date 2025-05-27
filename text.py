@@ -1,10 +1,9 @@
-import os
 from pyrogram.types import InputMediaPhoto
 
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 
-from .aicore import MODEL, ask_ai, run_basic_check, generate_speech_ai, TEMP_DIR
+from .aicore import MODEL, ask_ai, run_basic_check
 from .telegraph import tele_graph
 
 
@@ -75,77 +74,3 @@ async def fix(bot: BOT, message: Message):
     )
     response = await ask_ai(prompt=prompts, **MODEL["QUICK"])
     await message.replied.edit(response)
-
-
-@bot.add_cmd(cmd="hu")
-@run_basic_check
-async def humanize(bot: BOT, message: Message):
-    reply = message.replied
-
-    load_msg = await message.reply("`dumbing down...`")
-
-    prompts = (
-        "Please convert the following content into a concise, easily human readable & understandable info. "
-        "If the content includes lengthy logs, error messages, or commit entries, extract only the latest three entries "
-        "and provide concise, clear explanations for each. Preserve essential details while improving readability."
-        "\nIMPORTANT - Keep response concise."
-    )
-
-    response = await ask_ai(prompt=prompts, query=reply, quote=True, **MODEL["DEFAULT"])
-    await load_msg.edit(response)
-
-
-@bot.add_cmd(cmd=["speak"])
-@run_basic_check  # Ensures basic checks (like API key) pass
-async def speak_command(bot: BOT, message: Message):
-    script = message.input
-    if not script:
-        await message.reply_text(
-            "<code>Please provide some text to speak after the command.</code>"
-        )
-        return
-
-    loading_msg = await message.reply_text(
-        "<code>...</code>", parse_mode=ParseMode.HTML
-    )
-
-    file_path, audio_mime_type = await generate_speech_ai(
-        script=script,
-    )
-
-    if not file_path:  # Error occurred, audio_mime_type here is the error message
-        await loading_msg.edit_text(
-            f"<b>Error generating speech:</b>\n<code>{audio_mime_type}</code>",
-            parse_mode=ParseMode.HTML,
-        )
-        return
-
-    try:
-        # Send the audio file
-        # Pyrogram's reply_audio handles uploading.
-        # It typically sends as voice if ogg, or audio document otherwise.
-        # You can add title, performer, duration if you can get them.
-        sent_message = await message.reply_audio(
-            audio=file_path,
-            parse_mode=ParseMode.HTML,
-            title="Voice",  # Optional
-            performer="leaflet",  # Optional
-        )
-        if sent_message:
-            await loading_msg.delete()
-        else:
-            await loading_msg.edit_text("<code>Failed to send the audio file.</code>")
-
-    except Exception as e:
-        await loading_msg.edit_text(
-            f"<b>Error sending audio:</b>\n<code>{e}</code>", parse_mode=ParseMode.HTML
-        )
-    finally:
-        # Clean up the temporary file
-        if file_path and os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception as e_rem:
-                print(
-                    f"Error deleting temp audio file {file_path}: {e_rem}"
-                )  # Log this error
