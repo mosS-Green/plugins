@@ -9,6 +9,7 @@ from mimetypes import guess_type
 from app.plugins.ai.gemini_core import (
     async_client,
     get_response_content,
+    run_basic_check,
 )
 from google.genai.types import (
     DynamicRetrievalConfig,
