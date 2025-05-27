@@ -18,6 +18,7 @@ from google.genai.types import (
     SafetySetting,
     UrlContext,
     Tool,
+    ThinkingConfig,
 )
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from ub_core import Message
@@ -32,7 +33,17 @@ safety = [
 ]
 
 
-def create_config(model, instruction, temp, tokens, search, **kwargs):
+def create_config(
+    model,
+    instruction,
+    temp,
+    tokens,
+    search: list | None = None,
+    modals: list | None = None,
+    mime_type: str | None = None,
+    think: int | None = None,
+    **kwargs,
+):
     return {
         "model": model,
         "config": GenerateContentConfig(
@@ -41,13 +52,15 @@ def create_config(model, instruction, temp, tokens, search, **kwargs):
             temperature=temp,
             max_output_tokens=tokens,
             safety_settings=safety,
+            response_modalities=modals,
+            response_mime_type=mime_type,
             tools=search,
-            **kwargs,
+            thinking_config=think**kwargs,
         ),
     }
 
 
-def create_config_exp(model, temp, tokens, modals, mime_type):
+"""def create_config_exp(model, temp, tokens, modals, mime_type):
     return {
         "model": model,
         "config": GenerateContentConfig(
@@ -59,6 +72,7 @@ def create_config_exp(model, temp, tokens, modals, mime_type):
             response_mime_type=mime_type,
         ),
     }
+"""
 
 
 SEARCH_TOOL = [
@@ -87,9 +101,14 @@ MODEL = {
         1.0,
         8192,
         search=SEARCH_TOOL,
+        thinking_config=ThinkingConfig(thinking_budget=0),
     ),
-    "IMG_EDIT": create_config_exp(
-        "gemini-2.0-flash-exp", 0.69, 750, ["image", "text"], "text/plain"
+    "IMG_EDIT": create_config(
+        "gemini-2.0-flash-preview-image-generation",
+        0.69,
+        750,
+        ["image", "text"],
+        "text/plain",
     ),
     "DEFAULT": create_config(
         "gemini-2.5-flash-preview-04-17",
@@ -100,9 +119,10 @@ MODEL = {
         0.69,
         8192,
         search=SEARCH_TOOL,
+        think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(
-        "gemini-2.5-pro-exp-03-25",
+        "gemini-2.5-pro-exp-05-06",
         (
             "Write a lengthy, well-structured, and easy-to-read answer for Telegra.ph. "
             "Use only <a>, <blockquote>, <br>, <em>, <h3>, <h4>, <p>, and <strong> tags."
@@ -113,7 +133,7 @@ MODEL = {
         search=SEARCH_TOOL,
     ),
     "QUICK": create_config(
-        "gemini-2.0-flash-lite-preview-02-05",
+        "gemini-2.0-flash-lite",
         "Answer precisely and in short unless specifically instructed otherwise.",
         0.6,
         8192,

@@ -1,7 +1,7 @@
 from app import BOT, Message, bot
+from pyrogram.enums import ParseMode
 
 from .aicore import MODEL, ask_ai, run_basic_check
-from .telegraph import tele_graph
 
 
 @bot.add_cmd(cmd="sm")
@@ -35,17 +35,14 @@ async def summ(bot: BOT, message: Message):
     user_instruction = (
         message.input
         if message.input
-        else "[Format using html] Summarize the following group chat, ensure to detail each thread of conversation:"
+        else "[use markdown] Summarize the following group chat, ensure to detail each thread of conversation:"
     )
     full_prompt = f"{user_instruction}\n\n[Conversation Start]\n{chat_history}\n[Conversation End]"
 
     load_msg = await message.reply("<code>...</code>")
 
-    summary = await ask_ai(prompt=full_prompt, quote=False, **MODEL["DEFAULT"])
-    content = summary.strip("`").strip()
+    content = await ask_ai(prompt=full_prompt, quote=True, **MODEL["DEFAULT"])
 
-    if not content:
-        await load_msg.edit("AI returned an empty summary.")
-        return
-
-    await tele_graph(load_msg=load_msg, title="Summary", text=content)
+    await load_msg.edit(
+        text=content, parse_mode=ParseMode.MARKDOWN, disable_preview=True
+    )
