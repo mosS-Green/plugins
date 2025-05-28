@@ -35,9 +35,9 @@ safety = [
 
 def create_config(
     model,
-    instruction,
-    temp,
-    tokens,
+    instruction: str | None = None,
+    temp: float | None = None,
+    tokens: int | None = None,
     search: list | None = None,
     modals: list | None = None,
     mime_type: str | None = None,
@@ -106,10 +106,10 @@ MODEL = {
     ),
     "IMG_EDIT": create_config(
         "gemini-2.0-flash-preview-image-generation",
-        0.69,
-        750,
-        ["image", "text"],
-        "text/plain",
+        temp=0.8,
+        tokens=750,
+        modals=["image", "text"],
+        mime_type="text/plain",
     ),
     "DEFAULT": create_config(
         "gemini-2.5-flash-preview-04-17",
@@ -117,7 +117,7 @@ MODEL = {
             "Answer precisely and in short unless specifically instructed otherwise. "
             "For code, do not add comments or explanations unless instructed."
         ),
-        0.69,
+        0.8,
         8192,
         search=SEARCH_TOOL,
         think=ThinkingConfig(thinking_budget=0),
@@ -129,7 +129,7 @@ MODEL = {
             "Use only <a>, <blockquote>, <br>, <em>, <h3>, <h4>, <p>, and <strong> tags."
             "IMPORTANT - Don't give a starting title, and don't write in a code block."
         ),
-        0.7,
+        0.8,
         60000,
         search=SEARCH_TOOL,
     ),
