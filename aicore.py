@@ -55,7 +55,8 @@ def create_config(
             response_modalities=modals,
             response_mime_type=mime_type,
             tools=search,
-            thinking_config=think**kwargs,
+            thinking_config=think,
+            **kwargs,
         ),
     }
 
