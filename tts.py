@@ -4,7 +4,7 @@ import struct
 
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
-from app.plugins.ai.aicore import async_client, run_basic_check
+from .aicore import async_client, run_basic_check
 from mimetypes import guess_type
 from google.genai.types import (
     GenerateContentConfig,
