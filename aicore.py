@@ -9,7 +9,7 @@ from mimetypes import guess_type
 # isort: skip
 # noinspection PyUnresolvedReferences
 from app.plugins.ai.gemini.client import async_client
-from app.plugins.ai.gemini.utils import run_basic_check, LOGGER
+from app.plugins.ai.gemini.utils import run_basic_check
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
@@ -20,7 +20,7 @@ from google.genai.types import (
     ThinkingConfig,
 )
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
-from ub_core import Message
+from app import LOGGER, Message
 from ub_core.utils import get_tg_media_details
 
 safety = [
