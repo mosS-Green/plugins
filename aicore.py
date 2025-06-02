@@ -1,4 +1,6 @@
 import asyncio
+import io
+import logging
 import os
 import shutil
 import time
@@ -6,11 +8,8 @@ from mimetypes import guess_type
 
 # isort: skip
 # noinspection PyUnresolvedReferences
-from app.plugins.ai.gemini_core import (
-    async_client,
-    get_response_content,
-    run_basic_check,
-)
+from app.plugins.ai.gemini.client import async_client
+from app.plugins.ai.gemini.utils import run_basic_check, LOGGER
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
@@ -212,3 +211,43 @@ async def ask_ai(
     )
 
     return (ai_text, ai_image) if img else ai_text
+
+
+def get_response_content(
+    response, quoted: bool = False, add_sources: bool = True
+) -> tuple[str, io.BytesIO | None]:
+    try:
+        candidate = response.candidates
+        parts = candidate[0].content.parts
+        parts[0]
+    except (AttributeError, IndexError, TypeError):
+        LOGGER.info(response)
+        return "`Query failed... Try again`", None
+
+    image_data = None
+    text = ""
+    sources = ""
+
+    for part in parts:
+        if part.text:
+            text += f"{part.text}\n"
+        if part.inline_data:
+            image_data = io.BytesIO(part.inline_data.data)
+            image_data.name = "photo.jpg"
+
+    if add_sources:
+        try:
+            hrefs = [
+                f"[{chunk.web.title}]({chunk.web.uri})"
+                for chunk in candidate.grounding_metadata.grounding_chunks
+            ]
+            sources = "\n\nSources: " + " | ".join(hrefs)
+        except (AttributeError, TypeError):
+            sources = ""
+
+    final_text = (text.strip() + sources).strip()
+
+    if final_text and quoted and "```" not in final_text:
+        final_text = f"**>\n{final_text}<**"
+
+    return final_text, image_data
