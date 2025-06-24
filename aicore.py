@@ -88,7 +88,7 @@ SEARCH_TOOL = [
 
 MODEL = {
     "LEAF": create_config(
-        "gemini-2.5-flash-preview-04-17",
+        "gemini-2.5-flash",
         (
             "You are Leaflet, a mischievous and unpredictable guy. You are in a telegram chat with friends."
             "\nKey Traits: dark, sarcastic, dry humour, dark humour, concise, and witty. "
@@ -111,7 +111,7 @@ MODEL = {
         mime_type="text/plain",
     ),
     "DEFAULT": create_config(
-        "gemini-2.5-flash-preview-04-17",
+        "gemini-2.5-flash",
         (
             "Answer precisely and in short unless specifically instructed otherwise. "
             "For code, do not add comments or explanations unless instructed."
@@ -122,7 +122,7 @@ MODEL = {
         think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(
-        "gemini-2.5-pro-preview-05-06",
+        "gemini-2.5-flash",
         (
             "Write a lengthy, well-structured, and easy-to-read answer. "
             "Use only <a>, <blockquote>, <br>, <em>, <h3>, <h4>, <p>, and <strong> tags."
@@ -131,6 +131,7 @@ MODEL = {
         0.8,
         60000,
         search=SEARCH_TOOL,
+        think=ThinkingConfig(thinking_budget=2000),
     ),
     "QUICK": create_config(
         "gemini-2.0-flash-lite",
