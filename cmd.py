@@ -46,7 +46,7 @@ async def mention_others(bot, message):
         return
 
     # Use a Unicode dot character for display
-    dot_character = "•"
+    dot_character = "​"
     
     initial_output = ""
     if hasattr(message, 'input') and message.input:
@@ -58,7 +58,7 @@ async def mention_others(bot, message):
         
         for i in range(0, len(tagged_dots), 4):
             chunk = tagged_dots[i:i+4]
-            current_output = initial_output + "\n".join(chunk)
+            current_output = initial_output + "​".join(chunk)
             await message.reply(text=current_output, parse_mode=ParseMode.HTML)
             
     else:
