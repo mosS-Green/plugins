@@ -2,9 +2,6 @@ import os
 
 from app import BOT, Config, Message, bot
 
-from .aicore import MODEL, ask_ai
-from .telegraph import tele_graph
-
 
 async def init_task(bot=bot, message=None):
     Config.CMD_DICT["eu"] = Config.CMD_DICT["extupdate"]
@@ -31,21 +28,30 @@ async def plugin_info(bot: BOT, message: Message):
 
     response = await message.reply(resp_str, disable_preview=True)
 
-    if "-d" in message.flags:
-        load_msg = await response.reply("<code>...</code>")
-        title = f"Ainalysis of {plugin}"
+@bot.add_cmd("ey")
+async def mention_others(bot, message):
+    sender_username = message.from_user.username
+    chat_id = message.chat.id
 
-        with open(plugin_path, "r") as file:
-            content = file.read()
+    non_bot_mentions = []
+    try:
+        async for member in bot.get_chat_members(chat_id):
+            if member.user and member.user.username and member.user.username != sender_username and not member.user.is_bot:
+                non_bot_mentions.append(f"@{member.user.username}")
+    except Exception as e:
+        await message.reply(f"Error getting chat members: {e}")
+        return
 
-        analyze_prompt = (
-            "Analyze the following code for errors and suggest optimizations for "
-            "performance, readability, and efficiency. Highlight potential bugs, "
-            "redundant code, and areas for improvement."
-        )
+    initial_output = ""
+    if hasattr(message, 'input') and message.input:
+        initial_output += f"<b>{message.input}</b>\n"
 
-        input = message.filtered_input or analyze_prompt
-        prompts = f"{input}\n\nCode:\n```{content}```"
-        analysis = await ask_ai(prompt=prompts, **MODEL["THINK"])
-
-        await tele_graph(load_msg, title, analysis)
+    if non_bot_mentions:
+        for i in range(0, len(non_bot_mentions), 4):
+            chunk = non_bot_mentions[i:i+4]
+            current_output = initial_output + "\n".join(chunk)
+            await message.reply(text=current_output)
+            initial_output = ""
+    else:
+        message_to_send = initial_output + "No other users to mention or unable to retrieve members."
+        await message.reply(text=message_to_send)
