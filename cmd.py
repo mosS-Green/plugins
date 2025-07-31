@@ -46,9 +46,9 @@ async def mention_others(bot, message):
         await message.reply(f"Error getting chat members: {e}")
         return
 
-    dot_character = "​"
+    dot_character = "​​"
     
-    initial_output = ""
+    initial_output = "​"
     
     if hasattr(message, 'input') and message.input:
         initial_output += f"<b>{message.input}</b>{dot_character}"
@@ -60,7 +60,7 @@ async def mention_others(bot, message):
         
         for i in range(0, len(tagged_dots), 50):
             chunk = tagged_dots[i:i+50]
-            current_output = initial_output + "".join(chunk)
+            current_output = initial_output + "​".join(chunk)
             await message.reply(text=current_output, parse_mode=ParseMode.HTML)
             
     else:
