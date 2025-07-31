@@ -1,6 +1,7 @@
 import time
 
 from app import BOT, Config, Message, bot
+from pyrogram.enums import ParseMode
 from datetime import datetime
 
 # This will store the AFK users. In a real bot, you'd use a database.
@@ -54,7 +55,7 @@ async def set_afk(bot, message):
         "user_name": user.first_name, # Store the first name for cleaner replies
     }
     
-    await message.reply(f"<b>{user.first_name}</b> is now AFK!\n<b>Reason:</b> {reason}", parse_mode="HTML")
+    await message.reply(f"<b>{user.first_name}</b> is now AFK!\n<b>Reason:</b> {reason}", parse_mode=ParseMode.HTML)
 
 
 # Part 2: The handler to check for AFK users on mentions
@@ -79,7 +80,7 @@ async def afk_checker(bot, message):
         await message.reply(
             f"Welcome back, <b>{message.from_user.first_name}</b>!\n"
             f"You were away for <b>{afk_duration}</b>.",
-            parse_mode="HTML"
+            parse_mode=ParseMode.HTML
         )
         if not AFK_USERS[chat_id]:
             del AFK_USERS[chat_id]
@@ -94,7 +95,7 @@ async def afk_checker(bot, message):
             await message.reply(
                 f"<b>{afk_info['user_name']}</b> is AFK (for <b>{afk_since}</b>).\n"
                 f"<b>Reason:</b> {afk_info['reason']}",
-                parse_mode="HTML"
+                parse_mode=ParseMode.HTML
             )
             return # Stop checking once we've found a mention
 
@@ -136,6 +137,6 @@ async def afk_checker(bot, message):
                 await message.reply(
                     f"<b>{afk_info['user_name']}</b> is AFK (for <b>{afk_since}</b>).\n"
                     f"<b>Reason:</b> {afk_info['reason']}",
-                    parse_mode="HTML"
+                    parse_mode=ParseMode.HTML
                 )
                 return # Stop after the first found AFK user
