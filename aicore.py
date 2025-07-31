@@ -78,7 +78,7 @@ def create_config(
 SEARCH_TOOL = [
     Tool(
         google_search=GoogleSearchRetrieval(
-            dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.3)
+            dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.8)
         )
     ),
     Tool(
