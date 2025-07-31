@@ -50,7 +50,7 @@ async def mention_others(bot, message):
     
     initial_output = ""
     if hasattr(message, 'input') and message.input:
-        initial_output += f"<b>{message.input}</b>\n\n"
+        initial_output += f"<b>{message.input}</b>​"
 
     if non_bot_mentions:
         # Combine the invisible mentions with the visible dot
