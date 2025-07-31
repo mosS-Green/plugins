@@ -29,8 +29,6 @@ async def plugin_info(bot: BOT, message: Message):
 
     response = await message.reply(resp_str, disable_preview=True)
 
-from telegram.constants import ParseMode
-
 @bot.add_cmd("ey")
 async def mention_others(bot, message):
     sender_username = message.from_user.username
