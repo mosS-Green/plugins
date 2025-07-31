@@ -29,6 +29,8 @@ async def plugin_info(bot: BOT, message: Message):
 
     response = await message.reply(resp_str, disable_preview=True)
 
+from telegram.constants import ParseMode
+
 @bot.add_cmd("ey")
 async def mention_others(bot, message):
     sender_username = message.from_user.username
@@ -38,29 +40,29 @@ async def mention_others(bot, message):
     try:
         async for member in bot.get_chat_members(chat_id):
             if member.user and member.user.username and member.user.id and not member.user.is_bot and member.user.username != sender_username:
-                # Create an invisible mention link
                 mention = f'<a href="tg://user?id={member.user.id}">\u200B</a>'
                 non_bot_mentions.append(mention)
     except Exception as e:
         await message.reply(f"Error getting chat members: {e}")
         return
 
-    # Use a Unicode dot character for display
     dot_character = "​"
     
     initial_output = ""
+    
     if hasattr(message, 'input') and message.input:
-        initial_output += f"<b>{message.input}</b>​"
+        initial_output += f"<b>{message.input}</b>{dot_character}"
+    else:
+        initial_output += f"<b>@ everyone</b>{dot_character}"
 
     if non_bot_mentions:
-        # Combine the invisible mentions with the visible dot
-        tagged_dots = [f"{dot_character} {mention}" for mention in non_bot_mentions]
+        tagged_dots = [f"{dot_character}{mention}" for mention in non_bot_mentions]
         
-        for i in range(0, len(tagged_dots), 4):
-            chunk = tagged_dots[i:i+4]
-            current_output = initial_output + "​".join(chunk)
+        for i in range(0, len(tagged_dots), 50):
+            chunk = tagged_dots[i:i+50]
+            current_output = initial_output + "".join(chunk)
             await message.reply(text=current_output, parse_mode=ParseMode.HTML)
             
     else:
-        message_to_send = initial_output + "No other users to mention or unable to retrieve members."
-        await message.reply(text=message_to_send, parse_mode="HTML")
+        message_to_send = initial_output + " No other users to mention or unable to retrieve members."
+        await message.reply(text=message_to_send, parse_mode=ParseMode.HTML)
