@@ -4,13 +4,14 @@ from app import BOT, Config, Message, bot
 from pyrogram.enums import ParseMode
 from datetime import datetime
 
+# Mock classes for demonstration. In your code, you already have these.
+# from app import BOT, Config, Message, bot
+
 # This will store the AFK users. In a real bot, you'd use a database.
-# Format: {chat_id: {user_id: {"reason": "some reason", "time": timestamp, "user_name": "John"}}}
+# Format: {chat_id: {user_id: {"reason": "...", "time": ..., "user_name": "...", "username": "..."}}}
 AFK_USERS = {}
 
-# In-memory cache to map usernames to user IDs to avoid repeated API calls.
-# Format: {chat_id: {"username": user_id}}
-USERNAME_CACHE = {}
+# The USERNAME_CACHE is no longer needed with this simpler approach.
 
 def get_readable_time(seconds: int) -> str:
     """Converts a duration in seconds to a human-readable string."""
@@ -32,14 +33,14 @@ def get_readable_time(seconds: int) -> str:
     
     return readable_time or "0s"
 
-# Part 1: The command to set AFK status
+# Part 1: The command to set AFK status (with a small addition)
 @bot.add_cmd("afk")
 async def set_afk(bot, message):
     """Sets your AFK status in the chat."""
     chat_id = message.chat.id
     user = message.from_user
     
-    reason = "bhaad me gaya" # Default reason
+    reason = "No reason given." # Changed default reason for clarity
     
     if message.input:
         reason = message.input
@@ -49,32 +50,33 @@ async def set_afk(bot, message):
     if chat_id not in AFK_USERS:
         AFK_USERS[chat_id] = {}
         
+    # --- CHANGED: We now also store the username ---
     AFK_USERS[chat_id][user.id] = {
         "reason": reason,
         "time": time.time(),
-        "user_name": user.first_name, # Store the first name for cleaner replies
+        "user_name": user.first_name,
+        "username": user.username.lower() if user.username else None,
     }
     
     await message.reply(f"<b>{user.first_name}</b> is now AFK!\n<b>Reason:</b> {reason}", parse_mode=ParseMode.HTML)
 
 
-# Part 2: The handler to check for AFK users on mentions
+# Part 2: The handler to check for AFK users (now much simpler)
 @bot.on_message()
 async def afk_checker(bot, message):
     """Checks for mentions of AFK users and replies."""
     chat_id = message.chat.id
 
-    # If the chat has no AFK users recorded, or the message is from a bot, do nothing.
     if chat_id not in AFK_USERS or (message.from_user and message.from_user.is_bot):
         return
 
-    # --- 1. Check if the message sender is returning from AFK ---
+    # --- 1. Check if the message sender is returning from AFK (No change here) ---
     if message.from_user and message.from_user.id in AFK_USERS[chat_id]:
         afk_user_info = AFK_USERS[chat_id].pop(message.from_user.id)
         afk_duration = get_readable_time(int(time.time() - afk_user_info['time']))
         
         # Make a silent return if the user just used the /afk command
-        if message.text and message.text.lower().startswith("/afk"):
+        if message.text and message.text.lower().startswith(("/afk", ".afk")): # Added support for bot prefixes
             return
             
         await message.reply(
@@ -84,8 +86,10 @@ async def afk_checker(bot, message):
         )
         if not AFK_USERS[chat_id]:
             del AFK_USERS[chat_id]
+        # We return here because if the user is coming back online, we don't need to check for mentions in their message.
+        return
 
-    # --- 2. Check if the message is a reply to an AFK user ---
+    # --- 2. Check if the message is a reply to an AFK user (No change here) ---
     if message.reply_to_message and message.reply_to_message.from_user:
         replied_user_id = message.reply_to_message.from_user.id
         if replied_user_id in AFK_USERS.get(chat_id, {}):
@@ -97,41 +101,18 @@ async def afk_checker(bot, message):
                 f"<b>Reason:</b> {afk_info['reason']}",
                 parse_mode=ParseMode.HTML
             )
-            return # Stop checking once we've found a mention
+            return # Stop checking once we've found one
 
-    # --- 3. Check if the message contains @username or name-mentions of an AFK user ---
-    if message.entities:
-        afk_user_ids_in_chat = list(AFK_USERS.get(chat_id, {}).keys())
+    # --- 3. THE NEW, SIMPLER MENTION CHECK ---
+    # We check the raw text for "@username". This is much more efficient.
+    if message.text:
+        # Get a list of all AFK users in the current chat
+        afk_users_in_chat = AFK_USERS.get(chat_id, {})
         
-        for entity in message.entities:
-            mentioned_user_id = None
-            
-            # Case A: Name mention (e.g., from typing @ and selecting a user)
-            if entity.type == "text_mention" and entity.user:
-                 mentioned_user_id = entity.user.id
-
-            # Case B: Standard @username mention
-            elif entity.type == "mention":
-                username = message.text[entity.offset + 1 : entity.offset + entity.length].lower()
-                
-                # Check cache first to avoid API calls
-                if chat_id in USERNAME_CACHE and username in USERNAME_CACHE[chat_id]:
-                    mentioned_user_id = USERNAME_CACHE[chat_id][username]
-                else:
-                    # If not in cache, we need to iterate through members to find the user ID
-                    # This is an expensive operation, so caching is important
-                    async for member in bot.get_chat_members(chat_id):
-                        if member.user and member.user.username and member.user.username.lower() == username:
-                            mentioned_user_id = member.user.id
-                            # Add to cache for next time
-                            if chat_id not in USERNAME_CACHE:
-                                USERNAME_CACHE[chat_id] = {}
-                            USERNAME_CACHE[chat_id][username] = mentioned_user_id
-                            break
-            
-            # If we found a mentioned user and they are AFK, reply and stop.
-            if mentioned_user_id and mentioned_user_id in afk_user_ids_in_chat:
-                afk_info = AFK_USERS[chat_id][mentioned_user_id]
+        # Iterate through each AFK user to see if they were mentioned
+        for user_id, afk_info in afk_users_in_chat.items():
+            # Check if the user has a username and if it's in the message
+            if afk_info.get("username") and f"@{afk_info['username']}" in message.text.lower():
                 afk_since = get_readable_time(int(time.time() - afk_info['time']))
                 
                 await message.reply(
@@ -139,4 +120,4 @@ async def afk_checker(bot, message):
                     f"<b>Reason:</b> {afk_info['reason']}",
                     parse_mode=ParseMode.HTML
                 )
-                return # Stop after the first found AFK user
+                return # Important: Stop after finding the first AFK user to avoid spam
