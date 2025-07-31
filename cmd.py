@@ -1,6 +1,7 @@
 import os
 
 from app import BOT, Config, Message, bot
+from pyrogram.enums import ParseMode
 
 
 async def init_task(bot=bot, message=None):
@@ -58,7 +59,7 @@ async def mention_others(bot, message):
         for i in range(0, len(tagged_dots), 4):
             chunk = tagged_dots[i:i+4]
             current_output = initial_output + "\n".join(chunk)
-            await message.reply(text=current_output, parse_mode="HTML")
+            await message.reply(text=current_output, parse_mode=ParseMode.HTML)
             
     else:
         message_to_send = initial_output + "No other users to mention or unable to retrieve members."
