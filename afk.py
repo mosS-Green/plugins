@@ -1,4 +1,6 @@
 import time
+
+from app import BOT, Config, Message, bot
 from datetime import datetime
 
 # This will store the AFK users. In a real bot, you'd use a database.
