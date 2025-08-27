@@ -105,8 +105,8 @@ MODEL = {
         think=ThinkingConfig(thinking_budget=0),
     ),
     "IMG_EDIT": create_config(
-        "gemini-2.0-flash-preview-image-generation",
-        temp=0.8,
+        "gemini-2.5-flash-image-preview",
+        temp=1.0,
         tokens=750,
         modals=["image", "text"],
         mime_type="text/plain",
