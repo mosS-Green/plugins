@@ -78,7 +78,7 @@ def create_config(
 SEARCH_TOOL = [
     Tool(
         google_search=GoogleSearchRetrieval(
-            dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.8)
+            dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.6)
         )
     ),
     Tool(
@@ -101,30 +101,31 @@ MODEL = {
         ),
         1.0,
         8192,
-        search=SEARCH_TOOL,
-        think=ThinkingConfig(thinking_budget=0),
+        search=[],
+        think=ThinkingConfig(thinking_budget=2400),
     ),
     "IMG_EDIT": create_config(
-        "gemini-2.5-flash-image-preview",
+        "gemini-2.0-flash-exp-image-generation",
         temp=1.0,
         tokens=750,
         modals=["image", "text"],
         mime_type="text/plain",
     ),
     "DEFAULT": create_config(
-        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
         (
-            "Answer precisely and in short unless specifically instructed otherwise. "
+            "Answer accurately and concisely unless specifically instructed otherwise. "
             "For code, do not add comments or explanations unless instructed."
         ),
-        0.8,
+        1.0,
         8192,
         search=SEARCH_TOOL,
+        think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(
         "gemini-2.5-pro",
         (
-            "Write a lengthy, well-structured, and easy-to-read answer. "
+            "Write an accurate, well-structured, and easy-to-read answer. "
             "Use only <a>, <blockquote>, <br>, <em>, <h3>, <h4>, <p>, and <strong> tags."
             "IMPORTANT - Don't give a starting title, and don't write in a code block."
         ),
