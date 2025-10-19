@@ -1,143 +1,93 @@
-from app import BOT, Config, Message, bot
+from app import BOT, Message, bot
 from openai import AsyncOpenAI
 from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
 from ub_core.utils import aio
+import base64
+import re
+import io
 
-GPT4O_MODEL = "gpt-4.1"
+ELECTRON_API_KEY = "ek-jSL9SVU403NW4hEN3BCeiZwpnrxbYk0sFT1dcosdiyykp6bHxW"
+ELECTRON_BASE_URL = "https://api.electronhub.ai/v1/"
+MODEL = "gemini-2.5-flash-image"
 
-IMAGE_MODEL = "imagen-3"
-IMAGE_SIZE = "1024x1024"
+def parse_ai_output(choice):
+    content = getattr(choice.message, "content", "")
+    if not content:
+        return "", None
 
-ZUKI_BASE_URL = "https://api.zukijourney.com/v1"
-ZUKI_API_KEYS = [
-    "zu-89d98ff1db79a5601658fdbc832f14e5",
-    "zu-697462a11e0b0ef7525230309d421cfe",
-]
-current_zuki_api_key_index = 0
+    img_match = re.search(r'<img[^>]+src="([^"]+)"', content)
+    image_url = img_match.group(1) if img_match else None
 
-ELECTRON_BASE_URL = "https://api.electronhub.top/v1/"
+    text_only = re.sub(r"<[^>]+>", "", content).strip()
 
+    return text_only, image_url
 
-async def init_task(bot=bot, message=None):
-    apikey = await bot.get_messages(chat_id=Config.LOG_CHAT, message_ids=3903)
-    global ELECTRON_API_KEY
-    ELECTRON_API_KEY = apikey.text
+async def generate(client: AsyncOpenAI, prompt: str, image_file: io.BytesIO = None):
+    user_content = [{"type": "text", "text": prompt}]
 
+    if image_file:
+        image_bytes = image_file.read()
+        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
+        user_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{image_b64}"
+            }
+        })
 
-async def send_api_request(client, method, **kwargs):
     try:
-        response = await method(**kwargs)
-        return response, None
+        resp = await client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": user_content}],
+        )
+
+        if resp.choices:
+            text, img_url = parse_ai_output(resp.choices[0])
+            return text, img_url, None
+        else:
+            return None, None, "AI returned an empty response."
+
     except Exception as e:
-        return None, str(e)
-
-
-async def generate_text_from_api(client, prompt):
-    response, error = await send_api_request(
-        client,
-        client.chat.completions.create,
-        model=GPT4O_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    if response:
-        return response.choices[0].message.content, None
-    return None, error
-
-
-async def generate_image_from_api(client, prompt, size):
-    response, error = await send_api_request(
-        client, client.images.generate, model=IMAGE_MODEL, prompt=prompt, size=size
-    )
-    if response:
-        return response.data[0].url, None
-    return None, error
-
-
-async def send_image_reply(message, image_url, prompt, loading_msg):
-    image_file = await aio.in_memory_dl(image_url)
-    await loading_msg.edit_media(
-        InputMediaPhoto(
-            media=image_file,
-            caption=f"**>\n{prompt}<**",
-            parse_mode=ParseMode.MARKDOWN,
-            has_spoiler="-s" in message.flags,
-        )
-    )
-
-
-@bot.add_cmd(cmd="g")
-async def gpt(bot: BOT, message: Message):
-    global current_zuki_api_key_index
-    api_key = ZUKI_API_KEYS[current_zuki_api_key_index]
-    client = AsyncOpenAI(api_key=api_key, base_url=ZUKI_BASE_URL)
-    prompt = message.input
-    loading_msg = await message.reply("...")
-
-    response_text, error = await generate_text_from_api(client, prompt)
-
-    if response_text:
-        output_text = f"4.1: {response_text}"
-        await loading_msg.edit(
-            text=f"**>\n{output_text}<**", parse_mode=ParseMode.MARKDOWN
-        )
-    else:
-        await loading_msg.edit(f"Error: {error}")
-
+        return None, None, str(e)
 
 @bot.add_cmd(cmd="i")
-async def zuki_image(bot: BOT, message: Message):
-    global current_zuki_api_key_index
-    api_key = ZUKI_API_KEYS[current_zuki_api_key_index]
-    base_url = ZUKI_BASE_URL
+async def electron_gemini(bot: BOT, message: Message):
     prompt = message.input
-
     if not prompt:
-        current_zuki_api_key_index = (current_zuki_api_key_index + 1) % len(
-            ZUKI_API_KEYS
+        await message.reply("Please provide a prompt ✍️")
+        return
+
+    wait_message = await message.reply("...")
+
+    image_file = None
+    if message.reply_to_message and message.reply_to_message.photo:
+        image_file = await message.reply_to_message.download(in_memory=True)
+
+    client = AsyncOpenAI(api_key=ELECTRON_API_KEY, base_url=ELECTRON_BASE_URL)
+
+    text, image_url, error = await generate(client, prompt, image_file)
+
+    if error:
+        await wait_message.edit(f"❌ **Error:**\n`{error}`")
+        return
+
+    if image_url:
+        try:
+            await wait_message.edit_media(
+                media=InputMediaPhoto(
+                    media=image_url,
+                    caption=f"**>\n{text}<**",
+                    parse_mode=ParseMode.MARKDOWN,
+                )
+            )
+        except Exception as e:
+            await wait_message.edit(f"❌ **Failed to send image:** `{e}`\n\n{text}")
+
+    elif text:
+        await wait_message.edit(
+            text=f"**Prompt:** `{prompt}`\n\n**Response:** {text}",
+            parse_mode=ParseMode.MARKDOWN
         )
-        await message.reply(f"API {current_zuki_api_key_index + 1}")
-        return
-
-    loading_msg = await message.reply("....")
-    client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
-
-    image_size = IMAGE_SIZE
-    if "-p" in message.flags:
-        image_size = "1024x1792"
-    elif "-l" in message.flags:
-        image_size = "1792x1024"
-
-    image_url, error = await generate_image_from_api(client, prompt, image_size)
-
-    if image_url:
-        await send_image_reply(message, image_url, prompt, loading_msg)
     else:
-        await loading_msg.edit(f"Error: {error}")
-
-
-@bot.add_cmd(cmd="ie")
-async def electron_image(bot: BOT, message: Message):
-    api_key = ELECTRON_API_KEY
-    base_url = ELECTRON_BASE_URL
-    prompt = message.input
-
-    if not prompt:
-        await message.reply("Please provide a prompt to generate an image.")
-        return
-
-    loading_msg = await message.reply("....")
-    client = AsyncOpenAI(api_key=api_key, base_url=base_url, max_retries=0)
-
-    image_size = IMAGE_SIZE
-    if "-p" in message.flags:
-        image_size = "836x1254"
-    elif "-l" in message.flags:
-        image_size = "1254x836"
-
-    image_url, error = await generate_image_from_api(client, prompt, image_size)
-
-    if image_url:
-        await send_image_reply(message, image_url, prompt, loading_msg)
-    else:
-        await loading_msg.edit(f"Error: {error}")
+        await wait_message.edit("🤖 The AI returned an empty response.")
