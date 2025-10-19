@@ -61,7 +61,7 @@ async def electron_gemini(bot: BOT, message: Message):
         await message.reply("Please provide a prompt ✍️")
         return
 
-    wait_message = await message.reply("✨ Generating...")
+    wait_message = await message.reply("...")
 
     image_file = None
     if message.reply_to_message and message.reply_to_message.photo:
@@ -84,7 +84,7 @@ async def electron_gemini(bot: BOT, message: Message):
             await wait_message.edit_media(
                 media=InputMediaPhoto(
                     media=image_url,
-                    caption=f"**Prompt:** `{prompt}`\n\n**Response:** {text}",
+                    caption=f"**>\n{text}<**",
                     parse_mode=ParseMode.MARKDOWN,
                 )
             )
