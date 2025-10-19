@@ -54,7 +54,7 @@ async def generate(client: AsyncOpenAI, prompt: str, image_file: io.BytesIO = No
     except Exception as e:
         return None, None, str(e)
 
-@bot.add_cmd(cmd="ie")
+@bot.add_cmd(cmd="i")
 async def electron_gemini(bot: BOT, message: Message):
     prompt = message.input
     if not prompt:
