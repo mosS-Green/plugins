@@ -1,5 +1,5 @@
 from app import BOT, Message, bot
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, APITimeoutError
 from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
 from ub_core.utils import aio
@@ -27,6 +27,7 @@ async def generate(client: AsyncOpenAI, prompt: str, image_file: io.BytesIO = No
     user_content = [{"type": "text", "text": prompt}]
 
     if image_file:
+        image_file.seek(0)
         image_bytes = image_file.read()
         image_b64 = base64.b64encode(image_bytes).decode("utf-8")
         user_content.append({
@@ -47,24 +48,30 @@ async def generate(client: AsyncOpenAI, prompt: str, image_file: io.BytesIO = No
             return text, img_url, None
         else:
             return None, None, "AI returned an empty response."
-
+    
+    except APITimeoutError:
+        return None, None, "The request to the AI timed out. Please try again."
     except Exception as e:
         return None, None, str(e)
 
-@bot.add_cmd(cmd="i")
+@bot.add_cmd(cmd="ie")
 async def electron_gemini(bot: BOT, message: Message):
     prompt = message.input
     if not prompt:
         await message.reply("Please provide a prompt ✍️")
         return
 
-    wait_message = await message.reply("...")
+    wait_message = await message.reply("✨ Generating...")
 
     image_file = None
     if message.reply_to_message and message.reply_to_message.photo:
         image_file = await message.reply_to_message.download(in_memory=True)
 
-    client = AsyncOpenAI(api_key=ELECTRON_API_KEY, base_url=ELECTRON_BASE_URL)
+    client = AsyncOpenAI(
+        api_key=ELECTRON_API_KEY,
+        base_url=ELECTRON_BASE_URL,
+        timeout=60.0  # 60-second timeout
+    )
 
     text, image_url, error = await generate(client, prompt, image_file)
 
@@ -77,7 +84,7 @@ async def electron_gemini(bot: BOT, message: Message):
             await wait_message.edit_media(
                 media=InputMediaPhoto(
                     media=image_url,
-                    caption=f"**>\n{text}<**",
+                    caption=f"**Prompt:** `{prompt}`\n\n**Response:** {text}",
                     parse_mode=ParseMode.MARKDOWN,
                 )
             )
