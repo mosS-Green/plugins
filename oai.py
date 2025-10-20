@@ -36,7 +36,9 @@ async def generate(client: AsyncOpenAI, prompt: str, image_file: io.BytesIO = No
         })
     try:
         if model == MODEL_TEXT:
-            resp = await client.responses.create(model=model, input=user_content)
+            if image_file:
+                prompt = f"Input image (base64 below):\n{image_b64}\n\nPrompt: {prompt}"
+            resp = await client.responses.create(model=model, input=prompt)
             text = resp.output_text.strip() if hasattr(resp, "output_text") else None
             return text, None, None
         else:
