@@ -114,8 +114,7 @@ MODEL = {
     "DEFAULT": create_config(
         "gemini-2.5-flash",
         (
-            "Answer accurately and concisely unless specifically instructed otherwise. "
-            "For code, do not add comments or explanations unless instructed."
+            "IMPORTANT - Answer accurately and be concise. Be extremely rude to stupid questions."
         ),
         1.0,
         8192,
@@ -126,7 +125,7 @@ MODEL = {
         "gemini-2.5-pro",
         (
             "Write an accurate, well-structured, and easy-to-read answer. "
-            "Use only <a>, <blockquote>, <br>, <em>, <h3>, <h4>, <p>, and <strong> tags."
+            "IMPORTANT - Use only <a>, <blockquote>, <br>, <em>, <h3>, <h4>, <p>, and <strong> tags."
             "IMPORTANT - Don't give a starting title, and don't write in a code block."
         ),
         0.8,
