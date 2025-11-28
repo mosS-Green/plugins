@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import asyncio
 from datetime import datetime
 from pyrogram.enums import ParseMode
 from app import BOT, Message, Config
@@ -9,7 +10,7 @@ from app import BOT, Message, Config
 DATA_FILE = "list_reminder_data.json"
 
 
-def load_data():
+def _load_data_sync():
     if not os.path.exists(DATA_FILE):
         return {}
     try:
@@ -19,9 +20,17 @@ def load_data():
         return {}
 
 
-def save_data(data):
+def _save_data_sync(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f)
+
+
+async def load_data():
+    return await asyncio.to_thread(_load_data_sync)
+
+
+async def save_data(data):
+    await asyncio.to_thread(_save_data_sync, data)
 
 
 def human_time_ago(timestamp):
@@ -39,7 +48,7 @@ def human_time_ago(timestamp):
 @BOT.add_cmd("lr")
 async def list_reminder(bot: BOT, message: Message):
     user_id = str(message.from_user.id)
-    data = load_data()
+    data = await load_data()
     user_list = data.get(user_id, [])
 
     inp = getattr(message, "input", None)
@@ -52,7 +61,7 @@ async def list_reminder(bot: BOT, message: Message):
         if 0 <= idx < len(user_list):
             removed = user_list.pop(idx)
             data[user_id] = user_list
-            save_data(data)
+            await save_data(data)
             await message.reply(
                 text=f"✅ Removed item #{idx+1}: <b>{removed['text']}</b>",
                 parse_mode=ParseMode.HTML,
@@ -72,7 +81,7 @@ async def list_reminder(bot: BOT, message: Message):
 
         user_list.append(item)
         data[user_id] = user_list
-        save_data(data)
+        await save_data(data)
         await message.reply(
             text=f"➕ Added: <b>{inp}</b>",
             parse_mode=ParseMode.HTML,
