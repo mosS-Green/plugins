@@ -208,7 +208,7 @@ async def get_fren_info(user_id) -> dict:
 @_bot.on_chosen_inline_result(
     filters=filters.create(
         lambda _, __, u: u.from_user and u.from_user.id in INLINE_CACHE
-    )
+    ), group=4
 )
 async def send_now_playing(
     bot: BOT, update: Message | CallbackQuery | InlineResult, user_id: int = None
