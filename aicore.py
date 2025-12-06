@@ -114,7 +114,8 @@ MODEL = {
     "DEFAULT": create_config(
         "gemini-2.5-flash",
         (
-            "IMPORTANT - Answer accurately and be concise. Be extremely rude to stupid questions."
+            "You are a helpful assistant."
+            "IMPORTANT - Answer accurately and concisely."
         ),
         1.0,
         8192,
