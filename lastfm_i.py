@@ -86,9 +86,9 @@ def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) 
     # 3. Text
     # Fonts
     try:
-        font_header = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-regular.ttf"), 24)
-        font_track = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-bold.ttf"), 40)
-        font_artist = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-italic.ttf"), 28)
+        font_header = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-regular.ttf"), 30)
+        font_track = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-bold.ttf"), 60)
+        font_artist = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-italic.ttf"), 40)
     except IOError:
         # Fallback
         font_header = ImageFont.load_default()
@@ -96,7 +96,7 @@ def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) 
         font_artist = ImageFont.load_default()
 
     text_x = padding + cover_size + 40
-    text_y = 60
+    text_y = 50
     text_color = (255, 255, 255)
     accent_color = (220, 220, 220)
 
@@ -106,15 +106,15 @@ def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) 
     draw.text((text_x, text_y), header_text, font=font_header, fill=accent_color)
     
     # Line 2: Track Name (Bold)
-    text_y += 40
+    text_y += 45
     # Truncate if too long
     track_text = data["track_name"]
-    if len(track_text) > 25:
-        track_text = track_text[:25] + "..."
+    if len(track_text) > 20:
+        track_text = track_text[:20] + "..."
     draw.text((text_x, text_y), track_text, font=font_track, fill=text_color)
 
     # Line 3: by Artist (Italic)
-    text_y += 55
+    text_y += 75
     artist_text = f"by {data['artist_name']}"
     draw.text((text_x, text_y), artist_text, font=font_artist, fill=accent_color)
 
@@ -236,8 +236,6 @@ async def lastfm_image_status(bot: BOT, message: Message):
 
         await message.reply_photo(
             photo=image_io,
-            caption=f"<b>{data['track_name']}</b> by <i>{data['artist_name']}</i>",
-            parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup([buttons])
         )
         await load_msg.delete()
