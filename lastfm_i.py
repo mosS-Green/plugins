@@ -2,130 +2,56 @@ import io
 import os
 import asyncio
 import aiohttp
+import io
+import os
+import asyncio
+import aiohttp
 from datetime import datetime
 
 from pyrogram.enums import ParseMode
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, CustomDB, Message, bot
 from ub_core.utils import aio
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
+from .lastfm import fetch_track_list, LASTFM_DB, fetch_song_play_count, format_time
 from .yt import get_ytm_link
 
-# Constants
-LASTFM_DB = CustomDB["lastfm_users"]
-BASE_URL = "http://ws.audioscrobbler.com/2.0/"
-API_KEY = os.getenv("LASTFM_KEY")
-API_SECRET = "b6774b62bca666a84545e7ff4976914a"
+import random
 
-
-async def fetch_track_list(username: str) -> str | list[dict]:
-    response_data = await aio.get_json(
-        url=BASE_URL,
-        params={
-            "method": "user.getrecenttracks",
-            "user": username,
-            "api_key": API_KEY,
-            "format": "json",
-            "limit": 1,
-        },
-    )
-
-    if not response_data:
-        return "failed to fetch information"
-
-    if "error" in response_data:
-        return f"Last.fm API Error: {response_data['message']}"
-
-    return response_data.get("recenttracks", {}).get("track", [])
-
-
-async def fetch_song_play_count(artist: str, track: str, username: str) -> int:
-    params = {
-        "method": "track.getInfo",
-        "api_key": API_KEY,
-        "artist": artist,
-        "track": track,
-        "username": username,
-        "format": "json",
-    }
-    response = await aio.get_json(url=BASE_URL, params=params)
-
-    if not isinstance(response, dict) or "error" in response:
-        return 0
-
-    return response.get("track", {}).get("userplaycount", 0)
-
-
-def format_time(date_time: datetime) -> str:
-    now = datetime.now()
-    time_diff = now - date_time
-    if time_diff.days > 0:
-        return f"{time_diff.days}d ago"
-    elif time_diff.seconds // 3600 > 0:
-        return f"{time_diff.seconds // 3600}h ago"
-    elif time_diff.seconds // 60 > 0:
-        return f"{time_diff.seconds // 60}m ago"
-    else:
-        return "just now"
-
-
-async def get_now_playing_track(username) -> dict | str:
-    if not API_KEY:
-        return "Last.fm API key not initialized."
-
-    track_list = await fetch_track_list(username=username)
-
-    if isinstance(track_list, str):
-        return track_list
-
-    track_info: dict = track_list[0]
-    is_now_playing = track_info.get("@attr", {}).get("nowplaying") == "true"
-    artist_name = track_info["artist"]["#text"]
-    track_name = track_info["name"]
-    album_name = track_info.get("album", {}).get("#text", "")
-    
-    # Get Image
-    images = track_info.get("image", [])
-    image_url = ""
-    if images:
-        # Try to get the largest image
-        image_url = images[-1].get("#text", "")
-
-    play_count = await fetch_song_play_count(
-        artist=artist_name, track=track_name, username=username
-    )
-
-    if not is_now_playing and "date" in track_info:
-        last_played_time = format_time(
-            datetime.fromtimestamp(int(track_info["date"]["uts"]))
-        )
-    else:
-        last_played_time = ""
-
-    return {
-        "track_name": track_name,
-        "artist_name": artist_name,
-        "album_name": album_name,
-        "image_url": image_url,
-        "is_now_playing": is_now_playing,
-        "play_count": play_count,
-        "last_played_time": last_played_time,
-    }
-
-
-def _generate_image_sync(data: dict, cover_bytes: bytes | None) -> io.BytesIO:
+def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) -> io.BytesIO:
     # Canvas settings
     width, height = 800, 300
-    bg_color = (20, 20, 20)
-    text_color = (255, 255, 255)
-    accent_color = (200, 200, 200)
+    
+    # 1. Background: Ambient Noise Gradient Blur
+    if cover_bytes:
+        try:
+            # Use cover art as base for ambient background
+            bg = Image.open(io.BytesIO(cover_bytes)).convert("RGBA")
+            bg = bg.resize((width, height), Image.Resampling.LANCZOS)
+            # Heavy blur
+            bg = bg.filter(ImageFilter.GaussianBlur(radius=30))
+            
+            # Darken it significantly for text visibility
+            overlay = Image.new("RGBA", (width, height), (0, 0, 0, 120))
+            bg = Image.alpha_composite(bg, overlay)
+        except Exception:
+             bg = Image.new("RGB", (width, height), (20, 20, 20))
+    else:
+        bg = Image.new("RGB", (width, height), (20, 20, 20))
 
-    img = Image.new("RGB", (width, height), bg_color)
-    draw = ImageDraw.Draw(img)
+    # Add Noise
+    noise = Image.effect_noise((width, height), 15).convert("RGBA")
+    # Blend noise (low alpha)
+    noise.putalpha(20) 
+    bg.paste(noise, (0, 0), noise)
+    
+    draw = ImageDraw.Draw(bg)
 
-    # Load cover art
-    cover_size = 260
+    # 2. Cover Art (Foreground)
+    cover_size = 220
+    padding = 40
+    
     if cover_bytes:
         try:
             cover = Image.open(io.BytesIO(cover_bytes)).convert("RGBA")
@@ -134,53 +60,55 @@ def _generate_image_sync(data: dict, cover_bytes: bytes | None) -> io.BytesIO:
             cover = Image.new("RGB", (cover_size, cover_size), (50, 50, 50))
     else:
         cover = Image.new("RGB", (cover_size, cover_size), (50, 50, 50))
+        
+    # Add a simple border/shadow effect to cover (optional, keeping it simple for now)
+    bg.paste(cover, (padding, (height - cover_size) // 2))
 
-    # Paste cover with some padding
-    padding = 20
-    img.paste(cover, (padding, padding))
-
-    # Text settings
-    # Try to load a font, fallback to default
+    # 3. Text
+    # Fonts
     try:
-        # Attempt to use a system font or a specific font if available
-        # This is tricky without knowing available fonts. 
-        # We'll try a few common ones or fallback to default.
-        font_large = ImageFont.truetype("arial.ttf", 48)
-        font_medium = ImageFont.truetype("arial.ttf", 32)
-        font_small = ImageFont.truetype("arial.ttf", 24)
+        # Attempting to load fonts. In a real env, we'd want specific font files.
+        # Using default/arial for now but sizing them appropriately.
+        font_header = ImageFont.truetype("arial.ttf", 24)
+        font_track = ImageFont.truetype("arialbd.ttf", 40) # Bold
+        font_artist = ImageFont.truetype("ariali.ttf", 28) # Italic
     except IOError:
-        font_large = ImageFont.load_default()
-        font_medium = ImageFont.load_default()
-        font_small = ImageFont.load_default()
+        # Fallback if specific variants aren't found
+        try:
+             font_header = ImageFont.truetype("arial.ttf", 24)
+             font_track = ImageFont.truetype("arial.ttf", 40)
+             font_artist = ImageFont.truetype("arial.ttf", 28)
+        except IOError:
+            font_header = ImageFont.load_default()
+            font_track = ImageFont.load_default()
+            font_artist = ImageFont.load_default()
 
-    # Draw Text
-    text_x = padding + cover_size + 30
-    text_y = padding + 10
+    text_x = padding + cover_size + 40
+    text_y = 60
+    text_color = (255, 255, 255)
+    accent_color = (220, 220, 220)
 
-    # Status (Now Playing / Last Played)
-    status_text = "NOW PLAYING" if data["is_now_playing"] else f"LAST PLAYED ({data['last_played_time']})"
-    draw.text((text_x, text_y), status_text, font=font_small, fill=accent_color)
+    # Line 1: "{Name} is vibing to"
+    action = "is vibing to" if data["is_now_playing"] else f"was vibing to"
+    header_text = f"{user_name} {action}"
+    draw.text((text_x, text_y), header_text, font=font_header, fill=accent_color)
     
-    # Track Name
+    # Line 2: Track Name (Bold)
     text_y += 40
-    draw.text((text_x, text_y), data["track_name"], font=font_large, fill=text_color)
+    # Truncate if too long
+    track_text = data["track_name"]
+    if len(track_text) > 25:
+        track_text = track_text[:25] + "..."
+    draw.text((text_x, text_y), track_text, font=font_track, fill=text_color)
 
-    # Artist Name
-    text_y += 60
-    draw.text((text_x, text_y), data["artist_name"], font=font_medium, fill=accent_color)
+    # Line 3: by Artist (Italic)
+    text_y += 55
+    artist_text = f"by {data['artist_name']}"
+    draw.text((text_x, text_y), artist_text, font=font_artist, fill=accent_color)
 
-    # Album Name (if available)
-    if data["album_name"]:
-        text_y += 45
-        draw.text((text_x, text_y), data["album_name"], font=font_small, fill=accent_color)
-
-    # Play Count
-    text_y = height - padding - 30
-    draw.text((text_x, text_y), f"Plays: {data['play_count']}", font=font_small, fill=accent_color)
-
-    # Save to buffer
+    # Save
     output = io.BytesIO()
-    img.save(output, format="PNG")
+    bg.save(output, format="PNG")
     output.seek(0)
     output.name = "status.png"
     return output
@@ -197,17 +125,66 @@ async def lastfm_image_status(bot: BOT, message: Message):
         return
 
     username = fren_info.get("lastfm_username")
+    user_name = fren_info.get("name", message.from_user.first_name)
+    
     if not username:
          await message.reply("Last.fm username not found.")
          return
 
-    load_msg = await message.reply("<code>Generating...</code>")
+    load_msg = await message.reply("<code>...</code>")
 
     try:
-        data = await get_now_playing_track(username)
-        if isinstance(data, str):
-            await load_msg.edit(data)
+        # Fetch raw track list to get image_url and other details
+        track_list_raw = await fetch_track_list(username=username)
+
+        if isinstance(track_list_raw, str):
+            await load_msg.edit(track_list_raw)
             return
+        
+        if not track_list_raw:
+            await load_msg.edit("No recent tracks found.")
+            return
+
+        track_info: dict = track_list_raw[0]
+        
+        # Extract necessary data for image generation
+        is_now_playing = track_info.get("@attr", {}).get("nowplaying") == "true"
+        artist_name = track_info["artist"]["#text"]
+        track_name = track_info["name"]
+        
+        images = track_info.get("image", [])
+        image_url = ""
+        if images:
+            image_url = images[-1].get("#text", "") # Get largest image
+
+        # The play_count and last_played_time are not directly available in the raw track_list[0]
+        # and would require another API call (track.getInfo) or a more complex parsing.
+        # For now, we'll use placeholder or omit if not critical for image generation.
+        # Assuming the image generation only needs track_name, artist_name, is_now_playing, and image_url.
+        # If play_count and last_played_time are needed for the image, they would need to be fetched.
+        # However, the image generation function `_generate_image_sync` does not use `play_count` or `last_played_time`.
+        # The caption and buttons do use `play_count`.
+        # To get `play_count`, we need to call `fetch_song_play_count` which is now in `lastfm.py`.
+
+        play_count = await fetch_song_play_count(
+            artist=artist_name, track=track_name, username=username
+        )
+
+        last_played_time = ""
+        if not is_now_playing and "date" in track_info:
+            last_played_time = format_time(
+                datetime.fromtimestamp(int(track_info["date"]["uts"]))
+            )
+
+        data = {
+            "track_name": track_name,
+            "artist_name": artist_name,
+            "album_name": track_info.get("album", {}).get("#text", ""), # Album name is not used in image, but good to have
+            "image_url": image_url,
+            "is_now_playing": is_now_playing,
+            "play_count": play_count,
+            "last_played_time": last_played_time,
+        }
 
         # Download cover art
         cover_bytes = None
@@ -221,12 +198,35 @@ async def lastfm_image_status(bot: BOT, message: Message):
                 pass
 
         # Generate Image
-        image_io = await asyncio.to_thread(_generate_image_sync, data, cover_bytes)
+        image_io = await asyncio.to_thread(_generate_image_sync, data, cover_bytes, user_name)
+
+        # Buttons
+        yt_shortcode = ""
+        try:
+            # Use the imported function to get ytm_link
+            # noinspection PyUnresolvedReferences
+            ytm_link = await get_ytm_link(f"{track_name} by {artist_name}")
+            if ytm_link:
+                yt_shortcode = ytm_link.split("=")[1]
+        except IndexError:
+            yt_shortcode = ""
+
+        buttons = [
+            InlineKeyboardButton(
+                text="♫",
+                callback_data=f"y_{yt_shortcode}|{data['play_count']}|{user_id}",
+            ),
+            InlineKeyboardButton(
+                text=f"{data['play_count']} plays", callback_data="-_-"
+            ),
+            InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
+        ]
 
         await message.reply_photo(
             photo=image_io,
             caption=f"<b>{data['track_name']}</b> by <i>{data['artist_name']}</i>",
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup([buttons])
         )
         await load_msg.delete()
 
