@@ -17,7 +17,26 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from .lastfm import fetch_track_list, LASTFM_DB, fetch_song_play_count, format_time
 from .yt import get_ytm_link
 
-import random
+# Font URLs (Google Fonts - Outfit)
+FONT_URLS = {
+    "regular": "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit-Regular.ttf",
+    "bold": "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit-Bold.ttf",
+    "italic": "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit-Medium.ttf", # Using Medium as Italic alternative for now or just standard
+}
+
+FONTS_DIR = "fonts"
+os.makedirs(FONTS_DIR, exist_ok=True)
+
+async def init_task(bot: BOT = None, message: Message = None):
+    async with aiohttp.ClientSession() as session:
+        for name, url in FONT_URLS.items():
+            path = os.path.join(FONTS_DIR, f"Outfit-{name}.ttf")
+            if not os.path.exists(path):
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        with open(path, "wb") as f:
+                            f.write(await resp.read())
+
 
 def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) -> io.BytesIO:
     # Canvas settings
@@ -67,21 +86,14 @@ def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) 
     # 3. Text
     # Fonts
     try:
-        # Attempting to load fonts. In a real env, we'd want specific font files.
-        # Using default/arial for now but sizing them appropriately.
-        font_header = ImageFont.truetype("arial.ttf", 24)
-        font_track = ImageFont.truetype("arialbd.ttf", 40) # Bold
-        font_artist = ImageFont.truetype("ariali.ttf", 28) # Italic
+        font_header = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-regular.ttf"), 24)
+        font_track = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-bold.ttf"), 40)
+        font_artist = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-italic.ttf"), 28)
     except IOError:
-        # Fallback if specific variants aren't found
-        try:
-             font_header = ImageFont.truetype("arial.ttf", 24)
-             font_track = ImageFont.truetype("arial.ttf", 40)
-             font_artist = ImageFont.truetype("arial.ttf", 28)
-        except IOError:
-            font_header = ImageFont.load_default()
-            font_track = ImageFont.load_default()
-            font_artist = ImageFont.load_default()
+        # Fallback
+        font_header = ImageFont.load_default()
+        font_track = ImageFont.load_default()
+        font_artist = ImageFont.load_default()
 
     text_x = padding + cover_size + 40
     text_y = 60
