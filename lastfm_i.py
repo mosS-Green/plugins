@@ -17,27 +17,6 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from .lastfm import fetch_track_list, LASTFM_DB, fetch_song_play_count, format_time
 from .yt import get_ytm_link
 
-# Font URLs (Google Fonts - Outfit)
-FONT_URLS = {
-    "regular": "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit-Regular.ttf",
-    "bold": "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit-Bold.ttf",
-    "italic": "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit-Medium.ttf", # Using Medium as Italic alternative for now or just standard
-}
-
-FONTS_DIR = "fonts"
-os.makedirs(FONTS_DIR, exist_ok=True)
-
-async def init_task(bot: BOT = None, message: Message = None):
-    async with aiohttp.ClientSession() as session:
-        for name, url in FONT_URLS.items():
-            path = os.path.join(FONTS_DIR, f"Outfit-{name}.ttf")
-            if not os.path.exists(path):
-                async with session.get(url) as resp:
-                    if resp.status == 200:
-                        with open(path, "wb") as f:
-                            f.write(await resp.read())
-
-
 def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) -> io.BytesIO:
     # Canvas settings
     width, height = 800, 300
@@ -84,16 +63,23 @@ def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) 
     bg.paste(cover, (padding, (height - cover_size) // 2))
 
     # 3. Text
-    # Fonts
+    # Fonts - Using default font with size scaling (Pillow >= 10.0.0)
     try:
-        font_header = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-regular.ttf"), 30)
-        font_track = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-bold.ttf"), 60)
-        font_artist = ImageFont.truetype(os.path.join(FONTS_DIR, "Outfit-italic.ttf"), 40)
-    except IOError:
-        # Fallback
-        font_header = ImageFont.load_default()
-        font_track = ImageFont.load_default()
-        font_artist = ImageFont.load_default()
+        font_header = ImageFont.load_default(size=24)
+        font_track = ImageFont.load_default(size=48)
+        font_artist = ImageFont.load_default(size=32)
+    except TypeError:
+        # Fallback for older Pillow versions that don't support size in load_default
+        # We can't easily scale the bitmap default font, so we might be stuck with small text
+        # unless we load a system font. Let's try a common linux path just in case.
+        try:
+            font_header = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+            font_track = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
+            font_artist = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf", 32)
+        except IOError:
+             font_header = ImageFont.load_default()
+             font_track = ImageFont.load_default()
+             font_artist = ImageFont.load_default()
 
     text_x = padding + cover_size + 40
     text_y = 50
