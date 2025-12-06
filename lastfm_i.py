@@ -112,7 +112,18 @@ def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) 
     return output
 
 
-@bot.add_cmd(cmd="si")
+def _convert_to_sticker_sync(image_io: io.BytesIO) -> io.BytesIO:
+    image_io.seek(0)
+    img = Image.open(image_io)
+    img.thumbnail((512, 512))
+    sticker_io = io.BytesIO()
+    img.save(sticker_io, format="WEBP")
+    sticker_io.seek(0)
+    sticker_io.name = "sticker.webp"
+    return sticker_io
+
+
+@bot.add_cmd(cmd=["si", "sti"])
 async def lastfm_image_status(bot: BOT, message: Message):
 
     user_id = message.from_user.id
@@ -154,15 +165,6 @@ async def lastfm_image_status(bot: BOT, message: Message):
         image_url = ""
         if images:
             image_url = images[-1].get("#text", "") # Get largest image
-
-        # The play_count and last_played_time are not directly available in the raw track_list[0]
-        # and would require another API call (track.getInfo) or a more complex parsing.
-        # For now, we'll use placeholder or omit if not critical for image generation.
-        # Assuming the image generation only needs track_name, artist_name, is_now_playing, and image_url.
-        # If play_count and last_played_time are needed for the image, they would need to be fetched.
-        # However, the image generation function `_generate_image_sync` does not use `play_count` or `last_played_time`.
-        # The caption and buttons do use `play_count`.
-        # To get `play_count`, we need to call `fetch_song_play_count` which is now in `lastfm.py`.
 
         play_count = await fetch_song_play_count(
             artist=artist_name, track=track_name, username=username
@@ -220,10 +222,18 @@ async def lastfm_image_status(bot: BOT, message: Message):
             InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
         ]
 
-        await message.reply_photo(
-            photo=image_io,
-            reply_markup=InlineKeyboardMarkup([buttons])
-        )
+        if message.cmd == "sti":
+             sticker_io = await asyncio.to_thread(_convert_to_sticker_sync, image_io)
+             await message.reply_sticker(
+                sticker=sticker_io,
+                reply_markup=InlineKeyboardMarkup([buttons])
+            )
+        else:
+            await message.reply_photo(
+                photo=image_io,
+                reply_markup=InlineKeyboardMarkup([buttons])
+            )
+            
         await load_msg.delete()
 
     except Exception as e:
