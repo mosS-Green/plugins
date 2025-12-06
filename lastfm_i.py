@@ -1,6 +1,7 @@
 import io
 import os
 import asyncio
+import aiohttp
 from datetime import datetime
 
 from pyrogram.enums import ParseMode
@@ -211,7 +212,13 @@ async def lastfm_image_status(bot: BOT, message: Message):
         # Download cover art
         cover_bytes = None
         if data["image_url"]:
-            cover_bytes = await aio.get_bytes(data["image_url"])
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(data["image_url"]) as resp:
+                        if resp.status == 200:
+                            cover_bytes = await resp.read()
+            except Exception:
+                pass
 
         # Generate Image
         image_io = await asyncio.to_thread(_generate_image_sync, data, cover_bytes)
