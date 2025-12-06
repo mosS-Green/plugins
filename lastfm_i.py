@@ -224,17 +224,19 @@ async def lastfm_image_status(bot: BOT, message: Message):
 
         if message.cmd == "sti":
              sticker_io = await asyncio.to_thread(_convert_to_sticker_sync, image_io)
+             # Send as new message (not reply)
              await message.reply_sticker(
                 sticker=sticker_io,
-                reply_markup=InlineKeyboardMarkup([buttons])
+                reply_markup=InlineKeyboardMarkup([buttons]),
+                quote=False
             )
+             await load_msg.delete()
         else:
-            await message.reply_photo(
-                photo=image_io,
+            from pyrogram.types import InputMediaPhoto
+            await load_msg.edit_media(
+                media=InputMediaPhoto(media=image_io),
                 reply_markup=InlineKeyboardMarkup([buttons])
             )
-            
-        await load_msg.delete()
 
     except Exception as e:
         await load_msg.edit(f"Error: {e}")
