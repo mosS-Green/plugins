@@ -9,10 +9,10 @@ import io
 import asyncio
 
 # --- Configuration ---
-ELECTRON_API_KEY = "ek-jSL9SVU403NW4hEN3BCeiZwpnrxbYk0sFT1dcosdiyykp6bHxW"
+ELECTRON_API_KEY = "ek-8jsKzOsQdIKOZmY3FCcDZGbbvaMlyMcALQWFZkS6OkV0Rd0vgq"
 ELECTRON_BASE_URL = "https://api.electronhub.ai/v1/"
 MODEL_IMAGE = "gemini-2.5-flash-image"
-MODEL_TEXT = "gpt-5-mini:free"
+MODEL_TEXT = "claude-sonnet-4-5-20250929:free"
 
 # System instruction to guide the text model's behavior
 SYSTEM_PROMPT = "You are a helpful assistant. Keep your answers concise and to the point unless the user specifically asks for a detailed or long-form response."
