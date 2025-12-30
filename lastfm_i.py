@@ -15,63 +15,29 @@ from .lastfm import fetch_track_list, LASTFM_DB, fetch_song_play_count, format_t
 from .yt import get_ytm_link
 
 def _generate_default_cover(size: int) -> Image.Image:
-    # 6 Tasteful Dark Colors
+    # 6 Tasteful Darker Colors
     colors = [
-        "#1B2631", # Charcoal Blue
-        "#145A32", # Dark Emerald
-        "#4A235A", # Midnight Violet
-        "#641E16", # Burnt Crimson
-        "#154360", # Deep Ocean
-        "#212F3C"  # Dark Slate
+        "#0E1621", # Darker Charcoal Blue
+        "#0A2E19", # Darker Emerald
+        "#26122E", # Darker Midnight Violet
+        "#330F0B", # Darker Burnt Crimson
+        "#0B2230", # Darker Ocean
+        "#11181F"  # Darker Slate
     ]
     color = random.choice(colors)
     
-    img = Image.new("RGBA", (size, size), color)
+    # Square is pure black
+    img = Image.new("RGBA", (size, size), (0, 0, 0))
     draw = ImageDraw.Draw(img)
     
-    # Disc
+    # Disc (The Ring) -> Colored
     cx, cy = size // 2, size // 2
     r_disc = int(size * 0.42)
-    draw.ellipse((cx - r_disc, cy - r_disc, cx + r_disc, cy + r_disc), fill=(25, 25, 25))
+    draw.ellipse((cx - r_disc, cy - r_disc, cx + r_disc, cy + r_disc), fill=color)
     
-    # Inner Label
+    # Inner Label (Hole) -> Black to match background and form a ring
     r_label = int(r_disc * 0.4)
-    draw.ellipse((cx - r_label, cy - r_label, cx + r_label, cy + r_label), fill=color)
-    
-    # Note Icon (simple beamed eighth notes using white)
-    note_color = (230, 230, 230)
-    
-    # Parameters relative to center
-    head_size = int(size * 0.08) 
-    spacing = int(size * 0.12)  
-    
-    # Head 1
-    h1_x = cx - spacing // 2
-    h1_y = cy + int(size * 0.05)
-    
-    # Head 2
-    h2_x = cx + spacing // 2
-    h2_y = cy + int(size * 0.05)
-    
-    # Heads
-    draw.ellipse((h1_x - head_size//2, h1_y - head_size//2 + 5, h1_x + head_size//2, h1_y + head_size//2 + 5), fill=note_color)
-    draw.ellipse((h2_x - head_size//2, h2_y - head_size//2 + 5, h2_x + head_size//2, h2_y + head_size//2 + 5), fill=note_color)
-    
-    # Stems
-    stem_w = max(2, int(size * 0.015))
-    stem_h = int(size * 0.25)
-    
-    s1_x_r = h1_x + head_size//2 - stem_w
-    s1_top = h1_y - stem_h
-    draw.rectangle((s1_x_r, s1_top, s1_x_r + stem_w, h1_y + 5), fill=note_color)
-    
-    s2_x_r = h2_x + head_size//2 - stem_w
-    s2_top = h2_y - stem_h
-    draw.rectangle((s2_x_r, s2_top, s2_x_r + stem_w, h2_y + 5), fill=note_color)
-    
-    # Beam
-    beam_h = int(size * 0.05)
-    draw.rectangle((s1_x_r, s1_top, s2_x_r + stem_w, s1_top + beam_h), fill=note_color)
+    draw.ellipse((cx - r_label, cy - r_label, cx + r_label, cy + r_label), fill=(0, 0, 0))
 
     return img
 
