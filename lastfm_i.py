@@ -2,10 +2,7 @@ import io
 import os
 import asyncio
 import aiohttp
-import io
-import os
-import asyncio
-import aiohttp
+import random
 from datetime import datetime
 
 from pyrogram.enums import ParseMode
@@ -17,27 +14,95 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from .lastfm import fetch_track_list, LASTFM_DB, fetch_song_play_count, format_time
 from .yt import get_ytm_link
 
+def _generate_default_cover(size: int) -> Image.Image:
+    # 6 Tasteful Dark Colors
+    colors = [
+        "#1B2631", # Charcoal Blue
+        "#145A32", # Dark Emerald
+        "#4A235A", # Midnight Violet
+        "#641E16", # Burnt Crimson
+        "#154360", # Deep Ocean
+        "#212F3C"  # Dark Slate
+    ]
+    color = random.choice(colors)
+    
+    img = Image.new("RGBA", (size, size), color)
+    draw = ImageDraw.Draw(img)
+    
+    # Disc
+    cx, cy = size // 2, size // 2
+    r_disc = int(size * 0.42)
+    draw.ellipse((cx - r_disc, cy - r_disc, cx + r_disc, cy + r_disc), fill=(25, 25, 25))
+    
+    # Inner Label
+    r_label = int(r_disc * 0.4)
+    draw.ellipse((cx - r_label, cy - r_label, cx + r_label, cy + r_label), fill=color)
+    
+    # Note Icon (simple beamed eighth notes using white)
+    note_color = (230, 230, 230)
+    
+    # Parameters relative to center
+    head_size = int(size * 0.08) 
+    spacing = int(size * 0.12)  
+    
+    # Head 1
+    h1_x = cx - spacing // 2
+    h1_y = cy + int(size * 0.05)
+    
+    # Head 2
+    h2_x = cx + spacing // 2
+    h2_y = cy + int(size * 0.05)
+    
+    # Heads
+    draw.ellipse((h1_x - head_size//2, h1_y - head_size//2 + 5, h1_x + head_size//2, h1_y + head_size//2 + 5), fill=note_color)
+    draw.ellipse((h2_x - head_size//2, h2_y - head_size//2 + 5, h2_x + head_size//2, h2_y + head_size//2 + 5), fill=note_color)
+    
+    # Stems
+    stem_w = max(2, int(size * 0.015))
+    stem_h = int(size * 0.25)
+    
+    s1_x_r = h1_x + head_size//2 - stem_w
+    s1_top = h1_y - stem_h
+    draw.rectangle((s1_x_r, s1_top, s1_x_r + stem_w, h1_y + 5), fill=note_color)
+    
+    s2_x_r = h2_x + head_size//2 - stem_w
+    s2_top = h2_y - stem_h
+    draw.rectangle((s2_x_r, s2_top, s2_x_r + stem_w, h2_y + 5), fill=note_color)
+    
+    # Beam
+    beam_h = int(size * 0.05)
+    draw.rectangle((s1_x_r, s1_top, s2_x_r + stem_w, s1_top + beam_h), fill=note_color)
+
+    return img
+
 def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) -> io.BytesIO:
     # Canvas settings
     width, height = 800, 300
+    cover_size = 220
     
-    # 1. Background: Ambient Noise Gradient Blur
+    # Determine Cover Image
+    cover_image = None
     if cover_bytes:
         try:
-            # Use cover art as base for ambient background
-            bg = Image.open(io.BytesIO(cover_bytes)).convert("RGBA")
-            bg = bg.resize((width, height), Image.Resampling.LANCZOS)
-            # Heavy blur
-            bg = bg.filter(ImageFilter.GaussianBlur(radius=30))
-            
-            # Darken it significantly for text visibility
-            overlay = Image.new("RGBA", (width, height), (0, 0, 0, 120))
-            bg = Image.alpha_composite(bg, overlay)
+            cover_image = Image.open(io.BytesIO(cover_bytes)).convert("RGBA")
         except Exception:
-             bg = Image.new("RGB", (width, height), (20, 20, 20))
-    else:
-        bg = Image.new("RGB", (width, height), (20, 20, 20))
+            pass
 
+    if not cover_image:
+        cover_image = _generate_default_cover(cover_size)
+
+    # 1. Background: Ambient Noise Gradient Blur
+    bg = cover_image.copy()
+    if bg.mode != "RGBA":
+        bg = bg.convert("RGBA")
+        
+    bg = bg.resize((width, height), Image.Resampling.LANCZOS)
+    bg = bg.filter(ImageFilter.GaussianBlur(radius=30))
+    
+    # Darken it significantly for text visibility
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 120))
+    bg = Image.alpha_composite(bg, overlay)
+    
     # Add Noise
     noise = Image.effect_noise((width, height), 15).convert("RGBA")
     # Blend noise (low alpha)
@@ -47,20 +112,13 @@ def _generate_image_sync(data: dict, cover_bytes: bytes | None, user_name: str) 
     draw = ImageDraw.Draw(bg)
 
     # 2. Cover Art (Foreground)
-    cover_size = 220
     padding = 40
     
-    if cover_bytes:
-        try:
-            cover = Image.open(io.BytesIO(cover_bytes)).convert("RGBA")
-            cover = cover.resize((cover_size, cover_size), Image.Resampling.LANCZOS)
-        except Exception:
-            cover = Image.new("RGB", (cover_size, cover_size), (50, 50, 50))
-    else:
-        cover = Image.new("RGB", (cover_size, cover_size), (50, 50, 50))
-        
-    # Add a simple border/shadow effect to cover (optional, keeping it simple for now)
-    bg.paste(cover, (padding, (height - cover_size) // 2))
+    # Reuse cover_image, ensure size
+    cover_final = cover_image.resize((cover_size, cover_size), Image.Resampling.LANCZOS)
+    
+    # Paste Cover
+    bg.paste(cover_final, (padding, (height - cover_size) // 2), cover_final if cover_final.mode == "RGBA" else None)
 
     # 3. Text
     # Fonts - Using default font with size scaling (Pillow >= 10.0.0)
