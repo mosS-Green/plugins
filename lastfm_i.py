@@ -224,6 +224,10 @@ async def lastfm_image_status(bot: BOT, message: Message):
         if images:
             image_url = images[-1].get("#text", "") # Get largest image
 
+        # Check for default last.fm placeholders (The "Star" image)
+        if "2a96cbd8b46e442fc41c2b86b821562f" in image_url:
+            image_url = ""
+
         play_count = await fetch_song_play_count(
             artist=artist_name, track=track_name, username=username
         )
