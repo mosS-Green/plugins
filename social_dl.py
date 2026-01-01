@@ -54,7 +54,7 @@ async def social_dl(bot: BOT, message: Message):
             # Check for "Sauce" in caption
             if check_msg.caption and "Sauce" in check_msg.caption:
                 # Found it!
-                await bot.user.copy_message(
+                await bot.copy_message(
                     chat_id=message.chat.id,
                     from_chat_id=DUMP_CHAT,
                     message_id=sent_msg_id,
