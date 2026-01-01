@@ -1,4 +1,4 @@
-from pyrogram.types import InputMediaPhoto
+
 
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
@@ -7,7 +7,7 @@ from .aicore import MODEL, ask_ai, run_basic_check
 from .telegraph import tele_graph
 
 
-@bot.add_cmd(cmd=["r", "rx", "ri"])
+@bot.add_cmd(cmd=["r", "rx"])
 @run_basic_check
 async def r_question(bot: BOT, message: Message):
     reply = message.replied
@@ -29,28 +29,13 @@ async def r_question(bot: BOT, message: Message):
         query = reply
 
     loading_msg = await message.reply("<code>...</code>")
-    ai_image = None
 
-    if message.cmd == "ri":
-        ai_text, ai_image = await ask_ai(
-            prompt=prompt, query=query, quote=True, img=True, **MODEL["IMG_EDIT"]
-        )
-    else:
-        model = MODEL["LEAF"] if message.cmd == "rx" else MODEL["DEFAULT"]
-        ai_text = await ask_ai(prompt=prompt, query=query, quote=True, **model)
+    model = MODEL["LEAF"] if message.cmd == "rx" else MODEL["DEFAULT"]
+    ai_text = await ask_ai(prompt=prompt, query=query, quote=True, **model)
 
-    if ai_image:
-        await loading_msg.edit_media(
-            InputMediaPhoto(
-                media=ai_image,
-                caption=ai_text,
-                parse_mode=ParseMode.MARKDOWN,
-            )
-        )
-    else:
-        await loading_msg.edit(
-            text=ai_text, parse_mode=ParseMode.MARKDOWN, disable_preview=True
-        )
+    await loading_msg.edit(
+        text=ai_text, parse_mode=ParseMode.MARKDOWN, disable_preview=True
+    )
 
 
 @bot.add_cmd(cmd="rt")

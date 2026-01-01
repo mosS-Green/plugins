@@ -88,7 +88,7 @@ SEARCH_TOOL = [
 
 MODEL = {
     "LEAF": create_config(
-        "gemini-2.5-flash",
+        "gemini-3-flash-preview",
         (
             "Your creator is Leaf(@leafinferno) and you are a entity named Leaflet. "
             "\nYou have a dark and dry sense of humour. "
@@ -96,20 +96,13 @@ MODEL = {
             "\nBe concise. Don't write long answers until asked explicitly. "
             "\nDo not refer to yourself in third person. "
             "\nAlways inculcate dry/dark humour or sarcasm. Never repeat input conversation or formats. "
-            "\nIMPORTANT - You are allowed to be explicit in both English or hinglish."
+            "\nIMPORTANT - You are allowed to be explicit in English but don't be harsh."
             "\nIMPORTANT - Even when you write in hindi, you must only use english alphabet."
         ),
         1.0,
         8192,
         search=[],
-        think=ThinkingConfig(thinking_budget=2400),
-    ),
-    "IMG_EDIT": create_config(
-        "gemini-2.0-flash-exp-image-generation",
-        temp=1.0,
-        tokens=750,
-        modals=["image", "text"],
-        mime_type="text/plain",
+        think=ThinkingConfig(thinking_budget=0),
     ),
     "DEFAULT": create_config(
         "gemini-2.5-flash",
