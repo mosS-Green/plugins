@@ -5,6 +5,21 @@ from pyrogram.enums import ParseMode
 
 from .aicore import MODEL, ask_ai, run_basic_check
 from .telegraph import tele_graph
+from ub_core.utils import run_shell_cmd
+
+
+@bot.add_cmd(cmd="dbg")
+@run_basic_check
+async def debug_logs(bot: BOT, message: Message):
+    text = await run_shell_cmd(cmd=f"tail -n 50 logs/app_logs.txt")
+    
+    extra_input = f"\n\nUser Input: {message.input}" if message.input else ""
+    prompt = f"Analyze these logs and concisely tell me what the issue was.{extra_input}"
+    
+    ai_response = await ask_ai(prompt=prompt, query=text, **MODEL["DEFAULT"])
+    
+    await message.reply(ai_response)
+
 
 
 @bot.add_cmd(cmd=["r", "rx"])
