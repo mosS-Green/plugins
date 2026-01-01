@@ -1,7 +1,9 @@
 import asyncio
 from app import BOT, Message, bot
+from pyrogram.raw.types import UpdateNewMessage, UpdateNewChannelMessage
 
-SOCIAL_BOT = 1528267349
+SOCIAL_BOT = "rsdl_bot"
+DUMP_CHAT = -1002394753605
 
 
 @bot.add_cmd(cmd="d")
@@ -14,45 +16,57 @@ async def social_dl(bot: BOT, message: Message):
     status = await message.reply("Processing...")
 
     try:
-        # Send request
-        await bot.user.send_message(SOCIAL_BOT, f"_dl {link}")
+        # 1. Get Inline Results
+        results = await bot.user.get_inline_bot_results(SOCIAL_BOT, link)
+        if not results.results:
+            await status.edit("No results found from rsdl_bot.")
+            return
+
+        # 2. Send to Dump Chat
+        # send_inline_bot_result returns raw Updates object
+        updates = await bot.user.send_inline_bot_result(
+            DUMP_CHAT, results.query_id, results.results[0].id
+        )
+        
+        # 3. Extract Message ID
+        sent_msg_id = None
+        for update in updates.updates:
+            if isinstance(update, (UpdateNewMessage, UpdateNewChannelMessage)):
+                sent_msg_id = update.message.id
+                break
+        
+        if not sent_msg_id:
+            await status.edit("Failed to track the sent message.")
+            return
+
     except Exception as e:
-        await status.edit(f"Failed to send request: {e}")
+        await status.edit(f"Error initiating request: {e}")
         return
 
-    # Polling
+    # 4. Polling for "Sauce"
     found = False
     attempts = 0
-    # Wait up to 60 seconds (20 * 3)
-    max_attempts = 20
+    max_attempts = 30 # 30 * 3s = 90s timeout
 
     while attempts < max_attempts:
         await asyncio.sleep(3)
         attempts += 1
 
         try:
-            # Get last message
-            async for msg in bot.user.get_chat_history(SOCIAL_BOT, limit=1):
-                last_msg = msg
-                break
-            else:
-                continue
-
-            # Ignore if it's our own message
-            if last_msg.from_user and last_msg.from_user.is_self:
-                continue
-
+            # Check specific message
+            check_msg = await bot.user.get_messages(DUMP_CHAT, sent_msg_id)
+            
             # Check for "Sauce" in caption
-            if last_msg.caption and "Sauce" in last_msg.caption:
-                # Found it
+            if check_msg.caption and "Sauce" in check_msg.caption:
+                # Found it!
                 await bot.user.copy_message(
                     chat_id=message.chat.id,
-                    from_chat_id=SOCIAL_BOT,
-                    message_id=last_msg.id,
+                    from_chat_id=DUMP_CHAT,
+                    message_id=sent_msg_id,
                 )
                 found = True
                 break
-
+                
         except Exception as e:
             await status.edit(f"Error while polling: {e}")
             return
@@ -60,4 +74,4 @@ async def social_dl(bot: BOT, message: Message):
     if found:
         await status.delete()
     else:
-        await status.edit("Timeout: No 'Sauce' found in response.")
+        await status.edit("Timeout: 'Sauce' never appeared.")
