@@ -1,72 +1,37 @@
-import asyncio
-from app import BOT, Message, bot
-from pyrogram.raw.types import UpdateNewMessage, UpdateNewChannelMessage
+from pyrogram.raw.types.messages import BotResults
+from ub_core import BOT, Message
 
-SOCIAL_BOT = "rsdl_bot"
-DUMP_CHAT = -1002394753605
+reya = "@reyakamibot"
 
 
-@bot.add_cmd(cmd="d")
-async def social_dl(bot: BOT, message: Message):
-    link = message.input
-    if not link:
-        await message.reply("Give me a link.")
-        return
-
-    status = await message.reply("Processing...")
+@BOT.add_cmd("d")
+async def rsdl(bot: BOT, message: Message):
+    """
+    CMD: DL
+    INFO: use bitch's bot
+    USAGE: .d link
+    """
+    link = message.input if message.input else message.replied.text
 
     try:
-        # 1. Get Inline Results
-        results = await bot.user.get_inline_bot_results(SOCIAL_BOT, link)
-        if not results.results:
-            await status.edit("No results found from rsdl_bot.")
+        result: BotResults = await bot.user.get_inline_bot_results("rsdl_bot", link)
+
+        if not result.results:
+            await message.reply("Invalid url.")
             return
 
-        # 2. Send to Dump Chat
-        # send_inline_bot_result returns the sent Message object directly
-        sent_msg = await bot.user.send_inline_bot_result(
-            DUMP_CHAT, results.query_id, results.results[0].id
+        await bot.user.send_inline_bot_result(
+            chat_id=reya, query_id=result.query_id, result_id=result.results[0].id
         )
-        
-        if not sent_msg:
-             await status.edit("Failed to send message.")
-             return
 
-        sent_msg_id = sent_msg.id
+        async with bot.Convo(
+            chat_id=reya, client=bot, from_user=bot.user.me.id, timeout=30
+        ) as c:
+            await c.get_response()  # button removal
+            await c.get_response()  # waiting gif
+            media = await c.get_response()
+            if "more than one media" not in (media.content or ""):
+                await media.copy(message.chat.id)
 
     except Exception as e:
-        await status.edit(f"Error initiating request: {e}")
-        return
-
-    # 4. Polling for "Sauce"
-    found = False
-    attempts = 0
-    max_attempts = 30 # 30 * 3s = 90s timeout
-
-    while attempts < max_attempts:
-        await asyncio.sleep(3)
-        attempts += 1
-
-        try:
-            # Check specific message
-            check_msg = await bot.user.get_messages(DUMP_CHAT, sent_msg_id)
-            
-            # Check for "Sauce" in caption
-            if check_msg.caption and "Sauce" in check_msg.caption:
-                # Found it!
-                await bot.copy_message(
-                    chat_id=message.chat.id,
-                    from_chat_id=DUMP_CHAT,
-                    message_id=sent_msg_id,
-                )
-                found = True
-                break
-                
-        except Exception as e:
-            await status.edit(f"Error while polling: {e}")
-            return
-
-    if found:
-        await status.delete()
-    else:
-        await status.edit("Timeout: 'Sauce' never appeared.")
+        await message.reply(e)
