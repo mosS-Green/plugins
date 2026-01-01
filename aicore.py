@@ -105,7 +105,7 @@ MODEL = {
         think=ThinkingConfig(thinking_budget=0),
     ),
     "DEFAULT": create_config(
-        "gemini-2.5-flash",
+        "gemini-3-flash-preview",
         (
             "You are a helpful assistant."
             "IMPORTANT - Answer accurately and concisely."
@@ -116,11 +116,10 @@ MODEL = {
         think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(
-        "gemini-2.5-pro",
+        "gemini-3-flash-preview",
         (
             "Write an accurate, well-structured, and easy-to-read answer. "
-            "IMPORTANT - Use only <a>, <blockquote>, <br>, <em>, <h3>, <h4>, <p>, and <strong> tags."
-            "IMPORTANT - Don't give a starting title, and don't write in a code block."
+            "IMPORTANT - When outputting code, do not provide any explanation. minimal comments."
         ),
         0.8,
         60000,
