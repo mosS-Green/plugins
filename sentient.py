@@ -71,7 +71,7 @@ async def query_codebase(bot: BOT, message: Message):
         response = await ask_ai(
             prompt=prompt, 
             query=codebase_context, 
-            model="1.5-pro", # Defaulting to Pro for large context if available, otherwise fallback will handle it
+            quote=True,
             **MODEL["DEFAULT"] # Use default configuration but inject context
         )
         
