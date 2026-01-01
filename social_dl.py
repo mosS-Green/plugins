@@ -23,21 +23,16 @@ async def social_dl(bot: BOT, message: Message):
             return
 
         # 2. Send to Dump Chat
-        # send_inline_bot_result returns raw Updates object
-        updates = await bot.user.send_inline_bot_result(
+        # send_inline_bot_result returns the sent Message object directly
+        sent_msg = await bot.user.send_inline_bot_result(
             DUMP_CHAT, results.query_id, results.results[0].id
         )
         
-        # 3. Extract Message ID
-        sent_msg_id = None
-        for update in updates.updates:
-            if isinstance(update, (UpdateNewMessage, UpdateNewChannelMessage)):
-                sent_msg_id = update.message.id
-                break
-        
-        if not sent_msg_id:
-            await status.edit("Failed to track the sent message.")
-            return
+        if not sent_msg:
+             await status.edit("Failed to send message.")
+             return
+
+        sent_msg_id = sent_msg.id
 
     except Exception as e:
         await status.edit(f"Error initiating request: {e}")
