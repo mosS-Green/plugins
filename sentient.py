@@ -3,17 +3,6 @@ from app import BOT, Message, bot
 from .aicore import MODEL, ask_ai
 import ub_core
 
-# --- Electron API Setup ---
-from openai import AsyncOpenAI
-
-ELECTRON_API_KEY = "ek-8jsKzOsQdIKOZmY3FCcDZGbbvaMlyMcALQWFZkS6OkV0Rd0vgq"
-ELECTRON_BASE_URL = "https://api.electronhub.ai/v1/"
-
-client = AsyncOpenAI(
-    api_key=ELECTRON_API_KEY,
-    base_url=ELECTRON_BASE_URL,
-    timeout=120.0
-)
 
 CONTEXT_FILE = "codebase_context.txt"
 IGNORED_DIRS = {
@@ -143,20 +132,16 @@ async def create_plugin(bot: BOT, message: Message):
             "3. STRICTLY output the code inside a single ```python ... ``` block.\n"
             "4. Do NOT include any text, explanations, or markdown outside the code block.\n"
             "5. Keep comments minimal but useful.\n"
+            "\nUser Request:\n"
         )
         
-        user_prompt = f"Codebase Context:\n{codebase_context}\n\nUser Request:\n{request_content}"
+        full_prompt = f"{system_prompt}{request_content}"
 
-        # API Call
-        resp = await client.chat.completions.create(
-            model="gemini-3-pro-preview:free",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ]
+        response = await ask_ai(
+            prompt=full_prompt, 
+            query=codebase_context,
+            **MODEL["THINK"]
         )
-        
-        response = resp.choices[0].message.content
         
         # Robust extraction
         import re
