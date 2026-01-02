@@ -23,7 +23,7 @@ async def debug_logs(bot: BOT, message: Message):
             pass
 
     extra_input = f"\n\nUser Input: {message.input}" if message.input else ""
-    prompt = f"Analyze these logs and very concisely tell me what the issue was. Say No issues if none detected. Use the provided codebase context to identify specific files/plugins involved.{extra_input}"
+    prompt = f"Analyze these logs and very concisely tell me what the issue was. Say No issues if none detected. Use the provided codebase context to identify specific files/plugins involved. Ignore the sqlite3 errors.{extra_input}"
     
     ai_response = await ask_ai(prompt=prompt, query=text, quote=True, **MODEL["DEFAULT"])
     
