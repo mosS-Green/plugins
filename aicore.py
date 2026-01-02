@@ -112,7 +112,7 @@ MODEL = {
         ),
         1.0,
         8192,
-        search=SEARCH_TOOL,
+        search=[],
         think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(
@@ -123,7 +123,7 @@ MODEL = {
         ),
         0.8,
         60000,
-        search=SEARCH_TOOL,
+        search=[],
     ),
     "QUICK": create_config(
         "gemini-2.0-flash-lite",
