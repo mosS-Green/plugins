@@ -2,8 +2,10 @@ import asyncio
 import os
 import re
 import io
+from pathlib import Path
 from functools import partial
 
+import aiofiles
 from app import BOT, Message, bot
 from .aicore import MODEL, ask_ai
 import ub_core
@@ -20,96 +22,94 @@ ALLOWED_EXTS = {
     ".sh", ".toml", ".ini", ".dockerfile", ".css", ".html", ".js"
 }
 
-from pathlib import Path
+# Semaphore to prevent "Too many open files" errors during massive parallel reads
+MAX_CONCURRENT_READS = 50
 
-def _get_codebase_content_sync():
+async def read_file_async(path: Path, root_dir: Path, semaphore: asyncio.Semaphore) -> str:
     """
-    Synchronous function to walk the codebase and build the context string.
-    Designed to be run in an executor to avoid blocking the main loop.
+    Reads a single file asynchronously with a semaphore.
     """
-    root_dir = Path(os.getcwd())
-    content = ["Analysis of the entire codebase directory structure and file contents:\n"]
-    
-    # Identify directories to traverse
-    dirs_to_walk = [root_dir]
-    
-    # robustly add ub_core path
-    if hasattr(ub_core, "__path__"):
-        dirs_to_walk.extend([Path(p) for p in ub_core.__path__])
-    elif hasattr(ub_core, "__file__"):
-        dirs_to_walk.append(Path(ub_core.__file__).parent)
-
-    processed_files = set()
-    
-    def recursive_walk(directory):
-        if directory.name in IGNORED_DIRS:
-            return
-            
+    async with semaphore:
         try:
-            # Sort for deterministic output
-            for path in sorted(directory.iterdir(), key=lambda p: p.name.lower()):
-                if path.is_dir():
-                    if path.name not in IGNORED_DIRS:
-                         recursive_walk(path)
-                elif path.is_file():
-                    if path.suffix in ALLOWED_EXTS or path.name in ("Dockerfile", "Makefile"):
-                        if path in processed_files:
-                            continue
-                        processed_files.add(path)
+            try:
+                rel_path = path.relative_to(root_dir)
+            except ValueError:
+                rel_path = path
+            
+            # Skip the context file itself
+            if str(rel_path) == CONTEXT_FILE:
+                return ""
 
-                        try:
-                            rel_path = path.relative_to(root_dir)
-                        except ValueError:
-                            rel_path = path
-                        
-                        if str(rel_path) == CONTEXT_FILE:
-                            continue
-                            
-                        try:
-                            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                                file_content = f.read()
-                                content.append(f"\n{'='*20}\nFile: {rel_path}\n{'='*20}\n{file_content}\n")
-                        except Exception:
-                            continue
-        except PermissionError:
-            pass
-
-    for start_dir in dirs_to_walk:
-        if start_dir.exists():
-             recursive_walk(start_dir)
-                        
-    return "".join(content)
+            async with aiofiles.open(path, "r", encoding="utf-8", errors="ignore") as f:
+                content = await f.read()
+                return f"\n{'='*20}\nFile: {rel_path}\n{'='*20}\n{content}\n"
+        except Exception:
+            return ""
 
 async def build_codebase_index():
     """
-    Async wrapper to run the synchronous file walking in a separate thread.
+    Asynchronously builds the codebase index using pathlib and asyncio.gather.
     """
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _get_codebase_content_sync)
+    root_dir = Path(os.getcwd())
+    
+    # Resolve paths to scan
+    search_dirs = [root_dir]
+    
+    # Handle ub_core path - simpler check as requested
+    if hasattr(ub_core, "__path__"):
+        search_dirs.extend([Path(p) for p in ub_core.__path__])
+    elif hasattr(ub_core, "__file__"):
+        search_dirs.append(Path(ub_core.__file__).parent)
+
+    all_files = []
+    processed_paths = set()
+    
+    for directory in search_dirs:
+        if not directory.exists():
+            continue
+            
+        # Use rglob for recursive globbing - efficient iterator
+        # We manually filter IGNORED_DIRS since rglob doesn't support exclusion patterns natively during traversal
+        for path in directory.rglob("*"):
+            if path.is_file():
+                # Check for ignored directories in path parts
+                # This is efficient enough for typical project sizes
+                if any(part in IGNORED_DIRS for part in path.parts):
+                    continue
+                
+                if path.suffix in ALLOWED_EXTS or path.name in ("Dockerfile", "Makefile"):
+                    if path in processed_paths:
+                        continue
+                    processed_paths.add(path)
+                    all_files.append(path)
+
+    # Sort files for deterministic output
+    all_files.sort(key=lambda p: p.name.lower())
+
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_READS)
+    
+    # Create tasks for all files
+    tasks = [read_file_async(file, root_dir, semaphore) for file in all_files]
+    
+    # Run all reads in parallel
+    results = await asyncio.gather(*tasks)
+    
+    header = "Analysis of the entire codebase directory structure and file contents:\n"
+    return header + "".join(results)
 
 async def read_context_file():
-    """
-    Reads the codebase context file in a non-blocking way.
-    """
-    loop = asyncio.get_running_loop()
-    def _read():
-        with open(CONTEXT_FILE, "r", encoding="utf-8") as f:
-            return f.read()
-    return await loop.run_in_executor(None, _read)
+    """Reads the context file asynchronously."""
+    async with aiofiles.open(CONTEXT_FILE, "r", encoding="utf-8") as f:
+        return await f.read()
 
 @bot.add_cmd(cmd="ubx")
 async def index_codebase(bot: BOT, message: Message):
     status = await message.reply("Indexing codebase...")
     try:
-        # Optimization: Non-blocking file operation
         content = await build_codebase_index()
         
-        # Write mostly non-blocking (small enough) or use executor if very large
-        loop = asyncio.get_running_loop()
-        def _write():
-            with open(CONTEXT_FILE, "w", encoding="utf-8") as f:
-                f.write(content)
-        await loop.run_in_executor(None, _write)
+        async with aiofiles.open(CONTEXT_FILE, "w", encoding="utf-8") as f:
+            await f.write(content)
         
         caption = f"Codebase indexed successfully.\nSize: {len(content)} characters."
         
@@ -135,7 +135,6 @@ async def query_codebase(bot: BOT, message: Message):
     status = await message.reply("Thinking...")
     
     try:
-        # Non-blocking read
         codebase_context = await read_context_file()
             
         prompt = message.input
@@ -154,7 +153,7 @@ async def query_codebase(bot: BOT, message: Message):
 @bot.add_cmd(cmd="cook")
 async def cook_plugin(bot: BOT, message: Message):
     """
-    Generates code based on the codebase context (formerly 'create').
+    Generates code based on the codebase context.
     """
     input_text = message.input
     reply_text = message.replied.text if message.replied else ""
@@ -171,7 +170,6 @@ async def cook_plugin(bot: BOT, message: Message):
     status = await message.reply("Cooking...")
     
     try:
-        # Non-blocking read
         codebase_context = await read_context_file()
 
         system_prompt = (
@@ -194,7 +192,6 @@ async def cook_plugin(bot: BOT, message: Message):
             **MODEL["THINK"]
         )
         
-        # Robust extraction logic
         match = re.search(r"```python\n(.*?)```", response, re.DOTALL)
         if match:
             clean_code = match.group(1).strip()
@@ -202,7 +199,7 @@ async def cook_plugin(bot: BOT, message: Message):
             match_generic = re.search(r"```(.*?)```", response, re.DOTALL)
             clean_code = match_generic.group(1).strip() if match_generic else response.strip()
 
-        if len(clean_code) > 4000: # Telegram message limit is 4096
+        if len(clean_code) > 4000: 
             f = io.BytesIO(clean_code.encode("utf-8"))
             f.name = "plugin.py"
             await message.reply_document(document=f, caption="Here is your cooked plugin.")
