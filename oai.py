@@ -3,6 +3,7 @@ from openai import AsyncOpenAI, APITimeoutError
 from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
 from ub_core.utils import aio
+from .aicore import MODEL, ask_ai
 import base64
 import re
 import io
@@ -85,6 +86,28 @@ async def electron_gemini(bot: BOT, message: Message):
         return
         
     wait_message = await message.reply("Generating...")
+    
+    # Enhance prompt using QUICK model (Nano Banana logic: Photorealism)
+    try:
+        enhance_instruction = (
+            "Enhance the following prompt to generate a high-quality, photorealistic image (like a real photograph). "
+            "Add details about lighting, texture, and composition to make it look real. "
+            "However, if the user explicitly specifies a different style (e.g., 'anime', 'cartoon', 'sketch'), strictly respect that style. "
+            "Output ONLY the final enhanced prompt text, nothing else."
+        )
+        
+        enhanced_prompt = await ask_ai(
+            prompt=f"{enhance_instruction}\n\nOriginal Prompt: {prompt}", 
+            **MODEL["QUICK"]
+        )
+        
+        # Basic validation to ensure we got a prompt back and not an error
+        if enhanced_prompt and len(enhanced_prompt) > 5 and "Error" not in enhanced_prompt:
+            prompt = enhanced_prompt.strip()
+            
+    except Exception:
+        # If enhancement fails, proceed with original prompt
+        pass
     
     image_file = None
     if message.reply_to_message and message.reply_to_message.photo:

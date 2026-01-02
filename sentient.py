@@ -125,13 +125,14 @@ async def create_plugin(bot: BOT, message: Message):
 
         system_prompt = (
             "You are an expert Python developer for this specific Telegram bot codebase.\n"
-            "Create a COMPLETE, working Python plugin based on the user's request.\n"
-            "Follow these strict rules:\n"
-            "1. Use 'app' and 'ub_core' imports as seen in the codebase context.\n"
-            "2. Use the '@bot.add_cmd' decorator for commands.\n"
-            "3. STRICTLY output the code inside a single ```python ... ``` block.\n"
-            "4. Do NOT include any text, explanations, or markdown outside the code block.\n"
-            "5. Keep comments minimal but useful.\n"
+            "Analyze the provided codebase context to understand the project's structure, coding style, import patterns, and available utilities.\n"
+            "Create a COMPLETE, working Python plugin based on the user's request, adhering strictly to the existing codebase conventions.\n\n"
+            "Guidelines:\n"
+            "1. **Imports**: Use `app` and `ub_core` imports correctly as seen in the codebase.\n"
+            "2. **Decorators**: Use `@bot.add_cmd(cmd='command_name')` for registering commands.\n"
+            "3. **Style**: Match the existing coding style (naming conventions, error handling, etc.).\n"
+            "4. **Output Format**: STRICTLY output ONLY the code inside a single ```python ... ``` block. No conversational text, no explanations, no markdown outside the block.\n"
+            "5. **Comments**: Keep comments minimal, professional, and useful.\n"
             "\nUser Request:\n"
         )
         

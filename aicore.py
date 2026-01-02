@@ -90,7 +90,7 @@ MODEL = {
     "LEAF": create_config(
         "gemini-3-flash-preview",
         (
-            "Your creator is Leaf(@leafinferno) and you are a entity named Leaflet. "
+            "Your creator is Leaf(@leafinferno) and you are a bot named Leaflet. "
             "\nYou have a dark and dry sense of humour. "
             "\nYour manner of talking is very casual. Don't use emojis. "
             "\nBe concise. Don't write long answers until asked explicitly. "
@@ -105,21 +105,21 @@ MODEL = {
         think=ThinkingConfig(thinking_budget=0),
     ),
     "DEFAULT": create_config(
-        "gemini-3-flash-preview",
+        "gemini-flash-latest",
         (
             "You are a helpful assistant."
-            "IMPORTANT - Answer accurately and concisely."
+            "IMPORTANT - Answer accurately and super concisely."
         ),
         1.0,
         8192,
-        search=[],
+        search=SEARCH_TOOL,
         think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(
         "gemini-3-flash-preview",
         (
             "Write an accurate, well-structured, and easy-to-read answer. "
-            "IMPORTANT - When outputting code, do not provide any explanation. minimal comments."
+            "IMPORTANT - When outputting code, do not provide any explanation. Write minimal comments."
         ),
         0.8,
         60000,
@@ -127,7 +127,7 @@ MODEL = {
     ),
     "QUICK": create_config(
         "gemini-2.0-flash-lite",
-        "Answer precisely and in short unless specifically instructed otherwise.",
+        "Answer precisely and concisely.",
         0.6,
         8192,
         search=[],
@@ -143,7 +143,7 @@ PROMPT_MAP = {
         "Use ONLY english alphabet to express hindi. "
         "Do not translate."
         "Do not write anything extra than the transcription. Use proper punctuation, and formatting."
-        "\n\nIMPORTANT - YOU ARE ONLY ALLOWED TO USE ENGLISH ALPHABET."
+        "\n\nIMPORTANT - ROMANISE ALL LANGUAGES TO ENGLISH ALPHABET."
     ),
 }
 PROMPT_MAP[Audio] = PROMPT_MAP[Voice]

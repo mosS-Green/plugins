@@ -11,6 +11,7 @@ async def rsdl(bot: BOT, message: Message):
     INFO: use bitch's bot
     USAGE: .d link
     """
+    await message.reply("processing...", del_in=6)
     link = message.input if message.input else message.replied.text
 
     try:
