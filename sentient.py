@@ -67,7 +67,15 @@ async def index_codebase(bot: BOT, message: Message):
         content = get_codebase_content()
         with open(CONTEXT_FILE, "w", encoding="utf-8") as f:
             f.write(content)
-        await status.edit(f"Codebase indexed successfully.\nSize: {len(content)} characters.")
+        
+        caption = f"Codebase indexed successfully.\nSize: {len(content)} characters."
+        
+        if message.input and "-u" in message.input:
+            await message.reply_document(document=CONTEXT_FILE, caption=caption)
+            await status.delete()
+        else:
+            await status.edit(caption)
+            
     except Exception as e:
         await status.edit(f"Indexing failed: {e}")
 

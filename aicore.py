@@ -10,6 +10,7 @@ from mimetypes import guess_type
 # noinspection PyUnresolvedReferences
 from app.plugins.ai.gemini.client import async_client
 from app.plugins.ai.gemini.utils import run_basic_check
+from .ai_sandbox.registry import SANDBOX_TOOLS, SANDBOX_FUNCTIONS
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
@@ -112,7 +113,7 @@ MODEL = {
         ),
         1.0,
         8192,
-        search=SEARCH_TOOL,
+        search=SEARCH_TOOL + SANDBOX_TOOLS,
         think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(
@@ -194,6 +195,91 @@ async def ask_ai(
     response = await async_client.models.generate_content(
         contents=prompt_combined, **kwargs
     )
+    
+    # --- Function Calling Loop ---
+    # We might need to handle multiple turns if the model calls functions
+    # Note: 'kwargs' contains the config which includes tools.
+    
+    # We need to maintain a chat history for function calling to work properly in a single turn simulation
+    # effectively expanding 'contents'
+    
+    current_contents = []
+    if isinstance(prompt_combined, list):
+         current_contents.extend(prompt_combined)
+    else:
+         current_contents.append(prompt_combined)
+
+    # Initial call was already made above, so we check response
+    while True:
+        function_calls = []
+        if response.candidates and response.candidates[0].content.parts:
+            for part in response.candidates[0].content.parts:
+                if part.function_call:
+                    function_calls.append(part.function_call)
+        
+        if not function_calls:
+            break
+            
+        # If we have function calls, we execute them and send results back
+        # Append the model's response (with function calls) to history
+        # Convert response to content-like format if needed, but the SDK handles this usually via chat session.
+        # Since we are using generate_content (stateless), we must manually append to contents.
+        
+        # 1. Add Model's Turn (The Function Call)
+        # We need to reconstruct the content part from the response for the next request
+        current_contents.append(response.candidates[0].content)
+        
+        # 2. Execute Functions and Add Tool Response
+        for call in function_calls:
+            fname = call.name
+            fargs = call.args
+            
+            LOGGER.info(f"AI Function Call: {fname} with args {fargs}")
+            
+            result_content = "Error: Function not found"
+            
+            if fname in SANDBOX_FUNCTIONS:
+                func = SANDBOX_FUNCTIONS[fname]
+                
+                # Inject User ID if missing and needed
+                # We assume if the function expects 'user_id' and it's not in args, we assume it's the caller.
+                # However, the registry definition makes it optional, so the model might omit it.
+                # The python function 'get_my_lastfm_status' expects user_id.
+                
+                actual_args = dict(fargs) if fargs else {}
+                
+                # Check if we need to inject user_id
+                # (Simple heuristic: if function takes user_id and it's missing)
+                import inspect
+                sig = inspect.signature(func)
+                if "user_id" in sig.parameters and "user_id" not in actual_args:
+                    if query and hasattr(query, "from_user") and query.from_user:
+                         actual_args["user_id"] = query.from_user.id
+                    elif not query: # direct prompt, no message object?
+                         actual_args["user_id"] = 0 # Fallback or error
+                         
+                try:
+                    # Execute
+                    if asyncio.iscoroutinefunction(func):
+                        res = await func(**actual_args)
+                    else:
+                        res = func(**actual_args)
+                    
+                    result_content = str(res)
+                except Exception as e:
+                    result_content = f"Error executing {fname}: {e}"
+            
+            from google.genai.types import Part
+            
+            # 3. Add Function Response to history
+            current_contents.append(
+                {"role": "tool", "parts": [Part(function_response={"name": fname, "response": {"result": result_content}})]}
+            )
+            
+        # 4. Call Model Again with History
+        response = await async_client.models.generate_content(
+            contents=current_contents, **kwargs
+        )
 
     if not response.candidates and response.prompt_feedback:
         block_reason = response.prompt_feedback.block_reason or "UNKNOWN"
