@@ -248,7 +248,7 @@ async def ask_ai(
         )
         contents.append(
             Content(
-                role="function",
+                role="user",
                 parts=[
                     Part(text="System: The following are the results of the function call you made:"),
                     function_response_part,
