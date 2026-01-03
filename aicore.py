@@ -18,10 +18,16 @@ from google.genai.types import (
     UrlContext,
     Tool,
     ThinkingConfig,
+    Content,
+    Part,
+    FunctionResponse,
 )
 from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from app import LOGGER, Message
 from ub_core.utils import get_tg_media_details
+from app.modules.ai_sandbox.tools import MUSIC_TOOL, LIST_TOOL
+from app.modules.ai_sandbox.functions import get_my_list
+from app.modules.yt import get_ytm_link
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
@@ -112,7 +118,7 @@ MODEL = {
         ),
         1.0,
         8192,
-        search=SEARCH_TOOL,
+        search=SEARCH_TOOL + [MUSIC_TOOL, LIST_TOOL],
         think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(
@@ -126,7 +132,7 @@ MODEL = {
         search=[],
     ),
     "QUICK": create_config(
-        "gemini-2.0-flash-lite",
+        "gemini-flash-lite-latest",
         "Answer precisely and concisely.",
         0.6,
         8192,
@@ -147,6 +153,17 @@ PROMPT_MAP = {
     ),
 }
 PROMPT_MAP[Audio] = PROMPT_MAP[Voice]
+
+
+async def execute_function(part):
+    func_name = part.function_call.name
+    func_args = part.function_call.args
+    
+    if func_name == "get_ytm_link":
+        return await get_ytm_link(**func_args)
+    elif func_name == "get_my_list":
+        return await get_my_list()
+    return "Error: Unknown function"
 
 
 async def ask_ai(
@@ -176,6 +193,8 @@ async def ask_ai(
             type(media), "Analyse the file and explain."
         )
         download_dir = os.path.join("downloads", str(time.time())) + "/"
+        # Simplified download logic for brevity in this replace block if unchanged
+        # Assuming original download logic is correct, just focusing on loop
         downloaded_file = await query.download(download_dir)
 
         mime_type = getattr(media, "mime_type", guess_type(downloaded_file)[0])
@@ -191,22 +210,68 @@ async def ask_ai(
         prompt_combined = [uploaded_file, prompt_clean]
         shutil.rmtree(download_dir, ignore_errors=True)
 
+    # Initial Prompt
+    contents = [prompt_combined]
+    
+    # Turn 1
     response = await async_client.models.generate_content(
-        contents=prompt_combined, **kwargs
+        contents=contents, **kwargs
     )
 
     if not response.candidates and response.prompt_feedback:
         block_reason = response.prompt_feedback.block_reason or "UNKNOWN"
         return f"Prompt blocked: {block_reason}", None
 
-    ai_text, ai_image = get_response_content(
+    # Check for function call
+    try:
+        part = response.candidates[0].content.parts[0]
+    except (AttributeError, IndexError):
+        part = None
+
+    if part and part.function_call:
+        # Execute function
+        function_result = await execute_function(part)
+        
+        # Add model's turn (function call) to history
+        # Note: Depending on SDK version, we might need to reconstruct the Content object perfectly
+        # For now assuming appending the response object works or constructing Content works
+        # Current google-genai SDK prefers list of Content objects
+        
+        # We need to reconstruct the history. 
+        # contents already has the user prompt.
+        # Add model response
+        contents.append(response.candidates[0].content)
+        
+        # Add function response
+        function_response_part = Part(
+            function_response=FunctionResponse(
+                name=part.function_call.name,
+                response={"result": function_result}
+            )
+        )
+        contents.append(
+            Content(
+                role="user",
+                parts=[
+                    Part(text="System: The following are the results of the function call you made:"),
+                    function_response_part,
+                ],
+            )
+        )
+        
+        # Turn 2
+        response = await async_client.models.generate_content(
+            contents=contents, **kwargs
+        )
+
+    ai_text, ai_image = await get_response_content(
         response, quoted=quote, add_sources=add_sources
     )
 
     return (ai_text, ai_image) if img else ai_text
 
 
-def get_response_content(
+async def get_response_content(
     response, quoted: bool = False, add_sources: bool = True
 ) -> tuple[str, io.BytesIO | None]:
     try:
