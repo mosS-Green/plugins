@@ -26,8 +26,7 @@ from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
 from app import LOGGER, Message
 from ub_core.utils import get_tg_media_details
 from app.modules.ai_sandbox.tools import MUSIC_TOOL, LIST_TOOL
-from app.modules.ai_sandbox.functions import get_my_list
-from app.modules.yt import get_ytm_link
+from app.modules.ai_sandbox.functions import execute_function
 
 safety = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
@@ -153,17 +152,6 @@ PROMPT_MAP = {
     ),
 }
 PROMPT_MAP[Audio] = PROMPT_MAP[Voice]
-
-
-async def execute_function(part):
-    func_name = part.function_call.name
-    func_args = part.function_call.args
-    
-    if func_name == "get_ytm_link":
-        return await get_ytm_link(**func_args)
-    elif func_name == "get_my_list":
-        return await get_my_list()
-    return "Error: Unknown function"
 
 
 async def ask_ai(
