@@ -115,9 +115,20 @@ MODEL = {
             "You are a helpful assistant."
             "IMPORTANT - Answer accurately and super concisely."
         ),
+        0.8,
+        8192,
+        search=[MUSIC_TOOL, LIST_TOOL],
+        think=ThinkingConfig(thinking_budget=0),
+    ),
+    "SEARCH": create_config(
+        "gemini-flash-latest",
+        (
+            "You are a helpful assistant."
+            "IMPORTANT - Answer accurately and super concisely."
+        ),
         1.0,
         8192,
-        search=SEARCH_TOOL + [MUSIC_TOOL, LIST_TOOL],
+        search=SEARCH_TOOL,
         think=ThinkingConfig(thinking_budget=0),
     ),
     "THINK": create_config(

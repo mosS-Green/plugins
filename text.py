@@ -32,7 +32,12 @@ async def r_question(bot: BOT, message: Message):
 
     loading_msg = await message.reply("<code>...</code>")
 
-    model = MODEL["LEAF"] if message.cmd == "rx" else MODEL["DEFAULT"]
+    if "-s" in message.flags:
+        model = MODEL["SEARCH"]
+    elif message.cmd == "rx":
+        model = MODEL["LEAF"]
+    else:
+        model = MODEL["DEFAULT"]
     ai_text = await ask_ai(prompt=prompt, query=query, quote=True, **model)
 
     await loading_msg.edit(
