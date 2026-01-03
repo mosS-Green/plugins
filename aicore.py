@@ -193,8 +193,6 @@ async def ask_ai(
             type(media), "Analyse the file and explain."
         )
         download_dir = os.path.join("downloads", str(time.time())) + "/"
-        # Simplified download logic for brevity in this replace block if unchanged
-        # Assuming original download logic is correct, just focusing on loop
         downloaded_file = await query.download(download_dir)
 
         mime_type = getattr(media, "mime_type", guess_type(downloaded_file)[0])
@@ -251,7 +249,7 @@ async def ask_ai(
         )
         contents.append(
             Content(
-                role="user",
+                role="function",
                 parts=[
                     Part(text="System: The following are the results of the function call you made:"),
                     function_response_part,
