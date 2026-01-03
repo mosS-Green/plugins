@@ -1,5 +1,5 @@
 from app.modules.list_reminder import load_data
-from app.config import Config
+from app import Config
 from app.modules.yt import get_ytm_link
 
 async def execute_function(part):
