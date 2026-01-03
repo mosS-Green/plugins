@@ -1,6 +1,26 @@
+import yt_dlp
 from app.modules.list_reminder import load_data
-from app import Config
-from app.modules.yt import get_ytm_link
+from app import Config, bot
+
+
+@bot.make_async
+def get_ytm_link(song_name: str) -> str | None:
+    ydl_opts = {
+        "quiet": True,
+        "skip_download": True,
+        "extract_flat": True,
+        "format": "bestaudio/best",
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        search_query = f"ytsearch:{song_name}"
+        info = ydl.extract_info(search_query, download=False)
+        if info.get("entries"):
+            video = info["entries"][0]
+            video_id = video.get("id")
+            if video_id:
+                return f"https://music.youtube.com/watch?v={video_id}"
+    return None
+
 
 async def execute_function(part):
     func_name = part.function_call.name
