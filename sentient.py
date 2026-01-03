@@ -7,8 +7,10 @@ from functools import partial
 
 import aiofiles
 from app import BOT, Message, bot
-from .aicore import MODEL, ask_ai
+from .aicore import MODEL, ask_ai, run_basic_check
 import ub_core
+from ub_core.utils import run_shell_cmd
+from app.plugins.ai.gemini import AIConfig
 
 CONTEXT_FILE = "codebase_context.txt"
 
@@ -134,21 +136,45 @@ async def query_codebase(bot: BOT, message: Message):
 
     status = await message.reply("Thinking...")
     
+    codebase_context = await read_context_file()
+        
+    kwargs = AIConfig.get_kwargs(flags=message.flags)
+
+    prompt = message.input
+    response = await ask_ai(
+        prompt=prompt, 
+        query=codebase_context, 
+        quote=True,
+        **kwargs
+    )
+        
+    await status.edit(response, disable_preview=True)
+        
+
+@bot.add_cmd(cmd="dbg")
+async def debug_logs(bot: BOT, message: Message):
+    text = await run_shell_cmd(cmd=f"tail -n 50 logs/app_logs.txt")
+
+    status = await message.reply("Reading...")
+    
+    if not os.path.exists(CONTEXT_FILE):
+        await message.reply("Codebase index not found. Run `ubx` first.")
+        return
+
     try:
-        codebase_context = await read_context_file()
-            
-        prompt = message.input
-        response = await ask_ai(
-            prompt=prompt, 
-            query=codebase_context, 
-            quote=True,
-            **MODEL["DEFAULT"]
-        )
-        
-        await status.edit(response, disable_preview=True)
-        
-    except Exception as e:
-        await status.edit(f"Error: {e}")
+        context = await read_context_file()
+        text += f"\n\n=== Codebase Context ===\n{context}"
+    except Exception:
+        pass
+
+    extra_input = f"\n\nUser Input: {message.input}" if message.input else ""
+    prompt = f"Analyze these logs and very concisely tell me what the issue was. Say No issues if none detected. Use the provided codebase context to identify specific files/plugins involved. Ignore the sqlite3 errors.{extra_input}"
+    
+    kwargs = AIConfig.get_kwargs(flags=message.flags)
+
+    ai_response = await ask_ai(prompt=prompt, query=text, quote=True, **kwargs)
+    
+    await message.reply(ai_response)
 
 @bot.add_cmd(cmd="cook")
 async def cook_plugin(bot: BOT, message: Message):

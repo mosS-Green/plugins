@@ -5,30 +5,8 @@ from pyrogram.enums import ParseMode
 
 from .aicore import MODEL, ask_ai, run_basic_check
 from .telegraph import tele_graph
-from ub_core.utils import run_shell_cmd
-
 
 import os
-
-@bot.add_cmd(cmd="dbg")
-async def debug_logs(bot: BOT, message: Message):
-    text = await run_shell_cmd(cmd=f"tail -n 50 logs/app_logs.txt")
-    
-    if os.path.exists("codebase_context.txt"):
-        try:
-            with open("codebase_context.txt", "r", encoding="utf-8") as f:
-                context = f.read()
-            text += f"\n\n=== Codebase Context ===\n{context}"
-        except Exception:
-            pass
-
-    extra_input = f"\n\nUser Input: {message.input}" if message.input else ""
-    prompt = f"Analyze these logs and very concisely tell me what the issue was. Say No issues if none detected. Use the provided codebase context to identify specific files/plugins involved. Ignore the sqlite3 errors.{extra_input}"
-    
-    ai_response = await ask_ai(prompt=prompt, query=text, quote=True, **MODEL["DEFAULT"])
-    
-    await message.reply(ai_response)
-
 
 
 @bot.add_cmd(cmd=["r", "rx"])
