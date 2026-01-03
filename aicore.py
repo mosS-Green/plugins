@@ -113,6 +113,7 @@ MODEL = {
         "gemini-flash-latest",
         (
             "You are a helpful assistant."
+            "When sending links, always send them as a hyperlink using markdown."
             "IMPORTANT - Answer accurately and super concisely."
         ),
         0.8,
