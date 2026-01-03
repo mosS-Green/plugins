@@ -33,22 +33,24 @@ async def execute_function(part):
     return "Error: Unknown function"
 
 
-async def get_my_list(user_id: int | str | None = None) -> str:
-    if not user_id:
-        user_id = Config.OWNER_ID
+async def get_my_list() -> str:
+    user_id = str(Config.OWNER_ID)
     data = await load_data()
-    user_list = data.get(str(user_id), [])
+    user_list = data.get(user_id, [])
+
     if not user_list:
         return "Your list is empty."
     
     lines = []
     for i, item in enumerate(user_list, 1):
         text = item["text"]
-        # Simplified for AI context, no need for HTML/links if just reading content, 
-        # but link might be useful. 
+        ago = human_time_ago(item["time"])
         if "link" in item:
-            lines.append(f"{i}. {text} (Link: {item['link']})")
+            line = f"{i}. <a href='{item['link']}'>{text}</a> <i>({ago})</i>"
         else:
-            lines.append(f"{i}. {text}")
-            
-    return "\n".join(lines)
+            line = f"{i}. {text} <i>({ago})</i>"
+        lines.append(line)
+
+    resp = "<b>Leaf's list:</b>\n" + "\n".join(lines)
+    return resp
+
