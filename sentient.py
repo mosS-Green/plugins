@@ -1,7 +1,8 @@
 import asyncio
+import glob
+import io
 import os
 import re
-import io
 from pathlib import Path
 
 import aiofiles
@@ -42,9 +43,6 @@ async def read_file_async(
             return ""
 
 
-import glob
-
-
 async def build_codebase_index():
     """
     Asynchronously builds the codebase index using glob.
@@ -65,30 +63,14 @@ async def build_codebase_index():
     all_files = []
 
     for directory in scan_dirs:
-        # Normalize path
         dir_path = (
             directory if os.path.isabs(directory) else os.path.join(root_dir, directory)
         )
-
-        # Use glob to find all python files recursively
-        # We can extend this pattern if needed e.g. "**/*.*" and then filter extensions
         files = glob.glob(f"{dir_path}/**/*.py", recursive=True)
         all_files.extend(files)
 
-    # Filter and sort
-    final_files = []
-    processed_paths = set()
-
-    for file_path in all_files:
-        path_obj = Path(file_path)
-
-        if path_obj in processed_paths:
-            continue
-
-        processed_paths.add(path_obj)
-        final_files.append(path_obj)
-
-    final_files.sort(key=lambda p: p.name.lower())
+    # Convert to Path objects and sort
+    final_files = sorted([Path(f) for f in all_files], key=lambda p: p.name.lower())
 
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_READS)
 
@@ -138,8 +120,6 @@ async def query_codebase(bot: BOT, message: Message):
 
     if not os.path.exists(CONTEXT_FILE):
         await message.reply("Codebase index missing. Building now...", del_in=3)
-        await build_codebase_index()
-        # Write to file effectively
         content = await build_codebase_index()
         async with aiofiles.open(CONTEXT_FILE, "w", encoding="utf-8") as f:
             await f.write(content)
