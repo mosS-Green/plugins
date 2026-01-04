@@ -3,7 +3,6 @@ import os
 import re
 import io
 from pathlib import Path
-from functools import partial
 
 import aiofiles
 from app import BOT, Message, bot
@@ -14,36 +13,6 @@ from ub_core.utils import run_shell_cmd
 from app.plugins.ai.gemini import AIConfig
 
 CONTEXT_FILE = "codebase_context.txt"
-
-IGNORED_DIRS = {
-    ".git",
-    "__pycache__",
-    "venv",
-    "env",
-    "node_modules",
-    "downloads",
-    "logs",
-    ".gemini",
-    "cache",
-    ".idea",
-    ".vscode",
-}
-
-ALLOWED_EXTS = {
-    ".py",
-    ".md",
-    ".txt",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".sh",
-    ".toml",
-    ".ini",
-    ".dockerfile",
-    ".css",
-    ".html",
-    ".js",
-}
 
 # Semaphore to prevent "Too many open files" errors during massive parallel reads
 MAX_CONCURRENT_READS = 50
@@ -73,53 +42,59 @@ async def read_file_async(
             return ""
 
 
+import glob
+
+
 async def build_codebase_index():
     """
-    Asynchronously builds the codebase index using pathlib and asyncio.gather.
+    Asynchronously builds the codebase index using glob.
+    Scans ub_core and app/ recursively.
     """
-    root_dir = Path(os.getcwd())
+    root_dir = os.getcwd()
 
-    # Resolve paths to scan
-    search_dirs = [root_dir]
+    # Define directories to scan
+    scan_dirs = ["app/", "ub_core/"]
 
-    # Handle ub_core path - simpler check as requested
-    if hasattr(ub_core, "__path__"):
-        search_dirs.extend([Path(p) for p in ub_core.__path__])
-    elif hasattr(ub_core, "__file__"):
-        search_dirs.append(Path(ub_core.__file__).parent)
+    # Try to locate ub_core path dynamically if possible, or fallback to relative scan
+    if hasattr(ub_core, "ub_core_dirname"):
+        ub_core_path = ub_core.ub_core_dirname
+        # If it's an absolute path, we can use it, otherwise relative
+        if os.path.exists(ub_core_path):
+            scan_dirs = ["app/", ub_core_path]
 
     all_files = []
+
+    for directory in scan_dirs:
+        # Normalize path
+        dir_path = (
+            directory if os.path.isabs(directory) else os.path.join(root_dir, directory)
+        )
+
+        # Use glob to find all python files recursively
+        # We can extend this pattern if needed e.g. "**/*.*" and then filter extensions
+        files = glob.glob(f"{dir_path}/**/*.py", recursive=True)
+        all_files.extend(files)
+
+    # Filter and sort
+    final_files = []
     processed_paths = set()
 
-    for directory in search_dirs:
-        if not directory.exists():
+    for file_path in all_files:
+        path_obj = Path(file_path)
+
+        if path_obj in processed_paths:
             continue
 
-        # Use rglob for recursive globbing - efficient iterator
-        # We manually filter IGNORED_DIRS since rglob doesn't support exclusion patterns natively during traversal
-        for path in directory.rglob("*"):
-            if path.is_file():
-                # Check for ignored directories in path parts
-                # This is efficient enough for typical project sizes
-                if any(part in IGNORED_DIRS for part in path.parts):
-                    continue
+        processed_paths.add(path_obj)
+        final_files.append(path_obj)
 
-                if path.suffix in ALLOWED_EXTS or path.name in (
-                    "Dockerfile",
-                    "Makefile",
-                ):
-                    if path in processed_paths:
-                        continue
-                    processed_paths.add(path)
-                    all_files.append(path)
-
-    # Sort files for deterministic output
-    all_files.sort(key=lambda p: p.name.lower())
+    final_files.sort(key=lambda p: p.name.lower())
 
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_READS)
 
-    # Create tasks for all files
-    tasks = [read_file_async(file, root_dir, semaphore) for file in all_files]
+    # Create tasks for all files - reuse existing read function
+    # Note: read_file_async expects Path objects relative to root_dir for display
+    tasks = [read_file_async(file, Path(root_dir), semaphore) for file in final_files]
 
     # Run all reads in parallel
     results = await asyncio.gather(*tasks)
