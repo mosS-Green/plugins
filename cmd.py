@@ -90,6 +90,7 @@ async def log_ai_analysis(bot: BOT, message: Message):
     logs = await run_shell_cmd(cmd="tail -n 100 logs/app_logs.txt")
 
     # Construct the prompt for the AI
+    # Construct the prompt for the AI
     prompt = (
         "Analyze the provided log entries. "
         "List the latest errors, exceptions, or tracebacks found. "
@@ -97,14 +98,17 @@ async def log_ai_analysis(bot: BOT, message: Message):
         f"{logs}"
     )
 
+    class LogContext:
+        text = prompt
+
     # Modify the message object to inject the logs as input
     # forcing the question function to use our constructed prompt
-    message.__dict__["input"] = prompt
-    message.__dict__["filtered_input"] = prompt
+    message.__dict__["input"] = ":"
+    message.__dict__["filtered_input"] = ":"
     message.__dict__["flags"] = []
 
     # Detach reply context so AI focuses only on logs
-    message.__dict__["_replied"] = None
+    message.__dict__["_replied"] = LogContext()
 
     # Delegate to the existing AI question function
     await question(bot, message)

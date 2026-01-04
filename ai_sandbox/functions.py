@@ -1,5 +1,5 @@
 import yt_dlp
-from app.plugins.list_reminder import human_time_ago
+from app.modules.list_reminder import human_time_ago
 from app import Config, bot, Message, CustomDB
 
 
