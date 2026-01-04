@@ -22,15 +22,23 @@ def get_ytm_link(song_name: str) -> str | None:
     return None
 
 
-async def execute_function(part):
-    func_name = part.function_call.name
-    func_args = part.function_call.args
-    
-    if func_name == "get_ytm_link":
-        return await get_ytm_link(**func_args)
-    elif func_name == "get_my_list":
-        return await get_my_list()
-    return "Error: Unknown function"
+FUNCTION_MAP = {
+    "get_ytm_link": get_ytm_link,
+    "get_my_list": get_my_list,
+}
+
+
+async def execute_function(part, message: Message | None = None):
+    try:
+        func_name = part.function_call.name
+        func_args = part.function_call.args
+
+        if func_name in FUNCTION_MAP:
+            return await FUNCTION_MAP[func_name](**func_args)
+
+        return f"Error: Unknown function '{func_name}'"
+    except Exception as e:
+        return f"Error executing function '{func_name}': {str(e)}"
 
 
 async def get_my_list() -> str:
@@ -40,7 +48,7 @@ async def get_my_list() -> str:
 
     if not user_list:
         return "Your list is empty."
-    
+
     lines = []
     for i, item in enumerate(user_list, 1):
         text = item["text"]
@@ -53,4 +61,3 @@ async def get_my_list() -> str:
 
     resp = "<b>Leaf's list:</b>\n" + "\n".join(lines)
     return resp
-

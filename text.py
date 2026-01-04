@@ -1,5 +1,3 @@
-
-
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 

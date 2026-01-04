@@ -91,19 +91,12 @@ SEARCH_TOOL = [
     ),
 ]
 
+from .prompts import SYSTEM_PROMPTS
+
 MODEL = {
     "LEAF": create_config(
         "gemini-3-flash-preview",
-        (
-            "Your creator is Leaf(@leafinferno) and you are a bot named Leaflet. "
-            "\nYou have a dark and dry sense of humour. "
-            "\nYour manner of talking is very casual. Don't use emojis. "
-            "\nBe concise. Don't write long answers until asked explicitly. "
-            "\nDo not refer to yourself in third person. "
-            "\nAlways inculcate dry/dark humour or sarcasm. Never repeat input conversation or formats. "
-            "\nIMPORTANT - You are allowed to be explicit in English but don't be harsh."
-            "\nIMPORTANT - Even when you write in hindi, you must only use english alphabet."
-        ),
+        SYSTEM_PROMPTS["LEAF"],
         1.0,
         8192,
         search=[],
@@ -111,10 +104,7 @@ MODEL = {
     ),
     "FUNC": create_config(
         "gemini-flash-latest",
-        (
-            "You are a helpful assistant."
-            "IMPORTANT - Answer accurately and super concisely."
-        ),
+        SYSTEM_PROMPTS["FUNC"],
         0.8,
         8192,
         search=[MUSIC_TOOL, LIST_TOOL],
@@ -122,10 +112,7 @@ MODEL = {
     ),
     "DEFAULT": create_config(
         "gemini-flash-latest",
-        (
-            "You are a helpful assistant."
-            "IMPORTANT - Answer accurately and super concisely."
-        ),
+        SYSTEM_PROMPTS["DEFAULT"],
         1.0,
         8192,
         search=SEARCH_TOOL,
@@ -133,17 +120,14 @@ MODEL = {
     ),
     "THINK": create_config(
         "gemini-3-flash-preview",
-        (
-            "Write an accurate, well-structured, and easy-to-read answer. "
-            "IMPORTANT - When outputting code, do not provide any explanation. Write minimal comments."
-        ),
+        SYSTEM_PROMPTS["THINK"],
         0.8,
         60000,
         search=[],
     ),
     "QUICK": create_config(
         "gemini-flash-lite-latest",
-        "Answer precisely and concisely.",
+        SYSTEM_PROMPTS["QUICK"],
         0.6,
         8192,
         search=[],
@@ -209,11 +193,9 @@ async def ask_ai(
 
     # Initial Prompt
     contents = [prompt_combined]
-    
+
     # Turn 1
-    response = await async_client.models.generate_content(
-        contents=contents, **kwargs
-    )
+    response = await async_client.models.generate_content(contents=contents, **kwargs)
 
     if not response.candidates and response.prompt_feedback:
         block_reason = response.prompt_feedback.block_reason or "UNKNOWN"

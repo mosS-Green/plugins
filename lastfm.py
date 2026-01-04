@@ -1,4 +1,5 @@
 import os
+import asyncio
 from datetime import datetime
 
 from pyrogram import filters
@@ -121,11 +122,8 @@ async def fetch_track_list(username: str) -> str | list[dict]:
         },
     )
 
-    if not response_data:
-        return "failed to fetch information"
-
-    if "error" in response_data:
-        return f"Last.fm API Error: {response_data['message']}"
+    if not response_data or "error" in response_data:
+        return None
 
     return response_data.get("recenttracks", {}).get("track", [])
 
@@ -167,8 +165,8 @@ async def get_now_playing_track(username) -> dict[str, str] | str:
 
     track_list = await fetch_track_list(username=username)
 
-    if isinstance(track_list, str):
-        return track_list
+    if not track_list:
+        return "failed to fetch information or API error"
 
     track_info: dict = track_list[0]
     is_now_playing = track_info.get("@attr", {}).get("nowplaying") == "true"
@@ -186,7 +184,13 @@ async def get_now_playing_track(username) -> dict[str, str] | str:
         last_played_time = ""
 
     # noinspection PyUnresolvedReferences
-    ytm_link = await get_ytm_link(f"{track_name} by {artist_name}")
+    try:
+        ytm_link = await asyncio.wait_for(
+            get_ytm_link(f"{track_name} by {artist_name}"), timeout=5.0
+        )
+    except (asyncio.TimeoutError, Exception):
+        # Fallback to a generic search link if specific YTM link fails
+        ytm_link = f"https://music.youtube.com/search?q={track_name} {artist_name}"
 
     return {
         "song_href_html": f"<b><i><a href='{ytm_link}'>{track_name}</a></b></i>",
@@ -208,7 +212,8 @@ async def get_fren_info(user_id) -> dict:
 @_bot.on_chosen_inline_result(
     filters=filters.create(
         lambda _, __, u: u.from_user and u.from_user.id in INLINE_CACHE
-    ), group=4
+    ),
+    group=4,
 )
 async def send_now_playing(
     bot: BOT, update: Message | CallbackQuery | InlineResult, user_id: int = None
@@ -285,26 +290,31 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
 
     caption = callback_query.message.text.html if callback_query.message else None
 
-    audio_path, info = await ytdl_audio(
-        f"https://music.youtube.com/watch?v={shortcode}"
-    )
+    try:
+        audio_path, info = await ytdl_audio(
+            f"https://music.youtube.com/watch?v={shortcode}"
+        )
 
-    await callback_query.edit("<code>ding! Uploading.</code>")
+        await callback_query.edit("<code>ding! Uploading.</code>")
 
-    buttons = [
-        InlineKeyboardButton(text=f"{play_count} plays", callback_data=f"-_-"),
-        InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
-    ]
-    await callback_query.edit_media(
-        media=InputMediaAudio(
-            caption=caption,
-            media=audio_path,
-            parse_mode=ParseMode.HTML,
-            thumb=await aio.thumb_dl(info.get("thumbnail")),
-        ),
-        reply_markup=InlineKeyboardMarkup([buttons]),
-    )
-    os.remove(audio_path)
+        buttons = [
+            InlineKeyboardButton(text=f"{play_count} plays", callback_data=f"-_-"),
+            InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
+        ]
+        await callback_query.edit_media(
+            media=InputMediaAudio(
+                caption=caption,
+                media=audio_path,
+                parse_mode=ParseMode.HTML,
+                thumb=await aio.thumb_dl(info.get("thumbnail")),
+            ),
+            reply_markup=InlineKeyboardMarkup([buttons]),
+        )
+    except Exception as e:
+        await callback_query.edit(f"Failed: {e}")
+    finally:
+        if audio_path and os.path.exists(audio_path):
+            await asyncio.to_thread(os.remove, audio_path)
 
 
 @_bot.on_callback_query(filters=filters.regex("^r_"))

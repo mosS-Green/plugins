@@ -7,6 +7,7 @@ from app.plugins.misc.song import extract_link_from_reply
 from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaAudio, InputMediaVideo
 
+import asyncio
 from .aicore import MODEL, ask_ai, run_basic_check
 from .ai_sandbox.functions import get_ytm_link
 
@@ -24,13 +25,16 @@ async def ytm_link(bot, message: Message):
 
     message_response = await message.reply("<code>...</code>")
 
-    prompts = (
-        f"{content}\n\nThe above text/image contains a song name, extract that. "
-        "Or guess the song based on description. Use search for getting the name. Reply only with song name and artist. "
-        "If no ovbious song name, then take input as inspiration and give a random song name. "
-        "If you can't even suggest any song, reply with 'unknown song'. "
-    )
-    song_name = await ask_ai(prompt=prompts, query=reply, **MODEL["DEFAULT"])
+    if "-r" in message.flags or "-raw" in message.flags:
+        song_name = content
+    else:
+        prompts = (
+            f"{content}\n\nThe above text/image contains a song name, extract that. "
+            "Or guess the song based on description. Use search for getting the name. Reply only with song name and artist. "
+            "If no ovbious song name, then take input as inspiration and give a random song name. "
+            "If you can't even suggest any song, reply with 'unknown song'. "
+        )
+        song_name = await ask_ai(prompt=prompts, query=reply, **MODEL["DEFAULT"])
 
     if "unknown song" in song_name.lower() or not song_name.strip():
         await message_response.edit("Couldn't determine the song title.")
@@ -67,26 +71,38 @@ async def ytdl_upload(bot, message: Message):
     response = await message.reply("<code>Processing...</code>")
 
     try:
-        if "music.youtube.com" in link:
+        force_audio = "-a" in message.flags
+        force_video = "-v" in message.flags
+
+        is_music_link = "music.youtube.com" in link
+
+        if force_audio or (is_music_link and not force_video):
             filename, info = await ytdl_audio(link)
+            is_audio = True
         else:
             filename, info = await ytdl_video(link)
-    except Exception:
-        return await response.edit("Download failed.")
+            is_audio = False
 
-    await response.edit("Uploading...")
+        await response.edit("Uploading...")
 
-    if "music.youtube.com" in link:
-        await response.edit_media(InputMediaAudio(media=filename))
-
-    else:
-        await response.edit_media(
-            InputMediaVideo(
-                media=filename, caption=info.get("title", ""), parse_mode=ParseMode.HTML
+        if is_audio:
+            await response.edit_media(InputMediaAudio(media=filename))
+        else:
+            await response.edit_media(
+                InputMediaVideo(
+                    media=filename,
+                    caption=info.get("title", ""),
+                    parse_mode=ParseMode.HTML,
+                )
             )
-        )
 
-    os.remove(filename)
+    except Exception as e:
+        await response.edit(f"Process failed: {str(e)}")
+        return
+
+    finally:
+        if filename and os.path.exists(filename):
+            await asyncio.to_thread(os.remove, filename)
 
 
 @bot.make_async

@@ -10,11 +10,11 @@ MUSIC_TOOL = Tool(
                 properties={
                     "song_name": Schema(
                         type=Type.STRING,
-                        description="The name of the song to search for."
+                        description="The name of the song to search for.",
                     )
                 },
-                required=["song_name"]
-            )
+                required=["song_name"],
+            ),
         )
     ]
 )
@@ -26,8 +26,8 @@ LIST_TOOL = Tool(
             description="Retrieve the items in my reminder list.",
             parameters=Schema(
                 type=Type.OBJECT,
-                properties={}, # No parameters needed from AI, we inject user_id
-            )
+                properties={},  # No parameters needed from AI, we inject user_id
+            ),
         )
     ]
 )
