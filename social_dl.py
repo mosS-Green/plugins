@@ -7,7 +7,7 @@ reya = "@reyakamibot"
 @BOT.add_cmd("d")
 async def rsdl(bot: BOT, message: Message):
     """Downloads media from social platforms via rsdl_bot."""
-    await message.reply("processing...", del_in=6)
+    proc = await message.reply("processing...")
     link = message.input if message.input else message.replied.text
 
     try:
@@ -22,7 +22,7 @@ async def rsdl(bot: BOT, message: Message):
         )
 
         async with bot.Convo(
-            chat_id=reya, client=bot, from_user=bot.user.me.id, timeout=30
+            chat_id=reya, client=bot, from_user=bot.user.me.id, timeout=90
         ) as c:
             await c.get_response()  # button removal
             await c.get_response()  # waiting gif
@@ -31,4 +31,6 @@ async def rsdl(bot: BOT, message: Message):
                 await media.copy(message.chat.id)
 
     except Exception as e:
-        await message.reply(e)
+        await message.reply(str(e))
+    finally:
+        await proc.delete()
