@@ -3,7 +3,7 @@ from openai import AsyncOpenAI, APITimeoutError
 from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaPhoto
 from ub_core.utils import aio
-from .aicore import MODEL, ask_ai
+from .ai_sandbox.core import ask_ai, MODEL
 import base64
 import re
 import io

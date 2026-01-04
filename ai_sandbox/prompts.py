@@ -1,3 +1,5 @@
+from pyrogram.types.messages_and_media import Audio, Photo, Video, Voice
+
 SYSTEM_PROMPTS = {
     "LEAF": (
         "Your creator is Leaf(@leafinferno) and you are a bot named Leaflet. "
@@ -47,3 +49,16 @@ DEV_PROMPTS = {
         "Analyze these logs and very concisely tell me what the issue was. Say No issues if none detected. Use the provided codebase context to identify specific files/plugins involved. Ignore the sqlite3 errors."
     ),
 }
+
+PROMPT_MAP = {
+    Video: "Summarize video and audio from the file",
+    Photo: "Summarize the image file",
+    Voice: (
+        "Transcribe this audio. "
+        "Use ONLY english alphabet to express hindi. "
+        "Do not translate."
+        "Do not write anything extra than the transcription. Use proper punctuation, and formatting."
+        "\n\nIMPORTANT - ROMANISE ALL LANGUAGES TO ENGLISH ALPHABET."
+    ),
+}
+PROMPT_MAP[Audio] = PROMPT_MAP[Voice]

@@ -5,7 +5,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
 
-from .aicore import MODEL, ask_ai
+from .ai_sandbox.core import ask_ai, MODEL
 
 _bot: BOT = bot.bot
 

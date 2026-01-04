@@ -7,8 +7,9 @@ from pathlib import Path
 
 import aiofiles
 from app import BOT, Message, bot
-from .prompts import DEV_PROMPTS
-from .aicore import MODEL, ask_ai, run_basic_check
+from .ai_sandbox.prompts import DEV_PROMPTS
+from .ai_sandbox.core import ask_ai, MODEL
+from app.plugins.ai.gemini.utils import run_basic_check
 import ub_core
 from ub_core.utils import run_shell_cmd
 from app.plugins.ai.gemini import AIConfig

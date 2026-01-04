@@ -8,7 +8,8 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import InputMediaAudio, InputMediaVideo
 
 import asyncio
-from .aicore import MODEL, ask_ai, run_basic_check
+from .ai_sandbox.core import ask_ai, MODEL
+from app.plugins.ai.gemini.utils import run_basic_check
 from .ai_sandbox.functions import get_ytm_link
 
 
@@ -35,7 +36,7 @@ async def ytm_link(bot, message: Message):
             "If no ovbious song name, then take input as inspiration and give a random song name. "
             "If you can't even suggest any song, reply with 'unknown song'. "
         )
-        song_name = await ask_ai(prompt=prompts, query=reply, **MODEL["DEFAULT"])
+        song_name = await ask_ai(prompt=prompts, query=reply, **MODEL["QUICK"])
 
     if "unknown song" in song_name.lower() or not song_name.strip():
         await message_response.edit("Couldn't determine the song title.")

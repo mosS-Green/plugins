@@ -1,7 +1,9 @@
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 
-from .aicore import MODEL, ask_ai, run_basic_check
+from .ai_sandbox.core import ask_ai
+from .ai_sandbox.models import MODEL
+from app.plugins.ai.gemini.utils import run_basic_check
 from .telegraph import tele_graph
 
 import os
@@ -42,17 +44,6 @@ async def r_question(bot: BOT, message: Message):
     await loading_msg.edit(
         text=ai_text, parse_mode=ParseMode.MARKDOWN, disable_preview=True
     )
-
-
-@bot.add_cmd(cmd="rt")
-@run_basic_check
-async def ai_think(bot: BOT, message: Message):
-    """Uses thinking model for complex queries, posts result to Telegraph."""
-    reply = message.replied
-    prompts = message.input
-    load_msg = await message.reply("<code>...</code>")
-    content = await ask_ai(prompt=prompts, query=reply, **MODEL["THINK"])
-    await tele_graph(load_msg=load_msg, title="Answer", text=content)
 
 
 @bot.add_cmd(cmd="f")

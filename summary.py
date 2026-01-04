@@ -1,7 +1,8 @@
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 
-from .aicore import MODEL, ask_ai, run_basic_check
+from .ai_sandbox.core import ask_ai, MODEL
+from app.plugins.ai.gemini.utils import run_basic_check
 
 
 @bot.add_cmd(cmd="sm")
