@@ -11,6 +11,7 @@ _bot: BOT = bot.bot
 
 
 async def _transcribe_with_retry(message: Message, edit_msg: Message):
+    """Attempts transcription with retry on failure."""
     for _ in range(2):
         try:
             transcribed_str = await ask_ai(
@@ -28,6 +29,7 @@ async def _transcribe_with_retry(message: Message, edit_msg: Message):
 
 @_bot.on_message(filters=filters.audio | filters.voice)
 async def auto_transcribe(bot: BOT, message: Message):
+    """Auto-prompts transcription button for audio messages."""
     button = [InlineKeyboardButton(text="Transcribe", callback_data="auto_trs")]
     await message.reply(
         text="Audio File Detected!", reply_markup=InlineKeyboardMarkup([button])
@@ -36,6 +38,7 @@ async def auto_transcribe(bot: BOT, message: Message):
 
 @_bot.on_callback_query(filters=filters.regex("auto_trs"))
 async def transcribe(bot: BOT, callback_query: CallbackQuery):
+    """Handles transcription callback button."""
     await callback_query.edit_message_text("transcribing...")
     await _transcribe_with_retry(
         callback_query.message.reply_to_message, callback_query.message

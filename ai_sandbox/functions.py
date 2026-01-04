@@ -5,6 +5,7 @@ from app import Config, bot, Message
 
 @bot.make_async
 def get_ytm_link(song_name: str) -> str | None:
+    """Searches YouTube Music and returns link for a song."""
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
@@ -23,6 +24,7 @@ def get_ytm_link(song_name: str) -> str | None:
 
 
 async def get_my_list() -> str:
+    """Returns owner's reminder list formatted as HTML."""
     user_id = str(Config.OWNER_ID)
     data = await load_data()
     user_list = data.get(user_id, [])
@@ -51,6 +53,7 @@ FUNCTION_MAP = {
 
 
 async def execute_function(part, message: Message | None = None):
+    """Executes an AI function call and returns the result."""
     try:
         func_name = part.function_call.name
         func_args = part.function_call.args

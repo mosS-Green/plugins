@@ -34,6 +34,7 @@ API_SECRET = os.getenv("LASTFM_API_SECRET")
 
 @bot.add_cmd(cmd="fren")
 async def init_task(_=bot, message=None):
+    """Loads Last.fm users from database into memory."""
     async for u in LASTFM_DB.find():
         FRENS.add(u["_id"])
 
@@ -111,6 +112,7 @@ async def add_fren(bot: BOT, message: Message):
 
 
 async def fetch_track_list(username: str) -> str | list[dict]:
+    """Fetches recent tracks from Last.fm API."""
     response_data = await aio.get_json(
         url=BASE_URL,
         params={
@@ -129,6 +131,7 @@ async def fetch_track_list(username: str) -> str | list[dict]:
 
 
 async def fetch_song_play_count(artist: str, track: str, username: str) -> int:
+    """Gets user's play count for a specific track."""
     params = {
         "method": "track.getInfo",
         "api_key": API_KEY,
@@ -146,6 +149,7 @@ async def fetch_song_play_count(artist: str, track: str, username: str) -> int:
 
 
 def format_time(date_time: datetime) -> str:
+    """Formats datetime as human-readable time difference."""
     now = datetime.now()
     time_diff = now - date_time
     if time_diff.days > 0:
@@ -205,6 +209,7 @@ async def get_now_playing_track(username) -> dict[str, str] | str:
 
 
 async def get_fren_info(user_id) -> dict:
+    """Retrieves user info from Last.fm database."""
     return await LASTFM_DB.find_one({"_id": user_id}) or {}
 
 
@@ -218,6 +223,7 @@ async def get_fren_info(user_id) -> dict:
 async def send_now_playing(
     bot: BOT, update: Message | CallbackQuery | InlineResult, user_id: int = None
 ):
+    """Displays currently playing track for a user."""
     update = make_custom_object(update)
 
     user_id = user_id or update.from_user.id

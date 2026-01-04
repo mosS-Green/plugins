@@ -6,11 +6,7 @@ reya = "@reyakamibot"
 
 @BOT.add_cmd("d")
 async def rsdl(bot: BOT, message: Message):
-    """
-    CMD: DL
-    INFO: use bitch's bot
-    USAGE: .d link
-    """
+    """Downloads media from social platforms via rsdl_bot."""
     await message.reply("processing...", del_in=6)
     link = message.input if message.input else message.replied.text
 

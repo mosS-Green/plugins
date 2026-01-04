@@ -11,6 +11,7 @@ async def init_task(bot=bot, message=None):
 
 @BOT.add_cmd(cmd="ch")
 async def plugin_info(bot: BOT, message: Message):
+    """Shows the source file for a given command."""
     cmd = message.filtered_input
     cmd_obj = Config.CMD_DICT.get(cmd)
 
@@ -32,6 +33,7 @@ async def plugin_info(bot: BOT, message: Message):
 
 @bot.add_cmd("ey")
 async def mention_others(bot, message):
+    """Mentions all non-bot users in a group chat."""
     sender_username = message.from_user.username
     chat_id = message.chat.id
 

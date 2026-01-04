@@ -10,6 +10,7 @@ import os
 @bot.add_cmd(cmd=["r", "rx"])
 @run_basic_check
 async def r_question(bot: BOT, message: Message):
+    """Answers questions using AI with optional persona (rx for Leaflet)."""
     reply = message.replied
     input = message.input
 
@@ -46,6 +47,7 @@ async def r_question(bot: BOT, message: Message):
 @bot.add_cmd(cmd="rt")
 @run_basic_check
 async def ai_think(bot: BOT, message: Message):
+    """Uses thinking model for complex queries, posts result to Telegraph."""
     reply = message.replied
     prompts = message.input
     load_msg = await message.reply("<code>...</code>")
@@ -56,6 +58,7 @@ async def ai_think(bot: BOT, message: Message):
 @bot.add_cmd(cmd="f")
 @run_basic_check
 async def fix(bot: BOT, message: Message):
+    """Fixes spelling errors in replied message."""
     prompts = (
         "REWRITE FOLLOWING MESSAGE AS IS, "
         "WITH NO CHANGES TO FORMAT AND SYMBOLS ETC."

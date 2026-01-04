@@ -15,6 +15,7 @@ from .ai_sandbox.functions import get_ytm_link
 @bot.add_cmd(cmd="yt")
 @run_basic_check
 async def ytm_link(bot, message: Message):
+    """Finds a YouTube Music link for a song using AI."""
     reply = message.replied
     if reply and reply.media:
         content = ""
@@ -62,6 +63,7 @@ async def ytm_link(bot, message: Message):
 
 @bot.add_cmd(cmd="ytdl")
 async def ytdl_upload(bot, message: Message):
+    """Downloads and uploads YouTube video or audio."""
     reply = message.replied
     link = extract_link_from_reply(reply) or message.input
 
@@ -107,6 +109,7 @@ async def ytdl_upload(bot, message: Message):
 
 @bot.make_async
 def ytdl_video(url: str):
+    """Downloads YouTube video at 360p max quality."""
     o = {
         "format": "bestvideo[height<=360]+bestaudio/best[height<=360]",
         "merge_output_format": "mp4",
@@ -122,6 +125,7 @@ def ytdl_video(url: str):
 
 @bot.make_async
 def ytdl_audio(url: str):
+    """Downloads YouTube audio as MP3."""
     ydl_opts = {
         "format": "bestaudio/best",
         "outtmpl": os.path.join(tempfile.gettempdir(), "%(title)s.%(ext)s"),

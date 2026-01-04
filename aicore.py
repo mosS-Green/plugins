@@ -48,6 +48,7 @@ def create_config(
     think: int | None = None,
     **kwargs,
 ):
+    """Creates a model configuration dict for Gemini API calls."""
     return {
         "model": model,
         "config": GenerateContentConfig(
@@ -63,21 +64,6 @@ def create_config(
             **kwargs,
         ),
     }
-
-
-"""def create_config_exp(model, temp, tokens, modals, mime_type):
-    return {
-        "model": model,
-        "config": GenerateContentConfig(
-            candidate_count=1,
-            temperature=temp,
-            max_output_tokens=tokens,
-            safety_settings=safety,
-            response_modalities=modals,
-            response_mime_type=mime_type,
-        ),
-    }
-"""
 
 
 SEARCH_TOOL = [
@@ -157,6 +143,7 @@ async def ask_ai(
     add_sources: bool = False,
     **kwargs,
 ) -> str:
+    """Sends a prompt to the AI model and returns the response text."""
     media = None
 
     if query:
@@ -221,6 +208,7 @@ async def ask_ai(
 async def get_response_content(
     response, quoted: bool = False, add_sources: bool = True
 ) -> tuple[str, io.BytesIO | None]:
+    """Extracts text and image data from a Gemini API response."""
     try:
         candidate = response.candidates
         parts = candidate[0].content.parts

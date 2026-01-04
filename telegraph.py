@@ -12,6 +12,7 @@ async def tele_graph(
     author_name: str = "leaflet",
     author_url: str = "https://t.me/leafinferno",
 ):
+    """Posts content to Telegraph and edits message with the link."""
     page_url = await post_to_telegraph(title, text, author_name, author_url)
 
     await load_msg.edit(
@@ -22,6 +23,7 @@ async def tele_graph(
 @bot.add_cmd(cmd="rg")
 @run_basic_check
 async def generate_article(bot: BOT, message: Message):
+    """Generates an article from input using AI and posts to Telegraph."""
     reply = message.replied
     content = [message.input]
 
@@ -48,6 +50,7 @@ async def generate_article(bot: BOT, message: Message):
 @bot.add_cmd(cmd="tf")
 @run_basic_check
 async def tf(bot: BOT, message: Message):
+    """Posts text directly to Telegraph without AI processing."""
     reply = message.replied
     load_msg = await message.reply("<code>...</code>")
 

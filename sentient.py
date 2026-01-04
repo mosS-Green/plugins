@@ -93,6 +93,7 @@ async def read_context_file():
 
 @bot.add_cmd(cmd="ubx")
 async def index_codebase(bot: BOT, message: Message):
+    """Builds and saves the codebase index file."""
     status = await message.reply("Indexing codebase...")
     try:
         content = await build_codebase_index()
@@ -114,6 +115,7 @@ async def index_codebase(bot: BOT, message: Message):
 
 @bot.add_cmd(cmd="ub")
 async def query_codebase(bot: BOT, message: Message):
+    """Queries the AI about the indexed codebase."""
     if not message.input:
         await message.reply("Ask a question about the codebase.")
         return
@@ -138,6 +140,7 @@ async def query_codebase(bot: BOT, message: Message):
 
 @bot.add_cmd(cmd="dbg")
 async def debug_logs(bot: BOT, message: Message):
+    """Analyzes recent logs with AI assistance."""
     text = await run_shell_cmd(cmd=f"tail -n 50 logs/app_logs.txt")
 
     status = await message.reply("Reading...")

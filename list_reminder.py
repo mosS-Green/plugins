@@ -11,6 +11,7 @@ DATA_FILE = "list_reminder_data.json"
 
 
 def _load_data_sync():
+    """Synchronously loads reminder data from JSON file."""
     if not os.path.exists(DATA_FILE):
         return {}
     try:
@@ -21,19 +22,23 @@ def _load_data_sync():
 
 
 def _save_data_sync(data):
+    """Synchronously saves reminder data to JSON file."""
     with open(DATA_FILE, "w") as f:
         json.dump(data, f)
 
 
 async def load_data():
+    """Async wrapper for loading reminder data."""
     return await asyncio.to_thread(_load_data_sync)
 
 
 async def save_data(data):
+    """Async wrapper for saving reminder data."""
     await asyncio.to_thread(_save_data_sync, data)
 
 
 def human_time_ago(timestamp):
+    """Converts a timestamp to a human-readable 'X ago' string."""
     diff = int(time.time() - timestamp)
     if diff < 60:
         return f"{diff}s ago"
@@ -47,6 +52,7 @@ def human_time_ago(timestamp):
 
 @BOT.add_cmd("lr")
 async def list_reminder(bot: BOT, message: Message):
+    """Manages a personal reminder list (add/remove/view items)."""
     user_id = str(message.from_user.id)
     data = await load_data()
     user_list = data.get(user_id, [])

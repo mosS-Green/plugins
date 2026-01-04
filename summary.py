@@ -7,6 +7,7 @@ from .aicore import MODEL, ask_ai, run_basic_check
 @bot.add_cmd(cmd="sm")
 @run_basic_check
 async def summ(bot: BOT, message: Message):
+    """Summarizes chat messages using AI."""
     limit = 200  # Default sanity limit
     count = 0
     start_msg_id = None
@@ -115,13 +116,6 @@ async def summ(bot: BOT, message: Message):
     )
 
     if message.input and not message.input.isdigit():
-        # If user provided text input along with flags, append it
-        # But filter out the number if it was interpreted as count earlier?
-        # The current logic separates them well enough:
-        # if input is purely digit -> count mode.
-        # if input is text -> instruction mode (reply based).
-        # We need to handle mixed case: .sm 50 custom prompt?
-        # Simplification: If digit, strict count mode. If not digit, assume instruction.
         if not count:
             full_prompt = f"{message.input}\n\nContext:\n{chat_history}"
 
