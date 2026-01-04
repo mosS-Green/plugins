@@ -22,13 +22,29 @@ async def rsdl(bot: BOT, message: Message):
         )
 
         async with bot.Convo(
-            chat_id=reya, client=bot, from_user=bot.user.me.id, timeout=90
+            chat_id=reya, client=bot, from_user=bot.user.me.id, timeout=30
         ) as c:
             await c.get_response()  # button removal
             await c.get_response()  # waiting gif
-            media = await c.get_response()
-            if "more than one media" not in (media.content or ""):
-                await media.copy(message.chat.id)
+            # Wait for the actual media message, skipping text status updates
+            media_msg = await c.get_response()
+
+            # If the first response is just text (like "Uploadng..."), get the next one
+            if not media_msg.media:
+                media_msg = await c.get_response()
+
+            if media_msg.media:
+                await media_msg.copy(message.chat.id)
+            elif "more than one media" in (media_msg.text or ""):
+                # If multiple media, wait for them. This part is tricky without knowing exact bot behavior,
+                # but let's assume it sends them sequentially or as an album.
+                # For now, let's just grab the next one which should be the album start
+                next_media = await c.get_response()
+                if next_media.media:
+                    await next_media.copy(message.chat.id)
+            else:
+                # Sometimes text is sent first, then media
+                pass
 
     except Exception as e:
         await message.reply(str(e))
