@@ -1,6 +1,7 @@
 import yt_dlp
 from app.modules.list_reminder import load_data, human_time_ago
 from app import Config, bot
+from pyrogram.types import Message
 
 
 @bot.make_async
