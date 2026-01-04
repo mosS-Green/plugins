@@ -100,6 +100,8 @@ async def log_ai_analysis(bot: BOT, message: Message):
 
     class LogContext:
         text = prompt
+        is_thread_origin = False
+        media = None
 
     # Modify the message object to inject the logs as input
     # forcing the question function to use our constructed prompt
