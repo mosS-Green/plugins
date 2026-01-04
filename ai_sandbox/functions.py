@@ -1,6 +1,6 @@
 import yt_dlp
-from app.modules.list_reminder import load_data, human_time_ago
-from app import Config, bot, Message
+from app.plugins.list_reminder import human_time_ago
+from app import Config, bot, Message, CustomDB
 
 
 @bot.make_async
@@ -25,9 +25,10 @@ def get_ytm_link(song_name: str) -> str | None:
 
 async def get_my_list() -> str:
     """Returns owner's reminder list formatted as HTML."""
-    user_id = str(Config.OWNER_ID)
-    data = await load_data()
-    user_list = data.get(user_id, [])
+    user_id = Config.OWNER_ID
+    db = CustomDB["REMINDER_LIST"]
+    user_data = await db.find_one({"_id": user_id})
+    user_list = user_data.get("list", []) if user_data else []
 
     if not user_list:
         return "Your list is empty."

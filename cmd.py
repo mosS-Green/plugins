@@ -2,6 +2,8 @@ import os
 
 from app import BOT, Config, Message, bot
 from pyrogram.enums import ParseMode
+from ub_core.utils import run_shell_cmd
+from app.plugins.ai.gemini.query import question
 
 
 async def init_task(bot=bot, message=None):
@@ -75,3 +77,34 @@ async def mention_others(bot, message):
             initial_output + " No other users to mention or unable to retrieve members."
         )
         await message.reply(text=message_to_send, parse_mode=ParseMode.HTML)
+
+
+@BOT.add_cmd(cmd="log")
+async def log_ai_analysis(bot: BOT, message: Message):
+    """
+    CMD: LOG
+    INFO: Analysis logs using Gemini AI.
+    USAGE: .log
+    """
+    # Fetch last 100 lines of logs
+    logs = await run_shell_cmd(cmd="tail -n 100 logs/app_logs.txt")
+
+    # Construct the prompt for the AI
+    prompt = (
+        "Analyze the provided log entries. "
+        "List the latest errors, exceptions, or tracebacks found. "
+        "Be concise and summarize the root cause of the most recent issue.\n\n"
+        f"{logs}"
+    )
+
+    # Modify the message object to inject the logs as input
+    # forcing the question function to use our constructed prompt
+    message.__dict__["input"] = prompt
+    message.__dict__["filtered_input"] = prompt
+    message.__dict__["flags"] = []
+
+    # Detach reply context so AI focuses only on logs
+    message.__dict__["_replied"] = None
+
+    # Delegate to the existing AI question function
+    await question(bot, message)
