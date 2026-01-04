@@ -109,11 +109,10 @@ MODEL = {
         search=[],
         think=ThinkingConfig(thinking_budget=0),
     ),
-    "DEFAULT": create_config(
+    "FUNC": create_config(
         "gemini-flash-latest",
         (
             "You are a helpful assistant."
-            "When sending links, always send them as a hyperlink using markdown."
             "IMPORTANT - Answer accurately and super concisely."
         ),
         0.8,
@@ -121,7 +120,7 @@ MODEL = {
         search=[MUSIC_TOOL, LIST_TOOL],
         think=ThinkingConfig(thinking_budget=0),
     ),
-    "SEARCH": create_config(
+    "DEFAULT": create_config(
         "gemini-flash-latest",
         (
             "You are a helpful assistant."
@@ -228,39 +227,7 @@ async def ask_ai(
 
     if part and part.function_call:
         # Execute function
-        function_result = await execute_function(part)
-        
-        # Add model's turn (function call) to history
-        # Note: Depending on SDK version, we might need to reconstruct the Content object perfectly
-        # For now assuming appending the response object works or constructing Content works
-        # Current google-genai SDK prefers list of Content objects
-        
-        # We need to reconstruct the history. 
-        # contents already has the user prompt.
-        # Add model response
-        contents.append(response.candidates[0].content)
-        
-        # Add function response
-        function_response_part = Part(
-            function_response=FunctionResponse(
-                name=part.function_call.name,
-                response={"result": function_result}
-            )
-        )
-        contents.append(
-            Content(
-                role="user",
-                parts=[
-                    Part(text="System: The following are the results of the function call you made:"),
-                    function_response_part,
-                ],
-            )
-        )
-        
-        # Turn 2
-        response = await async_client.models.generate_content(
-            contents=contents, **kwargs
-        )
+        return await execute_function(part)
 
     ai_text, ai_image = await get_response_content(
         response, quoted=quote, add_sources=add_sources

@@ -32,8 +32,8 @@ async def r_question(bot: BOT, message: Message):
 
     loading_msg = await message.reply("<code>...</code>")
 
-    if "-s" in message.flags:
-        model = MODEL["SEARCH"]
+    if "-f" in message.flags:
+        model = MODEL["FUNC"]
     elif message.cmd == "rx":
         model = MODEL["LEAF"]
     else:

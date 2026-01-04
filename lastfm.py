@@ -28,7 +28,7 @@ INLINE_CACHE: set[int] = set()
 
 BASE_URL = "http://ws.audioscrobbler.com/2.0/"
 API_KEY = os.getenv("LASTFM_KEY")
-API_SECRET = "b6774b62bca666a84545e7ff4976914a"  # this is constant, no need to fetch
+API_SECRET = os.getenv("LASTFM_API_SECRET")
 
 
 @bot.add_cmd(cmd="fren")

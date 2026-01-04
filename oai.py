@@ -8,9 +8,10 @@ import base64
 import re
 import io
 import asyncio
+import os
 
 # --- Configuration ---
-ELECTRON_API_KEY = "ek-8jsKzOsQdIKOZmY3FCcDZGbbvaMlyMcALQWFZkS6OkV0Rd0vgq"
+ELECTRON_API_KEY = os.getenv("ELECTRON_API_KEY")
 ELECTRON_BASE_URL = "https://api.electronhub.ai/v1/"
 MODEL_IMAGE = "gemini-2.5-flash-image"
 MODEL_TEXT = "claude-sonnet-4-5-20250929:free"
