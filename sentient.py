@@ -14,8 +14,6 @@ from ub_core.utils import run_shell_cmd
 from app.plugins.ai.gemini import AIConfig
 
 CONTEXT_FILE = "codebase_context.txt"
-
-# Semaphore to prevent "Too many open files" errors during massive parallel reads
 MAX_CONCURRENT_READS = 50
 
 
@@ -49,14 +47,10 @@ async def build_codebase_index():
     Scans ub_core and app/ recursively.
     """
     root_dir = os.getcwd()
-
-    # Define directories to scan
     scan_dirs = ["app/", "ub_core/"]
 
-    # Try to locate ub_core path dynamically if possible, or fallback to relative scan
     if hasattr(ub_core, "ub_core_dirname"):
         ub_core_path = ub_core.ub_core_dirname
-        # If it's an absolute path, we can use it, otherwise relative
         if os.path.exists(ub_core_path):
             scan_dirs = ["app/", ub_core_path]
 
@@ -69,16 +63,9 @@ async def build_codebase_index():
         files = glob.glob(f"{dir_path}/**/*.py", recursive=True)
         all_files.extend(files)
 
-    # Convert to Path objects and sort
-    final_files = sorted([Path(f) for f in all_files], key=lambda p: p.name.lower())
-
+    final_files = sorted([Path(f) for f in all_files], key=lambda p: str(p).lower())
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_READS)
-
-    # Create tasks for all files - reuse existing read function
-    # Note: read_file_async expects Path objects relative to root_dir for display
     tasks = [read_file_async(file, Path(root_dir), semaphore) for file in final_files]
-
-    # Run all reads in parallel
     results = await asyncio.gather(*tasks)
 
     header = "Analysis of the entire codebase directory structure and file contents:\n"
@@ -89,6 +76,14 @@ async def read_context_file():
     """Reads the context file asynchronously."""
     async with aiofiles.open(CONTEXT_FILE, "r", encoding="utf-8") as f:
         return await f.read()
+
+
+async def ensure_index():
+    """Builds codebase index if it doesn't exist."""
+    if not os.path.exists(CONTEXT_FILE):
+        content = await build_codebase_index()
+        async with aiofiles.open(CONTEXT_FILE, "w", encoding="utf-8") as f:
+            await f.write(content)
 
 
 @bot.add_cmd(cmd="ubx")
@@ -120,36 +115,22 @@ async def query_codebase(bot: BOT, message: Message):
         await message.reply("Ask a question about the codebase.")
         return
 
-    if not os.path.exists(CONTEXT_FILE):
-        await message.reply("Codebase index missing. Building now...", del_in=3)
-        content = await build_codebase_index()
-        async with aiofiles.open(CONTEXT_FILE, "w", encoding="utf-8") as f:
-            await f.write(content)
-
+    await ensure_index()
     status = await message.reply("Thinking...")
-
     codebase_context = await read_context_file()
-
     kwargs = AIConfig.get_kwargs(flags=message.flags)
-
-    prompt = message.input
-    response = await ask_ai(prompt=prompt, query=codebase_context, quote=True, **kwargs)
-
+    response = await ask_ai(
+        prompt=message.input, query=codebase_context, quote=True, **kwargs
+    )
     await status.edit(response, disable_preview=True)
 
 
 @bot.add_cmd(cmd="dbg")
 async def debug_logs(bot: BOT, message: Message):
     """Analyzes recent logs with AI assistance."""
-    text = await run_shell_cmd(cmd=f"tail -n 50 logs/app_logs.txt")
-
+    text = await run_shell_cmd(cmd="tail -n 50 logs/app_logs.txt")
     status = await message.reply("Reading...")
-
-    if not os.path.exists(CONTEXT_FILE):
-        await message.reply("Codebase index missing. Building now...", del_in=3)
-        content = await build_codebase_index()
-        async with aiofiles.open(CONTEXT_FILE, "w", encoding="utf-8") as f:
-            await f.write(content)
+    await ensure_index()
 
     try:
         context = await read_context_file()
@@ -159,11 +140,8 @@ async def debug_logs(bot: BOT, message: Message):
 
     extra_input = f"\n\nUser Input: {message.input}" if message.input else ""
     prompt = f"{DEV_PROMPTS['DEBUG']}{extra_input}"
-
     kwargs = AIConfig.get_kwargs(flags=message.flags)
-
     ai_response = await ask_ai(prompt=prompt, query=text, quote=True, **kwargs)
-
     await message.reply(ai_response)
 
 
@@ -180,12 +158,7 @@ async def cook_plugin(bot: BOT, message: Message):
         await message.reply("Give me an idea to cook.")
         return
 
-    if not os.path.exists(CONTEXT_FILE):
-        await message.reply("Codebase index missing. Building now...", del_in=3)
-        content = await build_codebase_index()
-        async with aiofiles.open(CONTEXT_FILE, "w", encoding="utf-8") as f:
-            await f.write(content)
-
+    await ensure_index()
     status = await message.reply("Cooking...")
 
     try:

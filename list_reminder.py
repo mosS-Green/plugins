@@ -1,44 +1,12 @@
-import json
-import os
 import time
-import asyncio
-from datetime import datetime
 from pyrogram.enums import ParseMode
-from app import BOT, Message, Config
+from app import BOT, Message, CustomDB
 
-
-DATA_FILE = "list_reminder_data.json"
-
-
-def _load_data_sync():
-    """Synchronously loads reminder data from JSON file."""
-    if not os.path.exists(DATA_FILE):
-        return {}
-    try:
-        with open(DATA_FILE, "r") as f:
-            return json.load(f)
-    except Exception:
-        return {}
-
-
-def _save_data_sync(data):
-    """Synchronously saves reminder data to JSON file."""
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f)
-
-
-async def load_data():
-    """Async wrapper for loading reminder data."""
-    return await asyncio.to_thread(_load_data_sync)
-
-
-async def save_data(data):
-    """Async wrapper for saving reminder data."""
-    await asyncio.to_thread(_save_data_sync, data)
+# Database Collection
+DB = CustomDB["REMINDER_LIST"]
 
 
 def human_time_ago(timestamp):
-    """Converts a timestamp to a human-readable 'X ago' string."""
     diff = int(time.time() - timestamp)
     if diff < 60:
         return f"{diff}s ago"
@@ -52,22 +20,24 @@ def human_time_ago(timestamp):
 
 @BOT.add_cmd("lr")
 async def list_reminder(bot: BOT, message: Message):
-    """Manages a personal reminder list (add/remove/view items)."""
-    user_id = str(message.from_user.id)
-    data = await load_data()
-    user_list = data.get(user_id, [])
+    user_id = message.from_user.id
+
+    # Fetch from DB
+    user_data = await DB.find_one({"_id": user_id})
+    user_list = user_data.get("list", []) if user_data else []
 
     inp = getattr(message, "input", None)
     if not inp and message.reply_to_message:
         inp = message.reply_to_message.text
 
-    # Mark item as done if numeric input
+    # 1. Remove Item Logic
     if inp and inp.strip().isdigit():
         idx = int(inp.strip()) - 1
         if 0 <= idx < len(user_list):
             removed = user_list.pop(idx)
-            data[user_id] = user_list
-            await save_data(data)
+            # Save to DB
+            await DB.add_data({"_id": user_id, "list": user_list})
+
             await message.reply(
                 text=f"✅ Removed item #{idx+1}: <b>{removed['text']}</b>",
                 parse_mode=ParseMode.HTML,
@@ -76,7 +46,7 @@ async def list_reminder(bot: BOT, message: Message):
             await message.reply("Invalid item number.", del_in=5)
         return
 
-    # Add new item
+    # 2. Add Item Logic
     if inp:
         item = {
             "text": inp,
@@ -86,15 +56,17 @@ async def list_reminder(bot: BOT, message: Message):
             item["link"] = message.reply_to_message.link
 
         user_list.append(item)
-        data[user_id] = user_list
-        await save_data(data)
+
+        # Save to DB
+        await DB.add_data({"_id": user_id, "list": user_list})
+
         await message.reply(
             text=f"➕ Added: <b>{inp}</b>",
             parse_mode=ParseMode.HTML,
         )
         return
 
-    # Show list
+    # 3. View List Logic
     if not user_list:
         await message.reply("📝 Your list is empty.", del_in=6)
         return
@@ -110,7 +82,4 @@ async def list_reminder(bot: BOT, message: Message):
         lines.append(line)
 
     resp = "<b>Your list:</b>\n" + "\n".join(lines)
-    await message.reply(
-        text=resp,
-        parse_mode=ParseMode.HTML,
-    )
+    await message.reply(text=resp, parse_mode=ParseMode.HTML, disable_preview=True)
