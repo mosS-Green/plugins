@@ -24,9 +24,17 @@ async def rsdl(bot: BOT, message: Message):
         async with bot.Convo(
             chat_id=reya, client=bot, from_user=bot.user.me.id, timeout=90
         ) as c:
-            response = await c.get_response()
-            if "more than one media" not in (response.content or ""):
-                await response.copy(message.chat.id)
+            for _ in range(6):
+                response = await c.get_response()
+
+                # If it's just text or an animation (waiting gif), skip it
+                if not response.media or response.animation:
+                    continue
+
+                # If it has media (Video, Audio, Document, Photo) and isn't the warning message
+                if "more than one media" not in (response.content or ""):
+                    await response.copy(message.chat.id)
+                    return
 
     except Exception as e:
         await message.reply(str(e))
