@@ -24,11 +24,9 @@ async def rsdl(bot: BOT, message: Message):
         async with bot.Convo(
             chat_id=reya, client=bot, from_user=bot.user.me.id, timeout=90
         ) as c:
-            await c.get_response()  # button removal
-            await c.get_response()  # waiting gif
-            media = await c.get_response()
-            if "more than one media" not in (media.content or ""):
-                await media.copy(message.chat.id)
+            response = await c.get_response()
+            if "more than one media" not in (response.content or ""):
+                await response.copy(message.chat.id)
 
     except Exception as e:
         await message.reply(str(e))
