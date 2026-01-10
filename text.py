@@ -37,6 +37,10 @@ async def r_question(bot: BOT, message: Message):
         model = MODEL["FUNC"]
     elif message.cmd == "rx":
         model = MODEL["LEAF"]
+        if "-n" in message.flags:
+            prompt = (
+                f"{prompt}\n\n(In the stead of your creator express No, in your style.)"
+            )
     else:
         model = MODEL["DEFAULT"]
     ai_text = await ask_ai(prompt=prompt, query=query, quote=True, **model)

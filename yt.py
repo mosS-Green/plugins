@@ -74,6 +74,7 @@ async def ytdl_upload(bot, message: Message):
     response = await message.reply("<code>Processing...</code>")
 
     try:
+        filename = None
         force_audio = "-a" in message.flags
         force_video = "-v" in message.flags
 
