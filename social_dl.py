@@ -1,4 +1,5 @@
 from pyrogram.raw.types.messages import BotResults
+from pyrogram import filters
 from ub_core import BOT, Message
 
 reya = "@reyakamibot"
@@ -25,13 +26,14 @@ async def rsdl(bot: BOT, message: Message):
         )
 
         async with bot.Convo(
-            chat_id=reya, client=bot, from_user=bot.user.me.id, timeout=30
+            chat_id=reya,
+            client=bot,
+            from_user=bot.user.me.id,
+            timeout=45,
+            filters=filters.regex(r"sauce"),
         ) as c:
-            await c.get_response()  # button removal
-            await c.get_response()  # waiting gif
             media = await c.get_response()
-            if "more than one media" not in (media.content or ""):
-                await media.copy(message.chat.id, caption="")
+            await media.copy(message.chat.id, caption="")
 
     except Exception as e:
         await message.reply(e)
