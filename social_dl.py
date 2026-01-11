@@ -30,6 +30,8 @@ async def rsdl(bot: BOT, message: Message):
             chat_id=reya, query_id=result.query_id, result_id=result.results[0].id
         )
 
+        await processing_msg.edit("downloading...")
+
         async with bot.Convo(
             chat_id=reya,
             client=bot,
@@ -37,7 +39,9 @@ async def rsdl(bot: BOT, message: Message):
             timeout=45,
             filters=filters.regex(r"sauce", re.IGNORECASE),
         ) as c:
+            await processing_msg.edit("Just a sec...")
             media = await c.get_response()
+            await processing_msg.edit("uploading...")
             await media.copy(message.chat.id, caption="")
             await processing_msg.delete()
 
