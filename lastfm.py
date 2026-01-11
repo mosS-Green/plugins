@@ -19,7 +19,8 @@ from ub_core.core.handlers.dispatcher import make_custom_object
 from ub_core.core.types import CallbackQuery, InlineResult
 from ub_core.utils import aio, extract_user_data
 
-from .yt import get_ytm_link, ytdl_audio
+from .yt import ytdl_audio
+from .ai_sandbox.functions import get_ytm_link
 
 _bot: BOT = bot.bot
 
@@ -296,6 +297,7 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
 
     caption = callback_query.message.text.html if callback_query.message else None
 
+    audio_path = None
     try:
         audio_path, info = await ytdl_audio(
             f"https://music.youtube.com/watch?v={shortcode}"

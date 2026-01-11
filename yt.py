@@ -32,9 +32,9 @@ async def ytm_link(bot, message: Message):
     else:
         prompts = (
             f"{content}\n\nThe above text/image contains a song name, extract that. "
-            "Or guess the song based on description. Use search for getting the name. Reply only with song name and artist. "
+            "Or guess the song based on description. "
             "If no ovbious song name, then take input as inspiration and give a random song name. "
-            "If you can't even suggest any song, reply with 'unknown song'. "
+            "If you can't even suggest any song, reply exactly with 'unknown song'. "
         )
         song_name = await ask_ai(prompt=prompts, query=reply, **MODEL["QUICK"])
 
