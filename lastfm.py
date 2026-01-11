@@ -188,14 +188,7 @@ async def get_now_playing_track(username) -> dict[str, str] | str:
     else:
         last_played_time = ""
 
-    # noinspection PyUnresolvedReferences
-    try:
-        ytm_link = await asyncio.wait_for(
-            get_ytm_link(f"{track_name} by {artist_name}"), timeout=5.0
-        )
-    except (asyncio.TimeoutError, Exception):
-        # Fallback to a generic search link if specific YTM link fails
-        ytm_link = f"https://music.youtube.com/search?q={track_name} {artist_name}"
+    ytm_link = await get_ytm_link(f"{track_name} by {artist_name}")
 
     return {
         "song_href_html": f"<b><i><a href='{ytm_link}'>{track_name}</a></b></i>",

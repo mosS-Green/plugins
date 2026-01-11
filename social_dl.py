@@ -30,7 +30,7 @@ async def rsdl(bot: BOT, message: Message):
             client=bot,
             from_user=bot.user.me.id,
             timeout=45,
-            filters=filters.regex(r"sauce"),
+            filters=filters.regex(r"sauce", re.IGNORECASE),
         ) as c:
             media = await c.get_response()
             await media.copy(message.chat.id, caption="")
