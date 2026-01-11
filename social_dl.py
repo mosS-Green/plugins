@@ -11,8 +11,11 @@ async def rsdl(bot: BOT, message: Message):
     INFO: use bitch's bot
     USAGE: .d link
     """
-    link = message.input if message.input else message.replied.text
-    reya = bot.me.id
+    link = message.input or (message.replied and message.replied.text)
+    if not link:
+        await message.reply("link nahi diya?")
+        return
+    reya = bot.bot.me.id
 
     processing_msg = await message.reply("Processing...")
 
