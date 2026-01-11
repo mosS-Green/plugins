@@ -1,9 +1,7 @@
 from pyrogram.raw.types.messages import BotResults
 from pyrogram import filters
-from ub_core import BOT, Message
+from ub_core import BOT, bot, Message
 import re
-
-reya = "@reyakamibot"
 
 
 @BOT.add_cmd("d")
@@ -14,12 +12,15 @@ async def rsdl(bot: BOT, message: Message):
     USAGE: .d link
     """
     link = message.input if message.input else message.replied.text
+    reya = bot.me.id
+
+    processing_msg = await message.reply("Processing...")
 
     try:
         result: BotResults = await bot.user.get_inline_bot_results("rsdl_bot", link)
 
         if not result.results:
-            await message.reply("Invalid url.")
+            await processing_msg.edit("Invalid url.")
             return
 
         await bot.user.send_inline_bot_result(
@@ -35,6 +36,7 @@ async def rsdl(bot: BOT, message: Message):
         ) as c:
             media = await c.get_response()
             await media.copy(message.chat.id, caption="")
+            await processing_msg.delete()
 
     except Exception as e:
-        await message.reply(e)
+        await processing_msg.edit(f"Error: {e}")
