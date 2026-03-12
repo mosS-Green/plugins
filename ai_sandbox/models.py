@@ -79,7 +79,7 @@ MODEL = {
         think=ThinkingConfig(thinking_budget=0),
     ),
     "DEFAULT": create_config(
-        "gemini-flash-latest",
+        "gemini-2.5-flash",
         SYSTEM_PROMPTS["DEFAULT"],
         1.0,
         8192,
