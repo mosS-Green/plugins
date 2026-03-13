@@ -1,6 +1,5 @@
 import asyncio
 import random
-import re
 import time
 from datetime import datetime
 
@@ -20,11 +19,12 @@ from .config import (
     CONTEXTUAL_INTERVAL,
     SPLIT_DELIMITER,
     THINK_DELIMITER,
-    REPLY_DELIMITER,
 )
 from .history import (
     append_user_message,
     append_model_message,
+    load_history,
+    seed_from_log,
 )
 
 # Bot agent reference
@@ -55,8 +55,13 @@ AUTOBOT_CONFIG = GenerateContentConfig(
 )
 
 
-# Regex to match <REPLY:MSG_ID> at the start of response
-_REPLY_PATTERN = re.compile(r"^<REPLY:(\d+)>\s*")
+async def init_task(bot=bot, message=None):
+    """Seed history file on startup."""
+    try:
+        await seed_from_log(_bot)
+        LOGGER.info("Autobot: history seeded/loaded successfully.")
+    except Exception as e:
+        LOGGER.error(f"Autobot: failed to seed history: {e}")
 
 
 def _get_sender_name(message) -> str:
@@ -133,18 +138,12 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
 
 
 async def _send_response(chat_id: int, response_text: str, reply_to: int | None = None):
-    """Parse response for REPLY/THINK/SPLIT delimiters and send."""
+    """Parse response for THINK/SPLIT delimiters and send."""
     from pyrogram.types import ReplyParameters
 
+    # Split out internal thoughts
     full_response = response_text.strip()
 
-    # 1. Check for <REPLY:MSG_ID> — overrides any passed-in reply_to
-    reply_match = _REPLY_PATTERN.match(full_response)
-    if reply_match:
-        reply_to = int(reply_match.group(1))
-        full_response = full_response[reply_match.end():].strip()
-
-    # 2. Split out internal thoughts
     if THINK_DELIMITER in full_response:
         parts = full_response.split(THINK_DELIMITER, 1)
         sendable = parts[0].strip()
@@ -164,7 +163,8 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
         thought = ""
 
     # Store full response (including thoughts) in history
-    await append_model_message(response_text.strip())
+    history_text = full_response
+    await append_model_message(history_text)
 
     # If nothing to send (pure thought), we're done
     if not sendable:
@@ -172,7 +172,7 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
             LOGGER.info(f"Autobot thought: {thought[:100]}")
         return
 
-    # 3. Split into multiple messages
+    # Split into multiple messages
     messages = [m.strip() for m in sendable.split(SPLIT_DELIMITER) if m.strip()]
 
     for i, msg_text in enumerate(messages):
@@ -219,24 +219,12 @@ async def autobot_handler(_bot_client, message):
 
     sender_name = _get_sender_name(message)
 
-    # 2. Build user text — quote reya's original message if this is a reply to her
-    user_text = text
-    if (
-        message.reply_to_message
-        and message.reply_to_message.from_user
-        and message.reply_to_message.from_user.username
-        and message.reply_to_message.from_user.username.lower() == BOT_USERNAME.lower()
-    ):
-        quoted = message.reply_to_message.text or message.reply_to_message.caption or ""
-        if quoted:
-            user_text = f'[quoting reya: "{quoted}"] {text}'
-
-    # 3. Append incoming message to history as user role
+    # 2. Append incoming message to history as user role
     history = await append_user_message(
         msg_id=message.id,
         dt=now,
         sender_name=sender_name,
-        text=user_text,
+        text=text,
     )
 
     _msg_counter += 1
@@ -244,7 +232,7 @@ async def autobot_handler(_bot_client, message):
     is_contextual = False
     reply_to_id = None
 
-    # 4. Evaluate triggers (priority order)
+    # 2. Evaluate triggers (priority order)
 
     # Reactive: 100% trigger
     if _is_reactive(message):

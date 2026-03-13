@@ -5,7 +5,7 @@ from datetime import datetime
 import aiofiles
 from google.genai import types
 
-from .config import HISTORY_FILE, MAX_HISTORY_SIZE
+from .config import HISTORY_FILE, HISTORY_SEED_MSG_ID, LOG_CHAT
 
 
 def _content_to_dict(content: types.Content) -> dict:
@@ -66,16 +66,6 @@ def _ensure_alternating(history: list[types.Content]) -> list[types.Content]:
     return merged
 
 
-def _trim_history(history: list[types.Content]) -> list[types.Content]:
-    """Keep only the latest MAX_HISTORY_SIZE entries (rolling window)."""
-    if len(history) > MAX_HISTORY_SIZE:
-        history = history[-MAX_HISTORY_SIZE:]
-        # Ensure we start with a user message (Gemini requirement)
-        while history and history[0].role != "user":
-            history = history[1:]
-    return history
-
-
 async def append_user_message(
     msg_id: int, dt: datetime, sender_name: str, text: str
 ) -> list[types.Content]:
@@ -94,7 +84,6 @@ async def append_user_message(
     )
 
     history = _ensure_alternating(history)
-    history = _trim_history(history)
     await save_history(history)
     return history
 
@@ -111,6 +100,54 @@ async def append_model_message(text: str) -> list[types.Content]:
     )
 
     history = _ensure_alternating(history)
-    history = _trim_history(history)
     await save_history(history)
     return history
+
+
+async def seed_from_log(bot_client):
+    """Seed history from a txt document in LOG chat on first run."""
+    if os.path.exists(HISTORY_FILE):
+        history = await load_history()
+        if history:
+            return
+
+    if not LOG_CHAT or HISTORY_SEED_MSG_ID == "xyz123":
+        # Placeholder not replaced or no log chat, create empty history
+        await save_history([])
+        return
+
+    try:
+        msg_id = int(HISTORY_SEED_MSG_ID)
+        message = await bot_client.get_messages(chat_id=LOG_CHAT, message_ids=msg_id)
+
+        if message and message.document:
+            # Download the txt file and read its content
+            file_path = await message.download()
+            async with aiofiles.open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                content = await f.read()
+            os.remove(file_path)
+
+            if content.strip():
+                initial = [
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=content.strip())],
+                    )
+                ]
+                await save_history(initial)
+                return
+
+        # Fallback: if it's a text message instead
+        if message and message.text:
+            initial = [
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=message.text)],
+                )
+            ]
+            await save_history(initial)
+            return
+
+        await save_history([])
+    except Exception:
+        await save_history([])
