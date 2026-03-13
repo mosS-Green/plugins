@@ -180,21 +180,33 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
         reply_to = int(reply_match.group(1))
         full_response = full_response[reply_match.end() :].strip()
 
-    # 2. Split out internal thoughts
+    # 2. Strip out ALL <THINK>...</THINK or <THINK>... to end-of-string segments.
+    # Strategy: split on THINK_DELIMITER — odd-indexed parts are think content,
+    # even-indexed parts are sendable content. Works regardless of position.
+    thoughts = []
     if THINK_DELIMITER in full_response:
-        parts = full_response.split(THINK_DELIMITER, 1)
-        sendable = parts[0].strip()
-        rest = parts[1].strip() if len(parts) > 1 else ""
-
-        if SPLIT_DELIMITER in rest:
-            thought_part, after_thought = rest.split(SPLIT_DELIMITER, 1)
-            thought = thought_part.strip()
-            if sendable:
-                sendable += f" {SPLIT_DELIMITER} {after_thought.strip()}"
+        segments = full_response.split(THINK_DELIMITER)
+        sendable_parts = []
+        for idx, seg in enumerate(segments):
+            if idx % 2 == 0:
+                # Even: sendable content (before first <THINK>, or after a think ends)
+                # A think region ends at the next <THINK> tag, so we treat pairs as
+                # open-ended (no closing tag). Every even segment after idx=0 is
+                # content that follows a think block — keep it.
+                sendable_parts.append(seg)
             else:
-                sendable = after_thought.strip()
-        else:
-            thought = rest
+                # Odd: this segment is a think blob.
+                # But it may itself contain a <SPLIT>, meaning the model accidentally
+                # put post-thought text after a <SPLIT> inside the think region.
+                # Honour that: content after SPLIT inside a think block is sendable.
+                if SPLIT_DELIMITER in seg:
+                    think_text, after_split = seg.split(SPLIT_DELIMITER, 1)
+                    thoughts.append(think_text.strip())
+                    sendable_parts.append(after_split)
+                else:
+                    thoughts.append(seg.strip())
+        sendable = SPLIT_DELIMITER.join(sendable_parts).strip()
+        thought = " | ".join(t for t in thoughts if t)
     else:
         sendable = full_response
         thought = ""
@@ -202,10 +214,12 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
     # Store full response (including thoughts) in history
     await append_model_message(response_text.strip())
 
+    # Always log thoughts to console (never sent to chat)
+    if thought:
+        LOGGER.info(f"Autobot thought: {thought}")
+
     # If nothing to send (pure thought), we're done
     if not sendable:
-        if thought:
-            LOGGER.info(f"Autobot thought: {thought[:100]}")
         return
 
     # 3. Split into multiple messages
@@ -261,17 +275,13 @@ async def autobot_handler(_bot_client, message):
 
     sender_name = _get_sender_name(message)
 
-    # 2. Build user text — quote reya's original message if this is a reply to her
+    # 2. Build user text — quote the replied-to message for context
     user_text = text
-    if (
-        message.reply_to_message
-        and message.reply_to_message.from_user
-        and message.reply_to_message.from_user.username
-        and message.reply_to_message.from_user.username.lower() == BOT_USERNAME.lower()
-    ):
+    if message.reply_to_message:
         quoted = message.reply_to_message.text or message.reply_to_message.caption or ""
         if quoted:
-            user_text = f'[quoting reya: "{quoted}"] {text}'
+            quote_sender = _get_sender_name(message.reply_to_message)
+            user_text = f'[quoting {quote_sender}: "{quoted}"] {text}'
 
     # 3. Append incoming message to history as user role
     history = await append_user_message(
