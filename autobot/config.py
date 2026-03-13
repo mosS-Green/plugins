@@ -1,7 +1,7 @@
 import os
 
 # Target chat where the bot will participate
-TARGET_CHAT_ID = -1001986080567
+TARGET_CHAT_ID = -1003109030072
 
 # Bot username (without @)
 BOT_USERNAME = "reyakamibot"
