@@ -1,7 +1,7 @@
 import os
 
 # Target chat where the bot will participate
-TARGET_CHAT_ID = -1003109030072
+TARGET_CHAT_ID = -1001986080567
 
 # Bot username (without @)
 BOT_USERNAME = "reyakamibot"
@@ -9,14 +9,11 @@ BOT_USERNAME = "reyakamibot"
 # History file path
 HISTORY_FILE = os.path.join(os.getcwd(), "autobot_history.json")
 
-# Placeholder message ID from LOG chat for initial history seeding
-HISTORY_SEED_MSG_ID = "5416"
-
-# LOG chat ID (from env, same as other modules)
-LOG_CHAT = int(os.getenv("LOG_CHAT", 0))
+# Rolling history limit
+MAX_HISTORY_SIZE = 100
 
 # --- Trigger Config ---
-PROACTIVE_CHANCE = 30  # % chance to trigger proactive reply
+PROACTIVE_CHANCE = 25  # % chance to trigger proactive reply
 ACTIVE_DURATION = 300  # 5 minutes of active mode (seconds)
 ACTIVE_MSG_INTERVAL = 3  # reply every N messages during active mode
 CONTEXTUAL_INTERVAL = 15  # every N messages, run contextual analysis
@@ -24,6 +21,7 @@ CONTEXTUAL_INTERVAL = 15  # every N messages, run contextual analysis
 # Delimiters
 SPLIT_DELIMITER = "<SPLIT>"
 THINK_DELIMITER = "<THINK>"
+REPLY_DELIMITER = "<REPLY:"
 
 # --- System Prompt ---
 SYSTEM_PROMPT = (
@@ -59,6 +57,10 @@ SYSTEM_PROMPT = (
     "OUTPUT FORMAT:\n"
     "- if you want to send multiple separate texts, use <SPLIT> between them\n"
     "  example: no way <SPLIT> thats actually crazy <SPLIT> who told you that?\n"
+    "- if you want to reply to a specific message, prefix your response with <REPLY:MSG_ID> "
+    "where MSG_ID is the id from the message you want to reply to\n"
+    "  example: <REPLY:12345> lol nice one\n"
+    "  you can combine with SPLIT: <REPLY:12345> yeah <SPLIT> what else happened\n"
     "- if you want to think about something without saying it in chat, put your thought "
     "after <THINK> at the end of your response\n"
     "  example: lol yeah that tracks <THINK> they seem upset about something, might ask later\n"
