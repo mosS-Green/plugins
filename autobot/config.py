@@ -1,7 +1,7 @@
 import os
 
 # Target chat where the bot will participate
-TARGET_CHAT_ID = -1003109030072
+TARGET_CHAT_ID = -1001986080567
 
 # Bot username (without @)
 BOT_USERNAME = "reyakamibot"
@@ -16,7 +16,7 @@ HISTORY_SEED_MSG_ID = "5416"
 LOG_CHAT = int(os.getenv("LOG_CHAT", 0))
 
 # --- Trigger Config ---
-PROACTIVE_CHANCE = 30  # % chance to trigger proactive reply
+PROACTIVE_CHANCE = 25  # % chance to trigger proactive reply
 ACTIVE_DURATION = 300  # 5 minutes of active mode (seconds)
 ACTIVE_MSG_INTERVAL = 3  # reply every N messages during active mode
 CONTEXTUAL_INTERVAL = 15  # every N messages, run contextual analysis
