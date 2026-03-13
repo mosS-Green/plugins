@@ -99,10 +99,6 @@ def _is_reactive(message) -> bool:
     text_to_check = message.text or message.caption
     if text_to_check:
         text_lower = text_to_check.lower().strip()
-        # Skip command invocations like _reya, ,reya
-        for trigger in (Config.CMD_TRIGGER, Config.SUDO_TRIGGER):
-            if text_lower.startswith(f"{trigger}reya"):
-                return False
         if f"@{BOT_USERNAME}" in text_lower or "reya" in text_lower:
             return True
 
@@ -340,13 +336,13 @@ async def autobot_handler(_bot_client, message):
     )
 
 
-@bot.add_cmd(cmd="reya")
+@bot.add_cmd(cmd="ry")
 async def reya_cmd(bot: BOT, message: Message):
     """
-    CMD: REYA
+    CMD: RY
     INFO: Control the autobot.
     FLAGS: -r to cycle model, -c to clear history, -id to set target chat
-    USAGE: ,reya | ,reya -r | ,reya -c | ,reya -id
+    USAGE: ,ry | ,ry -r | ,ry -c | ,ry -id
     """
     global _autobot_enabled, _target_chat_id
 

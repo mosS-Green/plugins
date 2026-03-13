@@ -8,7 +8,6 @@ from app.plugins.ai.gemini.query import question
 
 async def init_task(bot=bot, message=None):
     Config.CMD_DICT["eu"] = Config.CMD_DICT["extupdate"]
-    Config.CMD_DICT["ry"] = Config.CMD_DICT["reply"]
 
 
 @BOT.add_cmd(cmd="ch")
@@ -115,6 +114,3 @@ async def log_ai_analysis(bot: BOT, message: Message):
 
     # Delegate to the existing AI question function
     await question(bot, message)
-
-
-
