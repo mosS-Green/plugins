@@ -57,7 +57,7 @@ SAFETY_OFF = [
     SafetySetting(category="HARM_CATEGORY_CIVIC_INTEGRITY", threshold="OFF"),
 ]
 
-AUTOBOT_MODEL = "gemini-2.5-flash"
+
 AUTOBOT_CONFIG = GenerateContentConfig(
     candidate_count=1,
     system_instruction=SYSTEM_PROMPT,
@@ -234,8 +234,7 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
 
 
 @_bot.on_message(
-    filters=filters.chat(_DEFAULT_TARGET_CHAT_ID)
-    & ~filters.service
+    filters=~filters.service
     & (filters.text | filters.caption)
 )
 async def autobot_handler(_bot_client, message):
