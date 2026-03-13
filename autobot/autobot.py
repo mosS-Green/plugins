@@ -8,10 +8,10 @@ from pyrogram import filters
 from google.genai.client import Client
 from google.genai.types import GenerateContentConfig, SafetySetting, ThinkingConfig
 
-from app import LOGGER, bot, extra_config
+from app import BOT, Config, LOGGER, Message, bot, extra_config
 
 from .config import (
-    TARGET_CHAT_ID,
+    TARGET_CHAT_ID as _DEFAULT_TARGET_CHAT_ID,
     BOT_USERNAME,
     SYSTEM_PROMPT,
     PROACTIVE_CHANCE,
@@ -23,6 +23,7 @@ from .config import (
     REPLY_DELIMITER,
     MODEL_LIST,
     AUTOBOT_GEMINI_API_KEY,
+    HISTORY_FILE,
 )
 from .history import (
     append_user_message,
@@ -39,6 +40,8 @@ _active_msg_count = 0  # messages since last active-mode reply
 _autobot_enabled = True  # whether the bot is globally enabled
 _current_model_idx = 0  # index in MODEL_LIST
 _requests_since_cycle = 0  # count requests to auto-cycle
+_target_chat_id = _DEFAULT_TARGET_CHAT_ID  # mutable target chat
+_last_logged_model = None  # track last logged model to avoid spam
 
 # Autobot specific client — use dedicated key or fall back to default
 _autobot_client = Client(
@@ -93,10 +96,13 @@ def _get_sender_name(message) -> str:
 
 def _is_reactive(message) -> bool:
     """Check if message directly mentions the bot or replies to it."""
-    # Tagged or "reya" mentioned
     text_to_check = message.text or message.caption
     if text_to_check:
-        text_lower = text_to_check.lower()
+        text_lower = text_to_check.lower().strip()
+        # Skip command invocations like _reya, ,reya
+        for trigger in (Config.CMD_TRIGGER, Config.SUDO_TRIGGER):
+            if text_lower.startswith(f"{trigger}reya"):
+                return False
         if f"@{BOT_USERNAME}" in text_lower or "reya" in text_lower:
             return True
 
@@ -115,7 +121,7 @@ def _is_reactive(message) -> bool:
 
 async def _generate_response(history: list, contextual: bool = False) -> str | None:
     """Send history to Gemini and get a response."""
-    global _requests_since_cycle
+    global _requests_since_cycle, _last_logged_model
     try:
         contents = list(history)
 
@@ -142,7 +148,9 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
             _cycle_model()
 
         model_name = _get_current_model()
-        LOGGER.info(f"Autobot generating with model: {model_name}")
+        if model_name != _last_logged_model:
+            _last_logged_model = model_name
+            LOGGER.info(f"Autobot using model: {model_name}")
 
         response = await _autobot_client.models.generate_content(
             contents=contents,
@@ -230,30 +238,20 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
 
 
 @_bot.on_message(
-    filters=filters.chat(TARGET_CHAT_ID)
+    filters=filters.chat(_DEFAULT_TARGET_CHAT_ID)
     & ~filters.service
     & (filters.text | filters.caption)
 )
 async def autobot_handler(_bot_client, message):
     """Main message handler for autobot."""
-    global _msg_counter, _active_until, _active_msg_count, _autobot_enabled
+    global _msg_counter, _active_until, _active_msg_count
+
+    # Skip if not the current target chat (may have been changed via -id)
+    if message.chat.id != _target_chat_id:
+        return
 
     text = message.text or message.caption or ""
     if not text:
-        return
-
-    text_lower = text.lower().strip()
-
-    # Commands logic
-    if text_lower == "reya -r":
-        _cycle_model()
-        await message.reply_text(f"cycled to: {_get_current_model()}")
-        return
-
-    if text_lower == "reya":
-        _autobot_enabled = not _autobot_enabled
-        state_str = "on" if _autobot_enabled else "off"
-        await message.reply_text(f"autobot is now {state_str}")
         return
 
     if not _autobot_enabled:
@@ -336,7 +334,39 @@ async def autobot_handler(_bot_client, message):
 
     # 4. Send response
     await _send_response(
-        chat_id=TARGET_CHAT_ID,
+        chat_id=_target_chat_id,
         response_text=response_text,
         reply_to=reply_to_id,
     )
+
+
+@bot.add_cmd(cmd="reya")
+async def reya_cmd(bot: BOT, message: Message):
+    """
+    CMD: REYA
+    INFO: Control the autobot.
+    FLAGS: -r to cycle model, -c to clear history, -id to set target chat
+    USAGE: ,reya | ,reya -r | ,reya -c | ,reya -id
+    """
+    global _autobot_enabled, _target_chat_id
+
+    if "-r" in message.flags:
+        _cycle_model()
+        await message.reply(f"cycled to: {_get_current_model()}")
+        return
+
+    if "-c" in message.flags:
+        import aiofiles
+        async with aiofiles.open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            await f.write("[]")
+        await message.reply("history cleared.")
+        return
+
+    if "-id" in message.flags:
+        _target_chat_id = message.chat.id
+        await message.reply(f"target chat set to: {_target_chat_id}")
+        return
+
+    _autobot_enabled = not _autobot_enabled
+    state_str = "on" if _autobot_enabled else "off"
+    await message.reply(f"autobot is now {state_str}")

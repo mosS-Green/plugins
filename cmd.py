@@ -117,54 +117,76 @@ async def log_ai_analysis(bot: BOT, message: Message):
     await question(bot, message)
 
 
-@bot.add_cmd(cmd="aup")
-async def upload_codebase_to_chat(bot: BOT, message: Message):
+@bot.add_cmd(cmd="ubx")
+async def index_codebase(bot: BOT, message: Message):
     """
-    CMD: AUP
-    INFO: Build and upload the codebase index file used by acode.
-    USAGE: .aup
+    CMD: UBX
+    INFO: Build and save the codebase index file.
+    FLAGS: -u to upload the index file to chat
+    USAGE: ,ubx | ,ubx -u
     """
-    import io
-    from app import extra_config
-    from ub_core.utils import MediaExtensions
-    from app.plugins.ai.gemini.code import (
-        CODEBASE_PATHS,
-        EXTRA_MODULES,
-        PYRO_PATH,
-        shrink_file,
-    )
+    import asyncio
+    import glob
+    from pathlib import Path
 
-    status = await message.reply("<code>Building codebase index...</code>")
+    import aiofiles
 
-    codebase_parts = []
-    for root in CODEBASE_PATHS:
-        for file in sorted(root.rglob("*")):
-            file = file.resolve()
+    CONTEXT_FILE = "codebase_context.txt"
+    MAX_CONCURRENT_READS = 50
 
-            if not file.is_file():
-                continue
+    async def read_file_async(path: Path, root_dir: Path, semaphore: asyncio.Semaphore) -> str:
+        async with semaphore:
+            try:
+                rel_path = path.relative_to(root_dir) if path.is_relative_to(root_dir) else path
+                if str(rel_path) == CONTEXT_FILE:
+                    return ""
+                async with aiofiles.open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = await f.read()
+                    return f"\n{'='*20}\nFile: {rel_path}\n{'='*20}\n{content}\n"
+            except Exception:
+                return ""
 
-            if not extra_config.INDEX_EXTRA_MODULES and file.is_relative_to(
-                EXTRA_MODULES
-            ):
-                continue
+    status = await message.reply("<code>Indexing codebase...</code>")
+    try:
+        root_dir = os.getcwd()
+        scan_dirs = ["app/"]
 
-            if file.suffix in MediaExtensions.CODE:
-                try:
-                    codebase_parts.append(shrink_file(file))
-                except Exception as e:
-                    codebase_parts.append(str(e))
+        try:
+            import ub_core
+            if hasattr(ub_core, "ub_core_dirname"):
+                ub_core_path = ub_core.ub_core_dirname
+                if os.path.exists(ub_core_path):
+                    scan_dirs.append(ub_core_path)
+                else:
+                    scan_dirs.append("ub_core/")
+            else:
+                scan_dirs.append("ub_core/")
+        except ImportError:
+            scan_dirs.append("ub_core/")
 
-                codebase_parts.append(f"\n##### {file} #####\n")
+        all_files = []
+        for directory in scan_dirs:
+            dir_path = directory if os.path.isabs(directory) else os.path.join(root_dir, directory)
+            all_files.extend(glob.glob(f"{dir_path}/**/*.py", recursive=True))
 
-    codebase_parts.append(
-        f"\n\n\nPyrogram file path tree:\n{sorted(PYRO_PATH.rglob('*py'))}"
-    )
+        final_files = sorted([Path(f) for f in all_files], key=lambda p: str(p).lower())
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_READS)
+        tasks = [read_file_async(file, Path(root_dir), semaphore) for file in final_files]
+        results = await asyncio.gather(*tasks)
 
-    joined_codebase = "".join(codebase_parts)
+        content = "Analysis of the entire codebase directory structure and file contents:\n" + "".join(results)
 
-    codebase_file = io.BytesIO(bytes(joined_codebase, encoding="utf-8"))
-    codebase_file.name = "codebase_index.txt"
+        async with aiofiles.open(CONTEXT_FILE, "w", encoding="utf-8") as f:
+            await f.write(content)
 
-    await message.reply_document(document=codebase_file, caption="Codebase Index")
-    await status.delete()
+        caption = f"Codebase indexed.\nSize: {len(content)} characters."
+
+        if "-u" in message.flags:
+            await message.reply_document(document=CONTEXT_FILE, caption=caption)
+            await status.delete()
+        else:
+            await status.edit(caption)
+
+    except Exception as e:
+        await status.edit(f"Indexing failed: {e}")
+
