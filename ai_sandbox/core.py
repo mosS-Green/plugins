@@ -5,7 +5,7 @@ import time
 import os
 from mimetypes import guess_type
 from app import LOGGER, Message
-from ub_core.utils import get_tg_media_details
+from ub_core.utils import get_tg_media_details, wrap_in_block_quote
 from app.plugins.ai.gemini.client import async_client
 from app.modules.ai_sandbox.functions import execute_function
 from .models import MODEL
@@ -118,6 +118,6 @@ async def get_response_content(
     final_text = (text.strip() + sources).strip()
 
     if final_text and quoted and "```" not in final_text:
-        final_text = f"**>\n{final_text}<**"
+        final_text = wrap_in_block_quote(final_text, "**>", "<**")
 
     return final_text, image_data

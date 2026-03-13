@@ -5,10 +5,10 @@ import time
 from datetime import datetime
 
 from pyrogram import filters
+from google.genai.client import Client
 from google.genai.types import GenerateContentConfig, SafetySetting, ThinkingConfig
 
-from app import LOGGER, bot
-from app.plugins.ai.gemini.client import get_client
+from app import LOGGER, bot, extra_config
 
 from .config import (
     TARGET_CHAT_ID,
@@ -40,8 +40,10 @@ _autobot_enabled = True  # whether the bot is globally enabled
 _current_model_idx = 0  # index in MODEL_LIST
 _requests_since_cycle = 0  # count requests to auto-cycle
 
-# Autobot specific client
-_autobot_client = get_client(api_key=AUTOBOT_GEMINI_API_KEY) if AUTOBOT_GEMINI_API_KEY else get_client()
+# Autobot specific client — use dedicated key or fall back to default
+_autobot_client = Client(
+    api_key=AUTOBOT_GEMINI_API_KEY or extra_config.GEMINI_API_KEY
+).aio
 
 # --- Model Config ---
 SAFETY_OFF = [
@@ -172,14 +174,14 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
     reply_match = _REPLY_PATTERN.match(full_response)
     if reply_match:
         reply_to = int(reply_match.group(1))
-        full_response = full_response[reply_match.end():].strip()
+        full_response = full_response[reply_match.end() :].strip()
 
     # 2. Split out internal thoughts
     if THINK_DELIMITER in full_response:
         parts = full_response.split(THINK_DELIMITER, 1)
         sendable = parts[0].strip()
         rest = parts[1].strip() if len(parts) > 1 else ""
-        
+
         if SPLIT_DELIMITER in rest:
             thought_part, after_thought = rest.split(SPLIT_DELIMITER, 1)
             thought = thought_part.strip()

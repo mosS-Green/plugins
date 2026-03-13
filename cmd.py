@@ -2,7 +2,7 @@ import os
 
 from app import BOT, Config, Message, bot
 from pyrogram.enums import ParseMode
-from ub_core.utils import run_shell_cmd
+from ub_core.utils import run_shell_cmd, wrap_in_block_quote
 from app.plugins.ai.gemini.query import question
 
 
@@ -28,7 +28,9 @@ async def plugin_info(bot: BOT, message: Message):
 
     to_join = [str(item).strip("/") for item in (repo, "blob", branch, plugin)]
     remote_url = os.path.join(*to_join)
-    resp_str = f"**>\n**{cmd}** : <a href='{remote_url}'>{plugin}</a><**"
+    resp_str = wrap_in_block_quote(
+        f"**{cmd}** : <a href='{remote_url}'>{plugin}</a>", "**>", "<**"
+    )
 
     response = await message.reply(resp_str, disable_preview=True)
 
@@ -90,7 +92,6 @@ async def log_ai_analysis(bot: BOT, message: Message):
     logs = await run_shell_cmd(cmd="tail -n 100 logs/app_logs.txt")
 
     # Construct the prompt for the AI
-    # Construct the prompt for the AI
     prompt = (
         "Analyze the provided log entries. "
         "List the latest errors, exceptions, or tracebacks found. "
@@ -114,3 +115,56 @@ async def log_ai_analysis(bot: BOT, message: Message):
 
     # Delegate to the existing AI question function
     await question(bot, message)
+
+
+@bot.add_cmd(cmd="aup")
+async def upload_codebase_to_chat(bot: BOT, message: Message):
+    """
+    CMD: AUP
+    INFO: Build and upload the codebase index file used by acode.
+    USAGE: .aup
+    """
+    import io
+    from app import extra_config
+    from ub_core.utils import MediaExtensions
+    from app.plugins.ai.gemini.code import (
+        CODEBASE_PATHS,
+        EXTRA_MODULES,
+        PYRO_PATH,
+        shrink_file,
+    )
+
+    status = await message.reply("<code>Building codebase index...</code>")
+
+    codebase_parts = []
+    for root in CODEBASE_PATHS:
+        for file in sorted(root.rglob("*")):
+            file = file.resolve()
+
+            if not file.is_file():
+                continue
+
+            if not extra_config.INDEX_EXTRA_MODULES and file.is_relative_to(
+                EXTRA_MODULES
+            ):
+                continue
+
+            if file.suffix in MediaExtensions.CODE:
+                try:
+                    codebase_parts.append(shrink_file(file))
+                except Exception as e:
+                    codebase_parts.append(str(e))
+
+                codebase_parts.append(f"\n##### {file} #####\n")
+
+    codebase_parts.append(
+        f"\n\n\nPyrogram file path tree:\n{sorted(PYRO_PATH.rglob('*py'))}"
+    )
+
+    joined_codebase = "".join(codebase_parts)
+
+    codebase_file = io.BytesIO(bytes(joined_codebase, encoding="utf-8"))
+    codebase_file.name = "codebase_index.txt"
+
+    await message.reply_document(document=codebase_file, caption="Codebase Index")
+    await status.delete()
