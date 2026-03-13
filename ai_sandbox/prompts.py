@@ -26,29 +26,6 @@ SYSTEM_PROMPTS = {
     "QUICK": "Answer precisely and concisely.",
 }
 
-DEV_PROMPTS = {
-    "COOK": (
-        "You are an expert Python developer for this specific Telegram bot codebase.\n"
-        "Analyze the provided codebase context to understand the project's structure, coding style, import patterns, and available utilities.\n"
-        "Create a COMPLETE, working Python plugin based on the user's request, adhering strictly to the existing codebase conventions.\n\n"
-        "Guidelines:\n"
-        "1. **Imports**: Use `app` and `ub_core` imports correctly as seen in the codebase.\n"
-        "2. **Decorators**: Use `@bot.add_cmd(cmd='command_name')` for registering commands.\n"
-        "3. **Style**: Match the existing coding style (naming conventions, error handling, etc.).\n"
-        "4. **Output Format**: STRICTLY output ONLY the code inside a single ```python ... ``` block. No conversational text.\n"
-        "\nUser Request:\n"
-    ),
-    "PY_EXEC": (
-        "You are an expert Python developer.\n"
-        "Write a python script that can be executed directly. Adhere to the existing codebase conventions.\n"
-        "The script should be concise and solve the user's problem efficiently.\n"
-        "Do not include any conversational text. Output ONLY the python code inside a ```python``` block.\n"
-        "The code should be ready to run via `exec()` or similar, so ensure imports are handled within reason or standard libs."
-    ),
-    "DEBUG": (
-        "Analyze these logs and very concisely tell me what the issue was. Say No issues if none detected. Use the provided codebase context to identify specific files/plugins involved. Ignore the sqlite3 errors."
-    ),
-}
 
 PROMPT_MAP = {
     Video: "Summarize video and audio from the file",
