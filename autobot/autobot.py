@@ -1,5 +1,6 @@
 import asyncio
 import random
+import re
 import time
 from datetime import datetime
 
@@ -7,7 +8,7 @@ from pyrogram import filters
 from google.genai.types import GenerateContentConfig, SafetySetting, ThinkingConfig
 
 from app import LOGGER, bot
-from app.plugins.ai.gemini.client import async_client
+from app.plugins.ai.gemini.client import get_client
 
 from .config import (
     TARGET_CHAT_ID,
@@ -19,12 +20,13 @@ from .config import (
     CONTEXTUAL_INTERVAL,
     SPLIT_DELIMITER,
     THINK_DELIMITER,
+    REPLY_DELIMITER,
+    MODEL_LIST,
+    AUTOBOT_GEMINI_API_KEY,
 )
 from .history import (
     append_user_message,
     append_model_message,
-    load_history,
-    seed_from_log,
 )
 
 # Bot agent reference
@@ -34,6 +36,12 @@ _bot = bot.bot
 _msg_counter = 0  # messages since last contextual check
 _active_until = 0.0  # timestamp when active mode expires
 _active_msg_count = 0  # messages since last active-mode reply
+_autobot_enabled = True  # whether the bot is globally enabled
+_current_model_idx = 0  # index in MODEL_LIST
+_requests_since_cycle = 0  # count requests to auto-cycle
+
+# Autobot specific client
+_autobot_client = get_client(api_key=AUTOBOT_GEMINI_API_KEY) if AUTOBOT_GEMINI_API_KEY else get_client()
 
 # --- Model Config ---
 SAFETY_OFF = [
@@ -55,13 +63,21 @@ AUTOBOT_CONFIG = GenerateContentConfig(
 )
 
 
-async def init_task(bot=bot, message=None):
-    """Seed history file on startup."""
-    try:
-        await seed_from_log(_bot)
-        LOGGER.info("Autobot: history seeded/loaded successfully.")
-    except Exception as e:
-        LOGGER.error(f"Autobot: failed to seed history: {e}")
+def _get_current_model() -> str:
+    """Get the current model from the MODEL_LIST."""
+    return MODEL_LIST[_current_model_idx]
+
+
+def _cycle_model():
+    """Cycle to the next model in the list."""
+    global _current_model_idx, _requests_since_cycle
+    _current_model_idx = (_current_model_idx + 1) % len(MODEL_LIST)
+    _requests_since_cycle = 0
+    LOGGER.info(f"Autobot: cycled model to {_get_current_model()}")
+
+
+# Regex to match <REPLY:MSG_ID> at the start of response
+_REPLY_PATTERN = re.compile(r"^<REPLY:(\d+)>\s*")
 
 
 def _get_sender_name(message) -> str:
@@ -97,6 +113,7 @@ def _is_reactive(message) -> bool:
 
 async def _generate_response(history: list, contextual: bool = False) -> str | None:
     """Send history to Gemini and get a response."""
+    global _requests_since_cycle
     try:
         contents = list(history)
 
@@ -117,9 +134,17 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
                 )
             )
 
-        response = await async_client.models.generate_content(
+        # Auto-cycle model if reached limit
+        _requests_since_cycle += 1
+        if _requests_since_cycle >= 19:
+            _cycle_model()
+
+        model_name = _get_current_model()
+        LOGGER.info(f"Autobot generating with model: {model_name}")
+
+        response = await _autobot_client.models.generate_content(
             contents=contents,
-            model=AUTOBOT_MODEL,
+            model=model_name,
             config=AUTOBOT_CONFIG,
         )
 
@@ -138,12 +163,18 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
 
 
 async def _send_response(chat_id: int, response_text: str, reply_to: int | None = None):
-    """Parse response for THINK/SPLIT delimiters and send."""
+    """Parse response for REPLY/THINK/SPLIT delimiters and send."""
     from pyrogram.types import ReplyParameters
 
-    # Split out internal thoughts
     full_response = response_text.strip()
 
+    # 1. Check for <REPLY:MSG_ID> — overrides any passed-in reply_to
+    reply_match = _REPLY_PATTERN.match(full_response)
+    if reply_match:
+        reply_to = int(reply_match.group(1))
+        full_response = full_response[reply_match.end():].strip()
+
+    # 2. Split out internal thoughts
     if THINK_DELIMITER in full_response:
         parts = full_response.split(THINK_DELIMITER, 1)
         sendable = parts[0].strip()
@@ -163,8 +194,7 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
         thought = ""
 
     # Store full response (including thoughts) in history
-    history_text = full_response
-    await append_model_message(history_text)
+    await append_model_message(response_text.strip())
 
     # If nothing to send (pure thought), we're done
     if not sendable:
@@ -172,7 +202,7 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
             LOGGER.info(f"Autobot thought: {thought[:100]}")
         return
 
-    # Split into multiple messages
+    # 3. Split into multiple messages
     messages = [m.strip() for m in sendable.split(SPLIT_DELIMITER) if m.strip()]
 
     for i, msg_text in enumerate(messages):
@@ -204,10 +234,27 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
 )
 async def autobot_handler(_bot_client, message):
     """Main message handler for autobot."""
-    global _msg_counter, _active_until, _active_msg_count
+    global _msg_counter, _active_until, _active_msg_count, _autobot_enabled
 
     text = message.text or message.caption or ""
     if not text:
+        return
+
+    text_lower = text.lower().strip()
+
+    # Commands logic
+    if text_lower == "reya -r":
+        _cycle_model()
+        await message.reply_text(f"cycled to: {_get_current_model()}")
+        return
+
+    if text_lower == "reya":
+        _autobot_enabled = not _autobot_enabled
+        state_str = "on" if _autobot_enabled else "off"
+        await message.reply_text(f"autobot is now {state_str}")
+        return
+
+    if not _autobot_enabled:
         return
 
     now = datetime.now()
@@ -219,12 +266,24 @@ async def autobot_handler(_bot_client, message):
 
     sender_name = _get_sender_name(message)
 
-    # 2. Append incoming message to history as user role
+    # 2. Build user text — quote reya's original message if this is a reply to her
+    user_text = text
+    if (
+        message.reply_to_message
+        and message.reply_to_message.from_user
+        and message.reply_to_message.from_user.username
+        and message.reply_to_message.from_user.username.lower() == BOT_USERNAME.lower()
+    ):
+        quoted = message.reply_to_message.text or message.reply_to_message.caption or ""
+        if quoted:
+            user_text = f'[quoting reya: "{quoted}"] {text}'
+
+    # 3. Append incoming message to history as user role
     history = await append_user_message(
         msg_id=message.id,
         dt=now,
         sender_name=sender_name,
-        text=text,
+        text=user_text,
     )
 
     _msg_counter += 1
@@ -232,7 +291,7 @@ async def autobot_handler(_bot_client, message):
     is_contextual = False
     reply_to_id = None
 
-    # 2. Evaluate triggers (priority order)
+    # 4. Evaluate triggers (priority order)
 
     # Reactive: 100% trigger
     if _is_reactive(message):
