@@ -5,7 +5,13 @@ from datetime import datetime
 import aiofiles
 from google.genai import types
 
-from .config import HISTORY_FILE, MAX_HISTORY_SIZE
+from .config import HISTORY_DIR, MAX_HISTORY_SIZE
+
+os.makedirs(HISTORY_DIR, exist_ok=True)
+
+
+def _chat_history_path(chat_id: int) -> str:
+    return os.path.join(HISTORY_DIR, f"{chat_id}.json")
 
 
 def _content_to_dict(content: types.Content) -> dict:
@@ -22,21 +28,22 @@ def _dict_to_content(d: dict) -> types.Content:
     )
 
 
-async def load_history() -> list[types.Content]:
-    if not os.path.exists(HISTORY_FILE):
+async def load_history(chat_id: int) -> list[types.Content]:
+    path = _chat_history_path(chat_id)
+    if not os.path.exists(path):
         return []
 
     try:
-        async with aiofiles.open(HISTORY_FILE, "r", encoding="utf-8") as f:
+        async with aiofiles.open(path, "r", encoding="utf-8") as f:
             data = json.loads(await f.read())
         return [_dict_to_content(d) for d in data]
     except (json.JSONDecodeError, KeyError, Exception):
         return []
 
 
-async def save_history(history: list[types.Content]):
+async def save_history(chat_id: int, history: list[types.Content]):
     data = [_content_to_dict(c) for c in history]
-    async with aiofiles.open(HISTORY_FILE, "w", encoding="utf-8") as f:
+    async with aiofiles.open(_chat_history_path(chat_id), "w", encoding="utf-8") as f:
         await f.write(json.dumps(data, ensure_ascii=False, indent=2))
 
 
@@ -68,9 +75,9 @@ def _trim_history(history: list[types.Content]) -> list[types.Content]:
 
 
 async def append_user_message(
-    msg_id: int, dt: datetime, sender_name: str, text: str
+    chat_id: int, msg_id: int, dt: datetime, sender_name: str, text: str
 ) -> list[types.Content]:
-    history = await load_history()
+    history = await load_history(chat_id)
 
     date_str = dt.strftime("%Y-%m-%d")
     time_str = dt.strftime("%H:%M")
@@ -85,12 +92,12 @@ async def append_user_message(
 
     history = _ensure_alternating(history)
     history = _trim_history(history)
-    await save_history(history)
+    await save_history(chat_id, history)
     return history
 
 
-async def append_model_message(text: str) -> list[types.Content]:
-    history = await load_history()
+async def append_model_message(chat_id: int, text: str) -> list[types.Content]:
+    history = await load_history(chat_id)
 
     history.append(
         types.Content(
@@ -101,5 +108,5 @@ async def append_model_message(text: str) -> list[types.Content]:
 
     history = _ensure_alternating(history)
     history = _trim_history(history)
-    await save_history(history)
+    await save_history(chat_id, history)
     return history

@@ -2,16 +2,17 @@ import asyncio
 import random
 import re
 import time
+from collections import defaultdict
 from datetime import datetime
 
 from pyrogram import filters
 from google.genai.client import Client
 from google.genai.types import GenerateContentConfig, SafetySetting, ThinkingConfig
+from ub_core.utils.helpers import get_name
 
 from app import BOT, Config, LOGGER, Message, bot, extra_config
 
 from .config import (
-    TARGET_CHAT_ID as _DEFAULT_TARGET_CHAT_ID,
     BOT_USERNAME,
     SYSTEM_PROMPT,
     PROACTIVE_CHANCE,
@@ -24,7 +25,7 @@ from .config import (
     NULL_DELIMITER,
     MODEL_LIST,
     AUTOBOT_GEMINI_API_KEY,
-    HISTORY_FILE,
+    HISTORY_DIR,
 )
 from .history import (
     append_user_message,
@@ -37,13 +38,15 @@ _bot = bot.bot
 # Mutable runtime state
 # ---------------------------------------------------------------------------
 
-_msg_counter = 0  # messages received since the last contextual check
-_active_until = 0.0  # epoch timestamp when active mode expires
-_active_msg_count = 0  # messages received since the last active-mode reply
-_autobot_enabled = True  # global on/off toggle
+_enabled_chats: set[int] = set()  # chats where autobot is active (disabled by default)
+
+# Per-chat counters: {chat_id: {"msg_counter": int, "active_until": float, "active_msg_count": int}}
+_chat_state: dict[int, dict] = defaultdict(
+    lambda: {"msg_counter": 0, "active_until": 0.0, "active_msg_count": 0}
+)
+
 _current_model_idx = 0  # index into MODEL_LIST
 _requests_since_cycle = 0  # generation requests since the last model cycle
-_target_chat_id = _DEFAULT_TARGET_CHAT_ID  # runtime-overridable target chat
 _last_logged_model = None  # last model name written to the log (dedup guard)
 
 # ---------------------------------------------------------------------------
@@ -90,28 +93,28 @@ def _cycle_model():
     LOGGER.info(f"Autobot: cycled model to {_get_current_model()}")
 
 
-def _get_sender_name(message) -> str:
+def _sender_name(message) -> str:
+    """Extract sender display name using core's get_name helper."""
     if message.from_user:
-        return message.from_user.first_name or "Unknown"
+        return get_name(message.from_user)
     if message.sender_chat:
-        return message.sender_chat.title or "Unknown"
+        return get_name(message.sender_chat)
     return "Unknown"
 
 
 def _is_reactive(message) -> bool:
-    text_to_check = message.text or message.caption
-    if text_to_check:
-        text_lower = text_to_check.lower().strip()
-        if f"@{BOT_USERNAME}" in text_lower or "reya" in text_lower:
-            return True
+    """Check if the message should trigger a direct reply.
 
-    if message.reply_to_message:
-        reply_from = message.reply_to_message.from_user
-        if (
-            reply_from
-            and reply_from.username
-            and reply_from.username.lower() == BOT_USERNAME.lower()
-        ):
+    Uses pyrogram's ``message.mentioned`` for @-mentions and replies to the
+    bot, plus a keyword check for "reya" (ignoring command prefixes).
+    """
+    if message.mentioned:
+        return True
+
+    text = message.text or message.caption
+    if text:
+        text_lower = text.lower().strip()
+        if "reya" in text_lower:
             return True
 
     return False
@@ -221,12 +224,12 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
     if is_null:
         sendable = ""
 
-    await append_model_message(response_text.strip())
-
     if thought:
         LOGGER.info(f"Autobot thought: {thought}")
 
     if not sendable:
+        # Still cache the raw model output so history stays consistent.
+        await append_model_message(chat_id, response_text.strip())
         return
 
     messages = [m.strip() for m in sendable.split(SPLIT_DELIMITER) if m.strip()]
@@ -251,6 +254,10 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
         except Exception as e:
             LOGGER.error(f"Autobot: send error: {e}")
 
+    # Cache the full model response after sending (bot's own messages don't
+    # arrive back through the dispatcher).
+    await append_model_message(chat_id, response_text.strip())
+
 
 # ---------------------------------------------------------------------------
 # Main message handler
@@ -259,26 +266,23 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
 
 @_bot.on_message(filters=~filters.service & (filters.text | filters.caption))
 async def autobot_handler(_bot_client, message):
-    global _msg_counter, _active_until, _active_msg_count
+    chat_id = message.chat.id
 
-    if message.chat.id != _target_chat_id:
+    if chat_id not in _enabled_chats:
         return
 
     text = message.text or message.caption or ""
     if not text:
         return
 
-    if not _autobot_enabled:
+    # Skip bot's own outgoing messages — they are cached at send-time.
+    if message.from_user and message.from_user.is_self:
         return
 
     now = datetime.now()
+    state = _chat_state[chat_id]
 
-    # The bot's own outgoing messages are recorded as model role; no reply needed.
-    if message.from_user and message.from_user.is_self:
-        await append_model_message(text)
-        return
-
-    sender_name = _get_sender_name(message)
+    sender_name = _sender_name(message)
 
     # When the sender is replying to another message, prepend a quote so the
     # model has the full conversational context without needing to scroll back.
@@ -286,17 +290,18 @@ async def autobot_handler(_bot_client, message):
     if message.reply_to_message:
         quoted = message.reply_to_message.text or message.reply_to_message.caption or ""
         if quoted:
-            quote_sender = _get_sender_name(message.reply_to_message)
+            quote_sender = _sender_name(message.reply_to_message)
             user_text = f'[quoting {quote_sender}: "{quoted}"] {text}'
 
     history = await append_user_message(
+        chat_id=chat_id,
         msg_id=message.id,
         dt=now,
         sender_name=sender_name,
         text=user_text,
     )
 
-    _msg_counter += 1
+    state["msg_counter"] += 1
     should_reply = False
     is_contextual = False
     reply_to_id = None
@@ -306,24 +311,24 @@ async def autobot_handler(_bot_client, message):
     if _is_reactive(message):
         should_reply = True
         reply_to_id = message.id
-        _msg_counter = 0
+        state["msg_counter"] = 0
 
     elif random.randint(1, 100) <= PROACTIVE_CHANCE:
         should_reply = True
-        _active_until = time.time() + ACTIVE_DURATION
-        _active_msg_count = 0
-        _msg_counter = 0
+        state["active_until"] = time.time() + ACTIVE_DURATION
+        state["active_msg_count"] = 0
+        state["msg_counter"] = 0
         reply_to_id = None
 
-    elif time.time() < _active_until:
-        _active_msg_count += 1
-        if _active_msg_count >= ACTIVE_MSG_INTERVAL:
+    elif time.time() < state["active_until"]:
+        state["active_msg_count"] += 1
+        if state["active_msg_count"] >= ACTIVE_MSG_INTERVAL:
             should_reply = True
-            _active_msg_count = 0
+            state["active_msg_count"] = 0
             reply_to_id = None
 
-    if not should_reply and _msg_counter >= CONTEXTUAL_INTERVAL:
-        _msg_counter = 0
+    if not should_reply and state["msg_counter"] >= CONTEXTUAL_INTERVAL:
+        state["msg_counter"] = 0
         should_reply = True
         is_contextual = True
         reply_to_id = None
@@ -337,7 +342,7 @@ async def autobot_handler(_bot_client, message):
         return
 
     await _send_response(
-        chat_id=_target_chat_id,
+        chat_id=chat_id,
         response_text=response_text,
         reply_to=reply_to_id,
     )
@@ -353,10 +358,9 @@ async def reya_cmd(bot: BOT, message: Message):
     """
     CMD: RY
     INFO: Runtime control panel for the Autobot plugin.
-    FLAGS: -r to cycle model, -c to clear history, -id to set target chat
-    USAGE: ,ry | ,ry -r | ,ry -c | ,ry -id
+    FLAGS: -r to cycle model, -c to clear history
+    USAGE: ,ry | ,ry -r | ,ry -c
     """
-    global _autobot_enabled, _target_chat_id
 
     if "-r" in message.flags:
         _cycle_model()
@@ -364,18 +368,19 @@ async def reya_cmd(bot: BOT, message: Message):
         return
 
     if "-c" in message.flags:
-        import aiofiles
+        import os
 
-        async with aiofiles.open(HISTORY_FILE, "w", encoding="utf-8") as f:
-            await f.write("[]")
+        chat_id = message.chat.id
+        history_path = os.path.join(HISTORY_DIR, f"{chat_id}.json")
+        if os.path.exists(history_path):
+            os.remove(history_path)
         await message.reply("history cleared.")
         return
 
-    if "-id" in message.flags:
-        _target_chat_id = message.chat.id
-        await message.reply(f"target chat set to: {_target_chat_id}")
-        return
-
-    _autobot_enabled = not _autobot_enabled
-    state_str = "on" if _autobot_enabled else "off"
-    await message.reply(f"autobot is now {state_str}")
+    chat_id = message.chat.id
+    if chat_id in _enabled_chats:
+        _enabled_chats.discard(chat_id)
+        await message.reply("autobot is now off")
+    else:
+        _enabled_chats.add(chat_id)
+        await message.reply("autobot is now on")

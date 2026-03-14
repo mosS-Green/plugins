@@ -1,17 +1,16 @@
 import os
 
 # ---------------------------------------------------------------------------
-# Chat / identity
+# Identity
 # ---------------------------------------------------------------------------
 
-TARGET_CHAT_ID = -1001986080567
 BOT_USERNAME = "reyakamibot"
 
 # ---------------------------------------------------------------------------
 # Persistence
 # ---------------------------------------------------------------------------
 
-HISTORY_FILE = os.path.join(os.getcwd(), "autobot_history.json")
+HISTORY_DIR = os.path.join(os.getcwd(), "autobot_history")
 
 MAX_HISTORY_SIZE = 100
 
