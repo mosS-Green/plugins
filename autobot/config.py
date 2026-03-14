@@ -1,29 +1,42 @@
 import os
 
-# Target chat where the bot will participate
-TARGET_CHAT_ID = -1001986080567
+# ---------------------------------------------------------------------------
+# Chat / identity
+# ---------------------------------------------------------------------------
 
-# Bot username (without @)
+TARGET_CHAT_ID = -1001986080567
 BOT_USERNAME = "reyakamibot"
 
-# History file path
+# ---------------------------------------------------------------------------
+# Persistence
+# ---------------------------------------------------------------------------
+
 HISTORY_FILE = os.path.join(os.getcwd(), "autobot_history.json")
 
-# Rolling history limit
 MAX_HISTORY_SIZE = 100
 
-# --- Trigger Config ---
-PROACTIVE_CHANCE = 25  # % chance to trigger proactive reply
-ACTIVE_DURATION = 300  # 5 minutes of active mode (seconds)
-ACTIVE_MSG_INTERVAL = 3  # reply every N messages during active mode
-CONTEXTUAL_INTERVAL = 15  # every N messages, run contextual analysis
+# ---------------------------------------------------------------------------
+# Trigger thresholds
+# ---------------------------------------------------------------------------
 
-# Delimiters
+PROACTIVE_CHANCE = 20
+ACTIVE_DURATION = 300
+ACTIVE_MSG_INTERVAL = 10
+CONTEXTUAL_INTERVAL = 30
+
+# ---------------------------------------------------------------------------
+# Response delimiters
+# ---------------------------------------------------------------------------
+
 SPLIT_DELIMITER = "<SPLIT>"
 THINK_DELIMITER = "<THINK>"
 REPLY_DELIMITER = "<REPLY:"
+NULL_DELIMITER = "<NULL>"
 
-# Model List
+# ---------------------------------------------------------------------------
+# Gemini model list & API key
+# ---------------------------------------------------------------------------
+
 MODEL_LIST = [
     "gemini-3-flash-preview",
     "gemini-2.5-flash",
@@ -34,18 +47,22 @@ MODEL_LIST = [
     "gemini-2.0-flash-lite",
 ]
 
-# API Key
 AUTOBOT_GEMINI_API_KEY = os.getenv("AUTOBOT_GEMINI_API_KEY")
 
-# --- System Prompt ---
+# ---------------------------------------------------------------------------
+# System prompt
+# ---------------------------------------------------------------------------
+
 SYSTEM_PROMPT = (
-    "you are reya, a 21 year old girl who hangs out in this telegram group chat. "
+    "you are reya, who hangs out in this telegram group chat. "
     "you are a bot created by Leaf."
     "you've been in this group for a while and you know everyone. you're chill, fun, "
-    "a little chaotic, and you love banter. you type in all lowercase like a normal person. "
+    "but concise. you type in all lowercase like a normal person. "
     "you use modern slang and internet speak. you occasionally make minor typos like a real human. "
     "You are generally helpful and nice but you joke occasionally. "
-    "You like answering questions but you don't go too much into detail unless needed. "
+    "DO NOT SPEAK JUST FOR THE SAKE OF USELESS AFFIRMATIONS. IF YOU DON'T HAVE ANYTHING TO SAY, DON'T SAY ANYTHING JUST OUTPUT <NULL>. "
+    "ONLY SPEAK WHEN YOU HAVE SOMETHING TO ADD, NEW INFORMATION OR A JOKE TO MAKE, OR ARE BEING PART OF THE CONVERSATION."
+    "You like answering questions but very concisely unless detail are asked for or required. "
     "IMPORTANT: You must answer to the best of your knowledge when asked a serious question. But be concise and precise. "
     "\n\n"
     "STRICT RULES:\n"
@@ -84,7 +101,7 @@ SYSTEM_PROMPT = (
     "CONTEXTUAL ANALYSIS:\n"
     "- sometimes you will be asked to evaluate if recent conversation is worth replying to\n"
     "- if you think its worth replying, just reply normally\n"
-    "- if not, respond with ONLY <THINK> followed by your brief thought\n"
-    "  example: <THINK> nothing interesting rn, just random chatter\n"
+    "- if not, respond with ONLY <NULL>\n"
+    "  example: <NULL> <THINK> nothing interesting rn, just random chatter\n"
     "- you can use <SPLIT> if you want to reply after a thought."
 )

@@ -21,6 +21,7 @@ from .config import (
     SPLIT_DELIMITER,
     THINK_DELIMITER,
     REPLY_DELIMITER,
+    NULL_DELIMITER,
     MODEL_LIST,
     AUTOBOT_GEMINI_API_KEY,
     HISTORY_FILE,
@@ -30,25 +31,29 @@ from .history import (
     append_model_message,
 )
 
-# Bot agent reference
 _bot = bot.bot
 
-# --- State ---
-_msg_counter = 0  # messages since last contextual check
-_active_until = 0.0  # timestamp when active mode expires
-_active_msg_count = 0  # messages since last active-mode reply
-_autobot_enabled = True  # whether the bot is globally enabled
-_current_model_idx = 0  # index in MODEL_LIST
-_requests_since_cycle = 0  # count requests to auto-cycle
-_target_chat_id = _DEFAULT_TARGET_CHAT_ID  # mutable target chat
-_last_logged_model = None  # track last logged model to avoid spam
+# ---------------------------------------------------------------------------
+# Mutable runtime state
+# ---------------------------------------------------------------------------
 
-# Autobot specific client — use dedicated key or fall back to default
+_msg_counter = 0  # messages received since the last contextual check
+_active_until = 0.0  # epoch timestamp when active mode expires
+_active_msg_count = 0  # messages received since the last active-mode reply
+_autobot_enabled = True  # global on/off toggle
+_current_model_idx = 0  # index into MODEL_LIST
+_requests_since_cycle = 0  # generation requests since the last model cycle
+_target_chat_id = _DEFAULT_TARGET_CHAT_ID  # runtime-overridable target chat
+_last_logged_model = None  # last model name written to the log (dedup guard)
+
+# ---------------------------------------------------------------------------
+# Gemini client & generation config
+# ---------------------------------------------------------------------------
+
 _autobot_client = Client(
     api_key=AUTOBOT_GEMINI_API_KEY or extra_config.GEMINI_API_KEY
 ).aio
 
-# --- Model Config ---
 SAFETY_OFF = [
     SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
     SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
@@ -56,7 +61,6 @@ SAFETY_OFF = [
     SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
     SafetySetting(category="HARM_CATEGORY_CIVIC_INTEGRITY", threshold="OFF"),
 ]
-
 
 AUTOBOT_CONFIG = GenerateContentConfig(
     candidate_count=1,
@@ -67,26 +71,26 @@ AUTOBOT_CONFIG = GenerateContentConfig(
     thinking_config=ThinkingConfig(thinking_budget=0),
 )
 
+# Compiled regex for the <REPLY:MSG_ID> prefix at the start of a response.
+_REPLY_PATTERN = re.compile(r"^<REPLY:(\d+)>\s*")
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
 
 def _get_current_model() -> str:
-    """Get the current model from the MODEL_LIST."""
     return MODEL_LIST[_current_model_idx]
 
 
 def _cycle_model():
-    """Cycle to the next model in the list."""
     global _current_model_idx, _requests_since_cycle
     _current_model_idx = (_current_model_idx + 1) % len(MODEL_LIST)
     _requests_since_cycle = 0
     LOGGER.info(f"Autobot: cycled model to {_get_current_model()}")
 
 
-# Regex to match <REPLY:MSG_ID> at the start of response
-_REPLY_PATTERN = re.compile(r"^<REPLY:(\d+)>\s*")
-
-
 def _get_sender_name(message) -> str:
-    """Extract sender name from message."""
     if message.from_user:
         return message.from_user.first_name or "Unknown"
     if message.sender_chat:
@@ -95,14 +99,12 @@ def _get_sender_name(message) -> str:
 
 
 def _is_reactive(message) -> bool:
-    """Check if message directly mentions the bot or replies to it."""
     text_to_check = message.text or message.caption
     if text_to_check:
         text_lower = text_to_check.lower().strip()
         if f"@{BOT_USERNAME}" in text_lower or "reya" in text_lower:
             return True
 
-    # Reply to bot's own message
     if message.reply_to_message:
         reply_from = message.reply_to_message.from_user
         if (
@@ -115,14 +117,17 @@ def _is_reactive(message) -> bool:
     return False
 
 
+# ---------------------------------------------------------------------------
+# Core generation
+# ---------------------------------------------------------------------------
+
+
 async def _generate_response(history: list, contextual: bool = False) -> str | None:
-    """Send history to Gemini and get a response."""
     global _requests_since_cycle, _last_logged_model
     try:
         contents = list(history)
 
         if contextual:
-            # Add contextual analysis prompt
             from google.genai import types
 
             contents.append(
@@ -130,15 +135,18 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
                     role="user",
                     parts=[
                         types.Part.from_text(
-                            text="[SYSTEM] evaluate the recent conversation. "
-                            "if anything is worth replying to or you have something to say, "
-                            "reply naturally. if not, respond with only <THINK> followed by a brief thought."
+                            text=(
+                                "[SYSTEM] evaluate the recent conversation. "
+                                "if anything is worth replying to or you have something to say, "
+                                "if in the existing chat, there is a good joke to make."
+                                "like that's what she said etc., then "
+                                "reply naturally. if not, respond with only <NULL> followed by a brief thought."
+                            )
                         )
                     ],
                 )
             )
 
-        # Auto-cycle model if reached limit
         _requests_since_cycle += 1
         if _requests_since_cycle >= 19:
             _cycle_model()
@@ -168,61 +176,59 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
         return None
 
 
+# ---------------------------------------------------------------------------
+# Response dispatch
+# ---------------------------------------------------------------------------
+
+
 async def _send_response(chat_id: int, response_text: str, reply_to: int | None = None):
-    """Parse response for REPLY/THINK/SPLIT delimiters and send."""
     from pyrogram.types import ReplyParameters
 
     full_response = response_text.strip()
 
-    # 1. Check for <REPLY:MSG_ID> — overrides any passed-in reply_to
     reply_match = _REPLY_PATTERN.match(full_response)
     if reply_match:
         reply_to = int(reply_match.group(1))
         full_response = full_response[reply_match.end() :].strip()
 
-    # 2. Strip out ALL <THINK>...</THINK or <THINK>... to end-of-string segments.
-    # Strategy: split on THINK_DELIMITER — odd-indexed parts are think content,
-    # even-indexed parts are sendable content. Works regardless of position.
+    is_null = False
+    if full_response.startswith(NULL_DELIMITER):
+        full_response = full_response[len(NULL_DELIMITER) :].strip()
+        is_null = True
+
     thoughts = []
     if THINK_DELIMITER in full_response:
         segments = full_response.split(THINK_DELIMITER)
         sendable_parts = []
         for idx, seg in enumerate(segments):
             if idx % 2 == 0:
-                # Even: sendable content (before first <THINK>, or after a think ends)
-                # A think region ends at the next <THINK> tag, so we treat pairs as
-                # open-ended (no closing tag). Every even segment after idx=0 is
-                # content that follows a think block — keep it.
                 sendable_parts.append(seg)
             else:
-                # Odd: this segment is a think blob.
-                # But it may itself contain a <SPLIT>, meaning the model accidentally
-                # put post-thought text after a <SPLIT> inside the think region.
-                # Honour that: content after SPLIT inside a think block is sendable.
+                # A <SPLIT> inside a <THINK> block promotes text after it to sendable.
                 if SPLIT_DELIMITER in seg:
                     think_text, after_split = seg.split(SPLIT_DELIMITER, 1)
                     thoughts.append(think_text.strip())
                     sendable_parts.append(after_split)
                 else:
                     thoughts.append(seg.strip())
+
         sendable = SPLIT_DELIMITER.join(sendable_parts).strip()
         thought = " | ".join(t for t in thoughts if t)
     else:
         sendable = full_response
         thought = ""
 
-    # Store full response (including thoughts) in history
+    if is_null:
+        sendable = ""
+
     await append_model_message(response_text.strip())
 
-    # Always log thoughts to console (never sent to chat)
     if thought:
         LOGGER.info(f"Autobot thought: {thought}")
 
-    # If nothing to send (pure thought), we're done
     if not sendable:
         return
 
-    # 3. Split into multiple messages
     messages = [m.strip() for m in sendable.split(SPLIT_DELIMITER) if m.strip()]
 
     for i, msg_text in enumerate(messages):
@@ -239,7 +245,6 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
                     text=msg_text,
                 )
 
-            # Random delay between multi-texts
             if i < len(messages) - 1:
                 await asyncio.sleep(random.uniform(0.5, 2.0))
 
@@ -247,15 +252,15 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
             LOGGER.error(f"Autobot: send error: {e}")
 
 
-@_bot.on_message(
-    filters=~filters.service
-    & (filters.text | filters.caption)
-)
+# ---------------------------------------------------------------------------
+# Main message handler
+# ---------------------------------------------------------------------------
+
+
+@_bot.on_message(filters=~filters.service & (filters.text | filters.caption))
 async def autobot_handler(_bot_client, message):
-    """Main message handler for autobot."""
     global _msg_counter, _active_until, _active_msg_count
 
-    # Skip if not the current target chat (may have been changed via -id)
     if message.chat.id != _target_chat_id:
         return
 
@@ -268,14 +273,15 @@ async def autobot_handler(_bot_client, message):
 
     now = datetime.now()
 
-    # 1. If this is the bot's own message, store as model role and stop
+    # The bot's own outgoing messages are recorded as model role; no reply needed.
     if message.from_user and message.from_user.is_self:
         await append_model_message(text)
         return
 
     sender_name = _get_sender_name(message)
 
-    # 2. Build user text — quote the replied-to message for context
+    # When the sender is replying to another message, prepend a quote so the
+    # model has the full conversational context without needing to scroll back.
     user_text = text
     if message.reply_to_message:
         quoted = message.reply_to_message.text or message.reply_to_message.caption or ""
@@ -283,7 +289,6 @@ async def autobot_handler(_bot_client, message):
             quote_sender = _get_sender_name(message.reply_to_message)
             user_text = f'[quoting {quote_sender}: "{quoted}"] {text}'
 
-    # 3. Append incoming message to history as user role
     history = await append_user_message(
         msg_id=message.id,
         dt=now,
@@ -296,24 +301,20 @@ async def autobot_handler(_bot_client, message):
     is_contextual = False
     reply_to_id = None
 
-    # 4. Evaluate triggers (priority order)
+    # --- Trigger evaluation (highest to lowest priority) ---
 
-    # Reactive: 100% trigger
     if _is_reactive(message):
         should_reply = True
         reply_to_id = message.id
         _msg_counter = 0
 
-    # Proactive: random chance
     elif random.randint(1, 100) <= PROACTIVE_CHANCE:
         should_reply = True
-        # Activate active mode
         _active_until = time.time() + ACTIVE_DURATION
         _active_msg_count = 0
         _msg_counter = 0
-        reply_to_id = None  # can drop independent text
+        reply_to_id = None
 
-    # Active mode: reply every N messages
     elif time.time() < _active_until:
         _active_msg_count += 1
         if _active_msg_count >= ACTIVE_MSG_INTERVAL:
@@ -321,7 +322,6 @@ async def autobot_handler(_bot_client, message):
             _active_msg_count = 0
             reply_to_id = None
 
-    # Contextual: every N messages
     if not should_reply and _msg_counter >= CONTEXTUAL_INTERVAL:
         _msg_counter = 0
         should_reply = True
@@ -331,13 +331,11 @@ async def autobot_handler(_bot_client, message):
     if not should_reply:
         return
 
-    # 3. Generate response
     response_text = await _generate_response(history, contextual=is_contextual)
 
     if not response_text:
         return
 
-    # 4. Send response
     await _send_response(
         chat_id=_target_chat_id,
         response_text=response_text,
@@ -345,11 +343,16 @@ async def autobot_handler(_bot_client, message):
     )
 
 
+# ---------------------------------------------------------------------------
+# Control command
+# ---------------------------------------------------------------------------
+
+
 @bot.add_cmd(cmd="ry")
 async def reya_cmd(bot: BOT, message: Message):
     """
     CMD: RY
-    INFO: Control the autobot.
+    INFO: Runtime control panel for the Autobot plugin.
     FLAGS: -r to cycle model, -c to clear history, -id to set target chat
     USAGE: ,ry | ,ry -r | ,ry -c | ,ry -id
     """
@@ -362,6 +365,7 @@ async def reya_cmd(bot: BOT, message: Message):
 
     if "-c" in message.flags:
         import aiofiles
+
         async with aiofiles.open(HISTORY_FILE, "w", encoding="utf-8") as f:
             await f.write("[]")
         await message.reply("history cleared.")
