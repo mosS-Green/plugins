@@ -3,7 +3,7 @@ from app.modules.ai_sandbox.tools import MUSIC_TOOL, LIST_TOOL
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
-    GoogleSearchRetrieval,
+    GoogleSearch,
     SafetySetting,
     UrlContext,
     Tool,
@@ -51,9 +51,7 @@ def create_config(
 
 SEARCH_TOOL = [
     Tool(
-        google_search=GoogleSearchRetrieval(
-            dynamic_retrieval_config=DynamicRetrievalConfig(dynamic_threshold=0.6)
-        )
+        google_search=GoogleSearch()
     ),
     Tool(
         url_context=UrlContext(),

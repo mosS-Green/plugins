@@ -13,19 +13,18 @@ from ub_core.utils.helpers import get_name
 from app import LOGGER, bot
 
 from app.modules.autobot.config import (
-    SYSTEM_PROMPT,
-    PROACTIVE_CHANCE,
     ACTIVE_DURATION,
     ACTIVE_MSG_INTERVAL,
+    AUTOBOT_GEMINI_API_KEY,
+    BOT_USERNAME,
     CONTEXTUAL_INTERVAL,
-    SPLIT_DELIMITER,
-    THINK_DELIMITER,
-    NULL_DELIMITER,
+    HISTORY_DIR,
+    MODEL_LIST,
+    PROACTIVE_CHANCE,
+    SYSTEM_PROMPT,
+    AutobotMessage,
 )
-from .eh_history import (
-    append_user_message,
-    append_model_message,
-)
+from app.modules.autobot.history import append_model_message, append_user_message
 
 _bot = bot.bot
 
@@ -50,8 +49,6 @@ MODEL_TEXT = "gemini-2.5-flash-lite"
 _eh_client = AsyncOpenAI(
     api_key=ELECTRON_API_KEY, base_url=ELECTRON_BASE_URL, timeout=60.0
 )
-
-_REPLY_PATTERN = re.compile(r"^<REPLY:(\d+)>\s*")
 
 
 # ---------------------------------------------------------------------------
@@ -81,11 +78,12 @@ def _is_reactive(message) -> bool:
     return False
 
 
-def _format_for_openai(history: list[dict], contextual: bool = False) -> list[dict]:
+def _format_for_openai(history: list, contextual: bool = False) -> list[dict]:
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     for msg in history:
-        role = "assistant" if msg["role"] == "model" else "user"
-        messages.append({"role": role, "content": msg["text"]})
+        role = "assistant" if msg.role == "model" else "user"
+        text = msg.parts[0].text if msg.parts else ""
+        messages.append({"role": role, "content": text})
 
     if contextual:
         messages.append(
@@ -96,7 +94,7 @@ def _format_for_openai(history: list[dict], contextual: bool = False) -> list[di
                     "if anything is worth replying to or you have something to say, "
                     "if in the existing chat, there is a good joke to make."
                     "like that's what she said etc., then "
-                    "reply naturally. if not, respond with only <NULL> followed by a brief thought."
+                    "reply naturally. if not, respond with only an empty list: [] to indicate silence."
                 ),
             }
         )
@@ -138,69 +136,58 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
 
 
 async def _send_response(chat_id: int, response_text: str, reply_to: int | None = None):
+    import re
+    from pydantic import TypeAdapter, ValidationError
     from pyrogram.types import ReplyParameters
+    from pyrogram.errors import FloodWait
 
-    full_response = response_text.strip()
+    response_text = response_text.strip()
+    if response_text.startswith("```"):
+        response_text = re.sub(r"^```(?:json)?\n?", "", response_text)
+        response_text = re.sub(r"\n?```$", "", response_text)
+        response_text = response_text.strip()
 
-    reply_match = _REPLY_PATTERN.match(full_response)
-    if reply_match:
-        reply_to = int(reply_match.group(1))
-        full_response = full_response[reply_match.end() :].strip()
-
-    is_null = False
-    if full_response.startswith(NULL_DELIMITER):
-        full_response = full_response[len(NULL_DELIMITER) :].strip()
-        is_null = True
-
-    thoughts = []
-    if THINK_DELIMITER in full_response:
-        segments = full_response.split(THINK_DELIMITER)
-        sendable_parts = []
-        for idx, seg in enumerate(segments):
-            if idx % 2 == 0:
-                sendable_parts.append(seg)
-            else:
-                if SPLIT_DELIMITER in seg:
-                    think_text, after_split = seg.split(SPLIT_DELIMITER, 1)
-                    thoughts.append(think_text.strip())
-                    sendable_parts.append(after_split)
-                else:
-                    thoughts.append(seg.strip())
-
-        sendable = SPLIT_DELIMITER.join(sendable_parts).strip()
-        thought = " | ".join(t for t in thoughts if t)
-    else:
-        sendable = full_response
-        thought = ""
-
-    if is_null:
-        sendable = ""
-
-    if thought:
-        LOGGER.info(f"EH Autobot thought: {thought}")
-
-    if not sendable:
+    try:
+        adapter = TypeAdapter(list[AutobotMessage])
+        response_data = adapter.validate_json(response_text)
+    except ValidationError as e:
+        LOGGER.error(f"EH Autobot: JSON validation error: {e}\nRaw output: {response_text}")
         await append_model_message(chat_id, response_text.strip())
         return
 
-    messages = [m.strip() for m in sendable.split(SPLIT_DELIMITER) if m.strip()]
+    if not response_data:
+        # Empty list, nothing to send
+        await append_model_message(chat_id, response_text.strip())
+        return
 
-    for i, msg_text in enumerate(messages):
+    for i, msg_data in enumerate(response_data):
+        is_thought = msg_data.is_thought
+        text = msg_data.text
+        reply_to_id = msg_data.reply_to_id or reply_to
+
+        if not text:
+            continue
+
+        if is_thought:
+            await bot.log_text(f"reya thought: {text}", type="autobot")
+            continue
+
         try:
-            if i == 0 and reply_to:
-                await _bot.send_message(
-                    chat_id=chat_id,
-                    text=msg_text,
-                    reply_parameters=ReplyParameters(message_id=reply_to),
-                )
-            else:
-                await _bot.send_message(
-                    chat_id=chat_id,
-                    text=msg_text,
-                )
+            kwargs = {
+                "chat_id": chat_id,
+                "text": text,
+            }
+            if reply_to_id:
+                kwargs["reply_parameters"] = ReplyParameters(message_id=int(reply_to_id))
 
-            if i < len(messages) - 1:
+            await _bot.send_message(**kwargs)
+
+            if i < len(response_data) - 1:
                 await asyncio.sleep(random.uniform(0.5, 2.0))
+
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
+            await _bot.send_message(**kwargs)
 
         except Exception as e:
             LOGGER.error(f"EH Autobot: send error: {e}")
