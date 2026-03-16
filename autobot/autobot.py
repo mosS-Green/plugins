@@ -246,8 +246,11 @@ async def autobot_handler(_bot_client, message):
     if chat_id not in _enabled_chats:
         return
 
-    text = str(message.content)
+    text = message.text or message.caption or ""
     if not text:
+        return
+
+    if message.from_user and message.from_user.is_self:
         return
 
     now = datetime.now()
@@ -259,7 +262,7 @@ async def autobot_handler(_bot_client, message):
     # model has the full conversational context without needing to scroll back.
     user_text = text
     if message.reply_to_message:
-        quoted = str(message.reply_to_message.content)
+        quoted = message.reply_to_message.text or message.reply_to_message.caption or ""
         if quoted:
             quote_sender = _sender_name(message.reply_to_message)
             user_text = f'[quoting {quote_sender}: "{quoted}"] {text}'
