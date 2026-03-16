@@ -1,4 +1,4 @@
-import json
+import pickle
 import os
 from datetime import datetime
 
@@ -11,21 +11,7 @@ os.makedirs(HISTORY_DIR, exist_ok=True)
 
 
 def _chat_history_path(chat_id: int) -> str:
-    return os.path.join(HISTORY_DIR, f"{chat_id}.json")
-
-
-def _content_to_dict(content: types.Content) -> dict:
-    text = ""
-    if content.parts:
-        text = content.parts[0].text or ""
-    return {"role": content.role, "text": text}
-
-
-def _dict_to_content(d: dict) -> types.Content:
-    return types.Content(
-        role=d["role"],
-        parts=[types.Part.from_text(text=d["text"])],
-    )
+    return os.path.join(HISTORY_DIR, f"{chat_id}.pkl")
 
 
 async def load_history(chat_id: int) -> list[types.Content]:
@@ -34,17 +20,16 @@ async def load_history(chat_id: int) -> list[types.Content]:
         return []
 
     try:
-        async with aiofiles.open(path, "r", encoding="utf-8") as f:
-            data = json.loads(await f.read())
-        return [_dict_to_content(d) for d in data]
-    except (json.JSONDecodeError, KeyError, Exception):
+        async with aiofiles.open(path, "rb") as f:
+            data = pickle.loads(await f.read())
+        return data
+    except (pickle.PickleError, EOFError, Exception):
         return []
 
 
 async def save_history(chat_id: int, history: list[types.Content]):
-    data = [_content_to_dict(c) for c in history]
-    async with aiofiles.open(_chat_history_path(chat_id), "w", encoding="utf-8") as f:
-        await f.write(json.dumps(data, ensure_ascii=False, indent=2))
+    async with aiofiles.open(_chat_history_path(chat_id), "wb") as f:
+        await f.write(pickle.dumps(history))
 
 
 def _ensure_alternating(history: list[types.Content]) -> list[types.Content]:

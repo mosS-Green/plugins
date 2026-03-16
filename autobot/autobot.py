@@ -5,32 +5,28 @@ import time
 from collections import defaultdict
 from datetime import datetime
 
-from pyrogram import filters
 from google.genai.client import Client
 from google.genai.types import GenerateContentConfig, SafetySetting, ThinkingConfig
+from pyrogram import filters
+from pyrogram.errors import FloodWait
 from ub_core.utils.helpers import get_name
 
-from app import BOT, Config, LOGGER, Message, bot, extra_config
+from app import BOT, LOGGER, Config, Message, bot, extra_config
 
 from .config import (
-    BOT_USERNAME,
-    SYSTEM_PROMPT,
-    PROACTIVE_CHANCE,
     ACTIVE_DURATION,
     ACTIVE_MSG_INTERVAL,
-    CONTEXTUAL_INTERVAL,
-    SPLIT_DELIMITER,
-    THINK_DELIMITER,
-    REPLY_DELIMITER,
-    NULL_DELIMITER,
-    MODEL_LIST,
     AUTOBOT_GEMINI_API_KEY,
+    BOT_USERNAME,
+    CONTEXTUAL_INTERVAL,
     HISTORY_DIR,
+    MODEL_LIST,
+    PROACTIVE_CHANCE,
+    SYSTEM_PROMPT,
+    AutobotMessage,
 )
-from .history import (
-    append_user_message,
-    append_model_message,
-)
+from .eh.eh_autobot import _eh_enabled_chats
+from .history import append_model_message, append_user_message
 
 _bot = bot.bot
 
@@ -68,14 +64,13 @@ SAFETY_OFF = [
 AUTOBOT_CONFIG = GenerateContentConfig(
     candidate_count=1,
     system_instruction=SYSTEM_PROMPT,
-    temperature=0.9,
+    temperature=0.8,
     max_output_tokens=1024,
     safety_settings=SAFETY_OFF,
     thinking_config=ThinkingConfig(thinking_budget=0),
+    response_mime_type="application/json",
+    response_schema=list[AutobotMessage],
 )
-
-# Compiled regex for the <REPLY:MSG_ID> prefix at the start of a response.
-_REPLY_PATTERN = re.compile(r"^<REPLY:(\d+)>\s*")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -143,7 +138,7 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
                                 "if anything is worth replying to or you have something to say, "
                                 "if in the existing chat, there is a good joke to make."
                                 "like that's what she said etc., then "
-                                "reply naturally. if not, respond with only <NULL> followed by a brief thought."
+                                "reply naturally. if not, respond with only an empty list: [] to indicate silence."
                             )
                         )
                     ],
@@ -185,77 +180,57 @@ async def _generate_response(history: list, contextual: bool = False) -> str | N
 
 
 async def _send_response(chat_id: int, response_text: str, reply_to: int | None = None):
+    from pydantic import TypeAdapter, ValidationError
     from pyrogram.types import ReplyParameters
 
-    full_response = response_text.strip()
-
-    reply_match = _REPLY_PATTERN.match(full_response)
-    if reply_match:
-        reply_to = int(reply_match.group(1))
-        full_response = full_response[reply_match.end() :].strip()
-
-    is_null = False
-    if full_response.startswith(NULL_DELIMITER):
-        full_response = full_response[len(NULL_DELIMITER) :].strip()
-        is_null = True
-
-    thoughts = []
-    if THINK_DELIMITER in full_response:
-        segments = full_response.split(THINK_DELIMITER)
-        sendable_parts = []
-        for idx, seg in enumerate(segments):
-            if idx % 2 == 0:
-                sendable_parts.append(seg)
-            else:
-                # A <SPLIT> inside a <THINK> block promotes text after it to sendable.
-                if SPLIT_DELIMITER in seg:
-                    think_text, after_split = seg.split(SPLIT_DELIMITER, 1)
-                    thoughts.append(think_text.strip())
-                    sendable_parts.append(after_split)
-                else:
-                    thoughts.append(seg.strip())
-
-        sendable = SPLIT_DELIMITER.join(sendable_parts).strip()
-        thought = " | ".join(t for t in thoughts if t)
-    else:
-        sendable = full_response
-        thought = ""
-
-    if is_null:
-        sendable = ""
-
-    if thought:
-        LOGGER.info(f"Autobot thought: {thought}")
-
-    if not sendable:
-        # Still cache the raw model output so history stays consistent.
+    try:
+        adapter = TypeAdapter(list[AutobotMessage])
+        response_data = adapter.validate_json(response_text)
+    except ValidationError as e:
+        LOGGER.error(
+            f"Autobot: JSON validation error: {e}\nRaw output: {response_text}"
+        )
         await append_model_message(chat_id, response_text.strip())
         return
 
-    messages = [m.strip() for m in sendable.split(SPLIT_DELIMITER) if m.strip()]
+    if not response_data:
+        return
 
-    for i, msg_text in enumerate(messages):
+    for i, msg_data in enumerate(response_data):
+        is_thought = msg_data.is_thought
+        text = msg_data.text
+        reply_to_id = msg_data.reply_to_id or reply_to
+
+        if not text:
+            continue
+
+        if is_thought:
+            await bot.log_text(f"reya thought: {text}", type="autobot")
+            continue
+
         try:
-            if i == 0 and reply_to:
-                await _bot.send_message(
-                    chat_id=chat_id,
-                    text=msg_text,
-                    reply_parameters=ReplyParameters(message_id=reply_to),
-                )
-            else:
-                await _bot.send_message(
-                    chat_id=chat_id,
-                    text=msg_text,
+            kwargs = {
+                "chat_id": chat_id,
+                "text": text,
+            }
+            if reply_to_id:
+                kwargs["reply_parameters"] = ReplyParameters(
+                    message_id=int(reply_to_id)
                 )
 
-            if i < len(messages) - 1:
+            await _bot.send_message(**kwargs)
+
+            if i < len(response_data) - 1:
                 await asyncio.sleep(random.uniform(0.5, 2.0))
+
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
+            await _bot.send_message(**kwargs)
 
         except Exception as e:
             LOGGER.error(f"Autobot: send error: {e}")
 
-    # Cache the full model response after sending (bot's own messages don't
-    # arrive back through the dispatcher).
+    # Cache the full model response after sending
     await append_model_message(chat_id, response_text.strip())
 
 
@@ -271,12 +246,8 @@ async def autobot_handler(_bot_client, message):
     if chat_id not in _enabled_chats:
         return
 
-    text = message.text or message.caption or ""
+    text = str(message.content)
     if not text:
-        return
-
-    # Skip bot's own outgoing messages — they are cached at send-time.
-    if message.from_user and message.from_user.is_self:
         return
 
     now = datetime.now()
@@ -288,7 +259,7 @@ async def autobot_handler(_bot_client, message):
     # model has the full conversational context without needing to scroll back.
     user_text = text
     if message.reply_to_message:
-        quoted = message.reply_to_message.text or message.reply_to_message.caption or ""
+        quoted = str(message.reply_to_message.content)
         if quoted:
             quote_sender = _sender_name(message.reply_to_message)
             user_text = f'[quoting {quote_sender}: "{quoted}"] {text}'
@@ -358,8 +329,8 @@ async def reya_cmd(bot: BOT, message: Message):
     """
     CMD: RY
     INFO: Runtime control panel for the Autobot plugin.
-    FLAGS: -r to cycle model, -c to clear history
-    USAGE: ,ry | ,ry -r | ,ry -c
+    FLAGS: -r to cycle model, -c to clear history, -eh to use Electron Hub version
+    USAGE: ,ry | ,ry -r | ,ry -c | ,ry -eh
     """
 
     if "-r" in message.flags:
@@ -371,16 +342,27 @@ async def reya_cmd(bot: BOT, message: Message):
         import os
 
         chat_id = message.chat.id
-        history_path = os.path.join(HISTORY_DIR, f"{chat_id}.json")
+        history_path = os.path.join(HISTORY_DIR, f"{chat_id}.pkl")
         if os.path.exists(history_path):
             os.remove(history_path)
         await message.reply("history cleared.")
         return
 
     chat_id = message.chat.id
+    if "-eh" in message.flags:
+        if chat_id in _eh_enabled_chats:
+            _eh_enabled_chats.discard(chat_id)
+            await message.reply("autobot EH mode is now off")
+        else:
+            _eh_enabled_chats.add(chat_id)
+            _enabled_chats.discard(chat_id)
+            await message.reply("autobot EH mode is now on")
+        return
+
     if chat_id in _enabled_chats:
         _enabled_chats.discard(chat_id)
         await message.reply("autobot is now off")
     else:
         _enabled_chats.add(chat_id)
+        _eh_enabled_chats.discard(chat_id)
         await message.reply("autobot is now on")
