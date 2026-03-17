@@ -25,7 +25,6 @@ from .config import (
     SYSTEM_PROMPT,
     AutobotMessage,
 )
-from .eh.eh_autobot import _eh_enabled_chats
 from .history import append_model_message, append_user_message
 
 _bot = bot.bot
@@ -332,8 +331,8 @@ async def reya_cmd(bot: BOT, message: Message):
     """
     CMD: RY
     INFO: Runtime control panel for the Autobot plugin.
-    FLAGS: -r to cycle model, -c to clear history, -eh to use Electron Hub version
-    USAGE: ,ry | ,ry -r | ,ry -c | ,ry -eh
+    FLAGS: -r to cycle model, -c to clear history
+    USAGE: ,ry | ,ry -r | ,ry -c
     """
 
     if "-r" in message.flags:
@@ -352,20 +351,10 @@ async def reya_cmd(bot: BOT, message: Message):
         return
 
     chat_id = message.chat.id
-    if "-eh" in message.flags:
-        if chat_id in _eh_enabled_chats:
-            _eh_enabled_chats.discard(chat_id)
-            await message.reply("autobot EH mode is now off")
-        else:
-            _eh_enabled_chats.add(chat_id)
-            _enabled_chats.discard(chat_id)
-            await message.reply("autobot EH mode is now on")
-        return
 
     if chat_id in _enabled_chats:
         _enabled_chats.discard(chat_id)
         await message.reply("autobot is now off")
     else:
         _enabled_chats.add(chat_id)
-        _eh_enabled_chats.discard(chat_id)
         await message.reply("autobot is now on")

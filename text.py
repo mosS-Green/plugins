@@ -4,9 +4,6 @@ from pyrogram.enums import ParseMode
 from .ai_sandbox.core import ask_ai
 from .ai_sandbox.models import MODEL
 from app.plugins.ai.gemini.utils import run_basic_check
-from .telegraph import tele_graph
-
-import os
 
 
 @bot.add_cmd(cmd=["r", "rx"])
@@ -33,9 +30,7 @@ async def r_question(bot: BOT, message: Message):
 
     loading_msg = await message.reply("<code>...</code>")
 
-    if "-f" in message.flags:
-        model = MODEL["FUNC"]
-    elif message.cmd == "rx":
+    if message.cmd == "rx":
         model = MODEL["LEAF"]
         if "-n" in message.flags:
             prompt = (

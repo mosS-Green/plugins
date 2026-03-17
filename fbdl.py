@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
+from pyrogram.types import ReplyParameters
 from ub_core import BOT, Message
 from ub_core.utils import run_shell_cmd, progress
 from ub_core.utils.downloader import DownloadedFile
@@ -117,7 +118,7 @@ async def facebook_downloader(bot: BOT, message: Message):
                         chat_id=message.chat.id,
                         document=str(file_path),
                         caption=file_info.name,
-                        reply_to_message_id=message.id,  # Reply to the original command message
+                        reply_parameters=ReplyParameters(message_id=message.id),
                         progress=progress,
                         progress_args=(upload_msg, "Uploading...", str(file_path)),
                         disable_content_type_detection=True,

@@ -15,10 +15,6 @@ SYSTEM_PROMPTS = {
         "You are a helpful assistant."
         "IMPORTANT - Answer accurately and super concisely."
     ),
-    "FUNC": (
-        "You are a helpful assistant."
-        "IMPORTANT - Answer accurately and super concisely."
-    ),
     "THINK": (
         "Write an accurate, well-structured, and easy-to-read answer. "
         "IMPORTANT - When outputting code, do not provide any explanation. Write minimal comments."

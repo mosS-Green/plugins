@@ -7,7 +7,6 @@ from mimetypes import guess_type
 from app import LOGGER, Message
 from ub_core.utils import get_tg_media_details, wrap_in_block_quote
 from app.plugins.ai.gemini.client import async_client
-from app.modules.ai_sandbox.functions import execute_function
 from .models import MODEL
 from .prompts import PROMPT_MAP
 
@@ -64,16 +63,6 @@ async def ask_ai(
     if not response.candidates and response.prompt_feedback:
         block_reason = response.prompt_feedback.block_reason or "UNKNOWN"
         return f"Prompt blocked: {block_reason}", None
-
-    # Check for function call
-    try:
-        part = response.candidates[0].content.parts[0]
-    except (AttributeError, IndexError):
-        part = None
-
-    if part and part.function_call:
-        # Execute function
-        return await execute_function(part)
 
     ai_text, ai_image = await get_response_content(
         response, quoted=quote, add_sources=add_sources

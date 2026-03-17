@@ -1,5 +1,3 @@
-from app.plugins.ai.gemini.utils import run_basic_check
-from app.modules.ai_sandbox.tools import MUSIC_TOOL, LIST_TOOL
 from google.genai.types import (
     DynamicRetrievalConfig,
     GenerateContentConfig,
@@ -66,14 +64,6 @@ MODEL = {
         1.0,
         8192,
         search=[],
-        think=ThinkingConfig(thinking_budget=0),
-    ),
-    "FUNC": create_config(
-        "gemini-flash-latest",
-        SYSTEM_PROMPTS["FUNC"],
-        0.8,
-        8192,
-        search=[MUSIC_TOOL, LIST_TOOL],
         think=ThinkingConfig(thinking_budget=0),
     ),
     "DEFAULT": create_config(

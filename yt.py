@@ -10,7 +10,7 @@ from pyrogram.types import InputMediaAudio, InputMediaVideo
 import asyncio
 from .ai_sandbox.core import ask_ai, MODEL
 from app.plugins.ai.gemini.utils import run_basic_check
-from .ai_sandbox.functions import get_ytm_link
+
 
 
 @bot.add_cmd(cmd="yt")
@@ -146,3 +146,23 @@ def ytdl_audio(url: str):
         path = ydl.prepare_filename(info)
         audio_path = os.path.splitext(path)[0] + ".mp3"
     return audio_path, info
+
+
+@bot.make_async
+def get_ytm_link(song_name: str) -> str | None:
+    """Searches YouTube Music and returns link for a song."""
+    ydl_opts = {
+        "quiet": True,
+        "skip_download": True,
+        "extract_flat": True,
+        "format": "bestaudio/best",
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        search_query = f"ytsearch:{song_name}"
+        info = ydl.extract_info(search_query, download=False)
+        if info.get("entries"):
+            video = info["entries"][0]
+            video_id = video.get("id")
+            if video_id:
+                return f"https://music.youtube.com/watch?v={video_id}"
+    return None
