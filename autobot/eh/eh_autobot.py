@@ -200,7 +200,7 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
 # ---------------------------------------------------------------------------
 
 
-@_bot.on_message(filters=~filters.service & (filters.text | filters.caption))
+@_bot.on_message(filters=~filters.service & (filters.text | filters.caption), group=5)
 async def eh_autobot_handler(_bot_client, message):
     chat_id = message.chat.id
 
