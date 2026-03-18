@@ -2,7 +2,7 @@ import json
 import os
 import re
 
-from app.plugins.gemini.configs import SAFETY_SETTINGS
+from app.plugins.ai.gemini.configs import SAFETY_SETTINGS
 from google.genai.client import Client
 from google.genai.types import Content, GenerateContentConfig, Part, ThinkingConfig
 from pyrogram.types import ReplyParameters
@@ -52,6 +52,7 @@ def _get_aig_config() -> GenerateContentConfig:
         thinking_config=ThinkingConfig(thinking_budget=0),
         tools=AIGENT_TOOLS,
     )
+
 
 SHELL_PATTERN = re.compile(r"<SHELL>(.*?)</SHELL>", re.DOTALL)
 
