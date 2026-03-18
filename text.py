@@ -51,7 +51,9 @@ async def ytm_link(bot: BOT, message: Message):
             "If no ovbious song name, then take input as inspiration and give a random song name. "
             "If you can't even suggest any song, reply exactly with 'unknown song'. ",
         )
-        song_name = await ask_ai(message=message, model_name=CMD_MODEL_DICT[message.cmd])
+        song_name = await ask_ai(
+            message=message, model_name=CMD_MODEL_DICT[message.cmd]
+        )
 
     if "unknown song" in song_name.lower() or not song_name.strip():
         await message_response.edit("Couldn't determine the song title.")

@@ -1,4 +1,5 @@
 import os
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Identity
@@ -26,8 +27,6 @@ CONTEXTUAL_INTERVAL = 30
 # ---------------------------------------------------------------------------
 # Pydantic Schema for Response
 # ---------------------------------------------------------------------------
-
-from pydantic import BaseModel, Field
 
 
 class AutobotMessage(BaseModel):

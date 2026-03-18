@@ -31,7 +31,7 @@ async def plugin_info(bot: BOT, message: Message):
         f"**{cmd}** : <a href='{remote_url}'>{plugin}</a>", "**>", "<**"
     )
 
-    response = await message.reply(resp_str, disable_preview=True)
+    await message.reply(resp_str, disable_preview=True)
 
 
 @bot.add_cmd("ey")

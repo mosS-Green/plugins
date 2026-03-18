@@ -66,7 +66,7 @@ async def add_fren(bot: BOT, message: Message):
 
 
 @bot.add_cmd(cmd="dfren")
-async def add_fren(bot: BOT, message: Message):
+async def remove_fren(bot: BOT, message: Message):
     response = await message.reply("Extracting User info...")
 
     user, _ = await message.extract_user_n_reason()
@@ -93,7 +93,7 @@ async def add_fren(bot: BOT, message: Message):
 
 
 @bot.add_cmd(cmd="vfren")
-async def add_fren(bot: BOT, message: Message):
+async def view_fren(bot: BOT, message: Message):
     output: str = ""
     total = 0
 
