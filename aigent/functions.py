@@ -23,7 +23,7 @@ async def ask_default_ai(prompt: str, with_codebase: bool = False) -> str:
             response = await async_client.models.generate_content(contents=prompts, **kwargs)
 
             result = Response(response)
-            return f"PROMPT: {prompt}\nRESPONSE: {result.text()}"
+            return f"PROMPT: {prompt}\nRESPONSE: {result.text}"
 
         else:
             result = await ask_ai(prompt=prompt)

@@ -103,7 +103,6 @@ async def summ(bot: BOT, message: Message):
     # 3. Prompt Construction & Flags
     base_instruction = "Summarize the following group chat conversation [use markdown]:"
 
-
     full_prompt = (
         f"{base_instruction}\n\n[Start of Chat]\n{chat_history}\n[End of Chat]"
     )

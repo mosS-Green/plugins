@@ -70,8 +70,10 @@ CMD_MODEL_DICT = {
 
 
 async def get_model_and_config(model_name: str | None = None) -> dict:
-    model = getattr(ModelNames, model_name, ModelNames.DEFAULT)
-    config = getattr(ModelConfigs, model_name, ModelConfigs.DEFAULT)
+    if not model_name:
+        model_name = "DEFAULT"
+    model = getattr(ModelNames, model_name)
+    config = getattr(ModelConfigs, model_name)
     return {"model": model, "config": config}
 
 
@@ -85,11 +87,14 @@ async def ask_ai(
             prompts = prompt if isinstance(prompt, list) else [prompt]
         else:
             prompts = await create_prompts(message=message)
-            
+
     except AssertionError:
         return
 
-    kwargs = get_model_and_config(model_name=model_name)
+    if not model_name and message and hasattr(message, "cmd"):
+        model_name = CMD_MODEL_DICT.get(message.cmd)
+
+    kwargs = await get_model_and_config(model_name=model_name)
 
     response = await async_client.models.generate_content(contents=prompts, **kwargs)
 
