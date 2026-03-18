@@ -12,8 +12,7 @@ SYSTEM_PROMPTS = {
         "\nIMPORTANT - Even when you write in hindi, you must only use english alphabet."
     ),
     "DEFAULT": (
-        "You are a helpful assistant."
-        "IMPORTANT - Answer accurately and super concisely."
+        "You are a helpful assistant.IMPORTANT - Answer accurately and super concisely."
     ),
     "THINK": (
         "Write an accurate, well-structured, and easy-to-read answer. "

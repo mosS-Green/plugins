@@ -1,11 +1,9 @@
 import asyncio
-import os
 import re
 import shlex
 import shutil
 import tempfile
 from pathlib import Path
-from urllib.parse import urlparse
 
 from pyrogram.types import ReplyParameters
 from ub_core import BOT, Message
@@ -108,7 +106,7 @@ async def facebook_downloader(bot: BOT, message: Message):
                     file_size_bytes = file_path.stat().st_size
                     if file_size_bytes > max_tg_upload_size:
                         await message.reply(
-                            f"Skipping {file_info.name} as its size ({file_info.size:.2f} MB) exceeds Telegram's upload limit ({max_tg_upload_size / (1024*1024*1024):.0f} GB)."
+                            f"Skipping {file_info.name} as its size ({file_info.size:.2f} MB) exceeds Telegram's upload limit ({max_tg_upload_size / (1024 * 1024 * 1024):.0f} GB)."
                         )
                         continue
 
@@ -123,7 +121,9 @@ async def facebook_downloader(bot: BOT, message: Message):
                         progress_args=(upload_msg, "Uploading...", str(file_path)),
                         disable_content_type_detection=True,
                     )
-                    await upload_msg.delete()  # Delete the "Uploading..." message after successful upload
+                    await (
+                        upload_msg.delete()
+                    )  # Delete the "Uploading..." message after successful upload
 
                 except asyncio.CancelledError:
                     await message.reply(f"Upload of {file_path.name} cancelled.")

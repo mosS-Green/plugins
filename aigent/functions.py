@@ -3,41 +3,30 @@ import os
 import difflib
 
 from app import LOGGER
-from app.modules.ai_sandbox.core import ask_ai
-from app.modules.ai_sandbox.models import MODEL
+from app.modules.models import ask_ai
 
 from .config import PROJECT_ROOT
-
-# Exclusion set for dir tree
-_EXCLUDED = {
-    "__pycache__",
-    ".git",
-    "node_modules",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".venv",
-    "venv",
-    ".env",
-}
 
 
 async def ask_default_ai(prompt: str, with_codebase: bool = False) -> str:
     """Delegate a prompt to the default AI model, optionally with full codebase context."""
     try:
-        kwargs = dict(MODEL["DEFAULT"])
-
         if with_codebase:
+            from app.plugins.ai.gemini import Response, async_client
             from app.plugins.ai.gemini.code import upload_codebase
-            from google.genai.types import Part
+            from app.modules.models import get_model_and_config
 
-            codebase_file = await upload_codebase()
-            codebase_part = Part.from_uri(
-                file_uri=codebase_file.uri, mime_type=codebase_file.mime_type
-            )
-            prompt_with_context = [codebase_part, prompt]
-            result = await ask_ai(prompt=prompt_with_context, **kwargs)
+            prompts = [prompt, await upload_codebase()]
+
+            kwargs = await get_model_and_config(model_name="THINK")
+
+            response = await async_client.models.generate_content(contents=prompts, **kwargs)
+
+            result = Response(response)
+            return f"PROMPT: {prompt}\nRESPONSE: {result.text()}"
+
         else:
-            result = await ask_ai(prompt=prompt, **kwargs)
+            result = await ask_ai(prompt=prompt)
 
         return f"PROMPT: {prompt}\nRESPONSE: {result}"
     except Exception as e:
@@ -60,36 +49,6 @@ async def create_file(filename: str, content: str) -> str:
         return f"ERROR: {e}"
 
 
-def get_dir_tree(path: str = "") -> str:
-    """Get the directory tree of the project."""
-    root = os.path.join(PROJECT_ROOT, path) if path else PROJECT_ROOT
-
-    if not os.path.isdir(root):
-        return f"ERROR: '{path}' is not a valid directory."
-
-    lines = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in _EXCLUDED)
-
-        depth = os.path.relpath(dirpath, root).count(os.sep)
-        if os.path.relpath(dirpath, root) == ".":
-            depth = 0
-
-        indent = "  " * depth
-        dir_name = os.path.basename(dirpath) or os.path.basename(root)
-        lines.append(f"{indent}{dir_name}/")
-
-        sub_indent = "  " * (depth + 1)
-        for fname in sorted(filenames):
-            if fname.startswith("."):
-                continue
-            lines.append(f"{sub_indent}{fname}")
-
-        if len(lines) > 300:
-            lines.append("... (truncated)")
-            break
-
-    return "\n".join(lines)
 
 
 async def upload_file(filepath: str) -> str:
@@ -167,10 +126,12 @@ async def edit_file(filepath: str, instruction: str) -> str:
     # Validate all original_text values exist in the file
     for i, edit in enumerate(edits):
         if "original_text" not in edit or "new_text" not in edit:
-            return f"ERROR: Edit #{i+1} missing required fields. Raw: {raw_json[:500]}"
+            return (
+                f"ERROR: Edit #{i + 1} missing required fields. Raw: {raw_json[:500]}"
+            )
         if edit["original_text"] not in content:
             return (
-                f"ERROR: Edit #{i+1} original_text not found in file.\n"
+                f"ERROR: Edit #{i + 1} original_text not found in file.\n"
                 f"Looking for: {edit['original_text'][:200]}"
             )
 
@@ -179,26 +140,29 @@ async def edit_file(filepath: str, instruction: str) -> str:
     for edit in edits:
         modified = modified.replace(edit["original_text"], edit["new_text"], 1)
 
-    diff_lines = list(difflib.unified_diff(
-        content.splitlines(keepends=True),
-        modified.splitlines(keepends=True),
-        fromfile=filepath,
-        tofile=filepath,
-    ))
+    diff_lines = list(
+        difflib.unified_diff(
+            content.splitlines(keepends=True),
+            modified.splitlines(keepends=True),
+            fromfile=filepath,
+            tofile=filepath,
+        )
+    )
     diff_text = "".join(diff_lines)
 
-    return json.dumps({
-        "type": "EDIT_PROPOSAL",
-        "filepath": full_path,
-        "edits": edits,
-        "diff": diff_text,
-    })
+    return json.dumps(
+        {
+            "type": "EDIT_PROPOSAL",
+            "filepath": full_path,
+            "edits": edits,
+            "diff": diff_text,
+        }
+    )
 
 
 FUNCTION_MAP = {
     "ask_default_ai": ask_default_ai,
     "create_file": create_file,
-    "get_dir_tree": get_dir_tree,
     "upload_file": upload_file,
     "read_file": read_file,
     "edit_file": edit_file,

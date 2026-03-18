@@ -2,7 +2,7 @@ from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 from ub_core.utils.helpers import post_to_telegraph
 
-from .ai_sandbox.core import ask_ai, MODEL
+from app.modules.models import ask_ai
 from app.plugins.ai.gemini.utils import run_basic_check
 
 

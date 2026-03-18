@@ -29,10 +29,16 @@ CONTEXTUAL_INTERVAL = 30
 
 from pydantic import BaseModel, Field
 
+
 class AutobotMessage(BaseModel):
     text: str = Field(description="The text content of the message or thought.")
-    reply_to_id: int | None = Field(default=None, description="The message ID to reply to, if applicable.")
-    is_thought: bool = Field(default=False, description="True if this is an internal thought and should NOT be sent to the chat.")
+    reply_to_id: int | None = Field(
+        default=None, description="The message ID to reply to, if applicable."
+    )
+    is_thought: bool = Field(
+        default=False,
+        description="True if this is an internal thought and should NOT be sent to the chat.",
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -2,48 +2,56 @@ import json
 import os
 import re
 
-from pyrogram.types import ReplyParameters
-
+from app.plugins.gemini.configs import SAFETY_SETTINGS
 from google.genai.client import Client
-from google.genai.types import (
-    Content,
-    GenerateContentConfig,
-    Part,
-    SafetySetting,
-    ThinkingConfig,
-)
+from google.genai.types import Content, GenerateContentConfig, Part, ThinkingConfig
+from pyrogram.types import ReplyParameters
 from ub_core.utils import run_shell_cmd
 
-from app import BOT, LOGGER, Convo, Message, bot, extra_config
+from app import BOT, LOGGER, Convo, Message, bot
 
-from .config import AIGENT_MODEL, SYSTEM_PROMPT
+from .config import AIG_MODEL_LIST, get_system_prompt_with_tree
 from .functions import execute_function
-from .history import append_model_message, append_user_message, clear_history, load_history
+from .history import append_model_message, append_user_message, clear_history
 from .tools import AIGENT_TOOLS
 
 # ---------------------------------------------------------------------------
 # Gemini client & config
 # ---------------------------------------------------------------------------
 
-_aigent_client = Client(api_key=extra_config.GEMINI_API_KEY).aio
+_aigent_client = Client(api_key=os.getenv("AUTOBOT_GEMINI_API_KEY")).aio
 
-SAFETY_OFF = [
-    SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
-    SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
-    SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="OFF"),
-    SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="OFF"),
-    SafetySetting(category="HARM_CATEGORY_CIVIC_INTEGRITY", threshold="OFF"),
-]
+# ---------------------------------------------------------------------------
+# Model cycling (same list as autobot, skip first two)
+# ---------------------------------------------------------------------------
 
-AIGENT_CONFIG = GenerateContentConfig(
-    candidate_count=1,
-    system_instruction=SYSTEM_PROMPT,
-    temperature=0.5,
-    max_output_tokens=8192,
-    safety_settings=SAFETY_OFF,
-    thinking_config=ThinkingConfig(thinking_budget=0),
-    tools=AIGENT_TOOLS,
-)
+_aig_model_idx = 0
+_aig_requests_since_cycle = 0
+_aig_last_logged_model = None
+
+
+def _get_aig_model() -> str:
+    return AIG_MODEL_LIST[_aig_model_idx]
+
+
+def _cycle_aig_model():
+    global _aig_model_idx, _aig_requests_since_cycle
+    _aig_model_idx = (_aig_model_idx + 1) % len(AIG_MODEL_LIST)
+    _aig_requests_since_cycle = 0
+    LOGGER.info(f"Aigent: cycled model to {_get_aig_model()}")
+
+
+def _get_aig_config() -> GenerateContentConfig:
+    """Build a fresh config with the current project tree in the system prompt."""
+    return GenerateContentConfig(
+        candidate_count=1,
+        system_instruction=get_system_prompt_with_tree(),
+        temperature=0.5,
+        max_output_tokens=60000,
+        safety_settings=SAFETY_SETTINGS,
+        thinking_config=ThinkingConfig(thinking_budget=0),
+        tools=AIGENT_TOOLS,
+    )
 
 SHELL_PATTERN = re.compile(r"<SHELL>(.*?)</SHELL>", re.DOTALL)
 
@@ -57,7 +65,9 @@ def _history_to_contents(history: list[dict]) -> list[Content]:
     """Convert JSON history to google.genai Content objects."""
     contents = []
     for entry in history:
-        parts = [Part.from_text(text=p["text"]) for p in entry["parts"] if p.get("text")]
+        parts = [
+            Part.from_text(text=p["text"]) for p in entry["parts"] if p.get("text")
+        ]
         if parts:
             contents.append(Content(role=entry["role"], parts=parts))
     return contents
@@ -139,7 +149,9 @@ async def _handle_edit_proposal(
 
         reply_text = (user_reply.text or "").strip().lower()
         if reply_text != "ok":
-            await convo.send_message(text="<i>edit rejected.</i>", reply_to_id=user_reply.id)
+            await convo.send_message(
+                text="<i>edit rejected.</i>", reply_to_id=user_reply.id
+            )
             return "User rejected the edit."
 
     # Apply edits
@@ -187,11 +199,27 @@ async def aigent_cmd(bot: BOT, message: Message):
 
     user_input = message.filtered_input
     if not user_input:
-        await message.reply("provide a message.\nusage: <code>.aig &lt;message&gt;</code>", del_in=8)
+        await message.reply(
+            "provide a message.\nusage: <code>.aig &lt;message&gt;</code>", del_in=8
+        )
         return
 
     chat_id = message.chat.id
     status_msg = await message.reply("<code>aigent thinking...</code>")
+
+    # Cycle model if needed
+    global _aig_requests_since_cycle, _aig_last_logged_model
+    _aig_requests_since_cycle += 1
+    if _aig_requests_since_cycle >= 19:
+        _cycle_aig_model()
+
+    model_name = _get_aig_model()
+    if model_name != _aig_last_logged_model:
+        _aig_last_logged_model = model_name
+        LOGGER.info(f"Aigent using model: {model_name}")
+
+    # Build config with fresh tree-injected system prompt
+    aig_config = _get_aig_config()
 
     # Append user message to history
     history = await append_user_message(chat_id, user_input)
@@ -206,8 +234,8 @@ async def aigent_cmd(bot: BOT, message: Message):
         try:
             response = await _aigent_client.models.generate_content(
                 contents=contents,
-                model=AIGENT_MODEL,
-                config=AIGENT_CONFIG,
+                model=model_name,
+                config=aig_config,
             )
         except Exception as e:
             LOGGER.error(f"Aigent generation error: {e}")
@@ -238,7 +266,11 @@ async def aigent_cmd(bot: BOT, message: Message):
             response_parts = []
             for fc_part in func_calls:
                 func_name = fc_part.function_call.name
-                func_args = dict(fc_part.function_call.args) if fc_part.function_call.args else {}
+                func_args = (
+                    dict(fc_part.function_call.args)
+                    if fc_part.function_call.args
+                    else {}
+                )
 
                 result = await execute_function(func_name, func_args)
 
@@ -277,7 +309,9 @@ async def aigent_cmd(bot: BOT, message: Message):
                     try:
                         parsed = json.loads(result)
                         if parsed.get("type") == "EDIT_PROPOSAL":
-                            result = await _handle_edit_proposal(result, chat_id, message)
+                            result = await _handle_edit_proposal(
+                                result, chat_id, message
+                            )
                     except (json.JSONDecodeError, TypeError):
                         pass  # result is already an error string
 

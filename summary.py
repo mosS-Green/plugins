@@ -1,7 +1,7 @@
 from app import BOT, Message, bot
 from pyrogram.enums import ParseMode
 
-from .ai_sandbox.core import ask_ai, MODEL
+from .models import ask_ai
 from app.plugins.ai.gemini.utils import run_basic_check
 
 
@@ -103,14 +103,6 @@ async def summ(bot: BOT, message: Message):
     # 3. Prompt Construction & Flags
     base_instruction = "Summarize the following group chat conversation [use markdown]:"
 
-    model_config = MODEL["DEFAULT"]
-
-    if "-x" in message.flags:
-        model_config = MODEL["LEAF"]  # Leaflet persona
-    elif "-t" in message.flags:
-        base_instruction = (
-            "Provide a TL;DR (Too Long, Didn't Read) summary. Be extremely concise."
-        )
 
     full_prompt = (
         f"{base_instruction}\n\n[Start of Chat]\n{chat_history}\n[End of Chat]"
@@ -120,7 +112,7 @@ async def summ(bot: BOT, message: Message):
         if not count:
             full_prompt = f"{message.input}\n\nContext:\n{chat_history}"
 
-    content = await ask_ai(prompt=full_prompt, quote=True, **model_config)
+    content = await ask_ai(message=message, model_name=None, prompt=full_prompt)
 
     await wait_msg.edit(
         text=content, parse_mode=ParseMode.MARKDOWN, disable_preview=True

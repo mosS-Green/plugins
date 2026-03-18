@@ -1,6 +1,5 @@
 import asyncio
 import random
-import re
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -8,16 +7,16 @@ from datetime import datetime
 from google.genai.client import Client
 from google.genai.types import GenerateContentConfig, SafetySetting, ThinkingConfig
 from pyrogram import filters
+from pyrogram.filters import Filter
 from pyrogram.errors import FloodWait
 from ub_core.utils.helpers import get_name
 
-from app import BOT, LOGGER, Config, Message, bot, extra_config
+from app import BOT, LOGGER, Message, bot, extra_config
 
 from .config import (
     ACTIVE_DURATION,
     ACTIVE_MSG_INTERVAL,
     AUTOBOT_GEMINI_API_KEY,
-    BOT_USERNAME,
     CONTEXTUAL_INTERVAL,
     HISTORY_DIR,
     MODEL_LIST,
@@ -112,6 +111,13 @@ def _is_reactive(message) -> bool:
             return True
 
     return False
+
+
+# Pyrogram filter: reactive messages (mentions or "reya" keyword)
+_reactive_filter: Filter = filters.create(
+    lambda _, __, msg: _is_reactive(msg),
+    name="ReactiveFilter",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -238,27 +244,19 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
 # ---------------------------------------------------------------------------
 
 
-@_bot.on_message(filters=~filters.service & (filters.text | filters.caption))
-async def autobot_handler(_bot_client, message):
+# ---------------------------------------------------------------------------
+# Common: build user_text and append to history
+# ---------------------------------------------------------------------------
+
+
+async def _ingest_message(message) -> tuple[list, dict]:
+    """Append the incoming message to history and return (history, state)."""
     chat_id = message.chat.id
-
-    if chat_id not in _enabled_chats:
-        return
-
-    text = message.text or message.caption or ""
-    if not text:
-        return
-
-    if message.from_user and message.from_user.is_self:
-        return
-
     now = datetime.now()
     state = _chat_state[chat_id]
-
+    text = message.text or message.caption or ""
     sender_name = _sender_name(message)
 
-    # When the sender is replying to another message, prepend a quote so the
-    # model has the full conversational context without needing to scroll back.
     user_text = text
     if message.reply_to_message:
         quoted = message.reply_to_message.text or message.reply_to_message.caption or ""
@@ -273,38 +271,92 @@ async def autobot_handler(_bot_client, message):
         sender_name=sender_name,
         text=user_text,
     )
+    return history, state
+
+
+# ---------------------------------------------------------------------------
+# Handler 1: Reactive (mentions / "reya" keyword) — always replies
+# ---------------------------------------------------------------------------
+
+
+@_bot.on_message(
+    filters=~filters.service
+    & (filters.text | filters.caption)
+    & _reactive_filter,
+    group=0,
+)
+async def autobot_reactive_handler(_bot_client, message):
+    chat_id = message.chat.id
+
+    if chat_id not in _enabled_chats:
+        return
+
+    if message.from_user and message.from_user.is_self:
+        return
+
+    history, state = await _ingest_message(message)
+    state["msg_counter"] = 0
+
+    response_text = await _generate_response(history)
+    if not response_text:
+        return
+
+    await _send_response(
+        chat_id=chat_id,
+        response_text=response_text,
+        reply_to=message.id,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Handler 2: Proactive / Active / Contextual — fires on all other messages
+# ---------------------------------------------------------------------------
+
+
+@_bot.on_message(
+    filters=~filters.service
+    & (filters.text | filters.caption)
+    & ~_reactive_filter,
+    group=1,
+)
+async def autobot_handler(_bot_client, message):
+    chat_id = message.chat.id
+
+    if chat_id not in _enabled_chats:
+        return
+
+    text = message.text or message.caption or ""
+    if not text:
+        return
+
+    if message.from_user and message.from_user.is_self:
+        return
+
+    history, state = await _ingest_message(message)
 
     state["msg_counter"] += 1
     should_reply = False
     is_contextual = False
     reply_to_id = None
 
-    # --- Trigger evaluation (highest to lowest priority) ---
+    # --- Trigger evaluation ---
 
-    if _is_reactive(message):
-        should_reply = True
-        reply_to_id = message.id
-        state["msg_counter"] = 0
-
-    elif random.randint(1, 100) <= PROACTIVE_CHANCE:
+    if random.randint(1, 100) <= PROACTIVE_CHANCE:
         should_reply = True
         state["active_until"] = time.time() + ACTIVE_DURATION
         state["active_msg_count"] = 0
         state["msg_counter"] = 0
-        reply_to_id = None
 
     elif time.time() < state["active_until"]:
         state["active_msg_count"] += 1
         if state["active_msg_count"] >= ACTIVE_MSG_INTERVAL:
             should_reply = True
             state["active_msg_count"] = 0
-            reply_to_id = None
 
     if not should_reply and state["msg_counter"] >= CONTEXTUAL_INTERVAL:
         state["msg_counter"] = 0
         should_reply = True
         is_contextual = True
-        reply_to_id = None
 
     if not should_reply:
         return

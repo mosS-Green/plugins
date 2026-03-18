@@ -299,7 +299,7 @@ async def song_ytdl(bot: BOT, callback_query: CallbackQuery):
         await callback_query.edit("<code>ding! Uploading.</code>")
 
         buttons = [
-            InlineKeyboardButton(text=f"{play_count} plays", callback_data=f"-_-"),
+            InlineKeyboardButton(text=f"{play_count} plays", callback_data="-_-"),
             InlineKeyboardButton(text="↻", callback_data=f"r_{user_id}"),
         ]
         await callback_query.edit_media(

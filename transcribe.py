@@ -5,7 +5,7 @@ from pyrogram.enums import ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from ub_core import BOT, Message, bot
 
-from .ai_sandbox.core import ask_ai, MODEL
+from .models import ask_ai
 
 _bot: BOT = bot.bot
 
@@ -14,9 +14,7 @@ async def _transcribe_with_retry(message: Message, edit_msg: Message):
     """Attempts transcription with retry on failure."""
     for _ in range(2):
         try:
-            transcribed_str = await ask_ai(
-                prompt="", query=message, quote=True, **MODEL["DEFAULT"]
-            )
+            transcribed_str = await ask_ai(message=message)
             await edit_msg.edit_text(
                 text=transcribed_str, parse_mode=ParseMode.MARKDOWN
             )

@@ -53,24 +53,6 @@ CREATE_FILE_TOOL = Tool(
     ]
 )
 
-DIR_TREE_TOOL = Tool(
-    function_declarations=[
-        FunctionDeclaration(
-            name="get_dir_tree",
-            description="Get the directory tree of the project. Use to understand project structure.",
-            parameters=Schema(
-                type=Type.OBJECT,
-                properties={
-                    "path": Schema(
-                        type=Type.STRING,
-                        description="Optional subdirectory path relative to project root. Defaults to project root.",
-                    ),
-                },
-            ),
-        )
-    ]
-)
-
 UPLOAD_FILE_TOOL = Tool(
     function_declarations=[
         FunctionDeclaration(
@@ -136,5 +118,10 @@ EDIT_FILE_TOOL = Tool(
     ]
 )
 
-AIGENT_TOOLS = [ASK_AI_TOOL, CREATE_FILE_TOOL, DIR_TREE_TOOL, UPLOAD_FILE_TOOL, READ_FILE_TOOL, EDIT_FILE_TOOL]
-
+AIGENT_TOOLS = [
+    ASK_AI_TOOL,
+    CREATE_FILE_TOOL,
+    UPLOAD_FILE_TOOL,
+    READ_FILE_TOOL,
+    EDIT_FILE_TOOL,
+]
