@@ -33,15 +33,52 @@ _bot = bot.bot
 # ---------------------------------------------------------------------------
 
 _enabled_chats: set[int] = set()  # chats where autobot is active (disabled by default)
+_passive_chats: set[int] = set()  # chats where autobot only logs passively
 
 # Per-chat counters: {chat_id: {"msg_counter": int, "active_until": float, "active_msg_count": int}}
 _chat_state: dict[int, dict] = defaultdict(
-    lambda: {"msg_counter": 0, "active_until": 0.0, "active_msg_count": 0}
+    lambda: {"msg_counter": 0, "active_until": 0.0, "active_msg_count": 0, "last_spoke_at": time.time()}
 )
 
 _current_model_idx = 0  # index into MODEL_LIST
 _requests_since_cycle = 0  # generation requests since the last model cycle
 _last_logged_model = None  # last model name written to the log (dedup guard)
+
+_passive_task = None
+
+async def _passive_trigger_loop():
+    while True:
+        await asyncio.sleep(60)
+        now = time.time()
+        for chat_id in list(_enabled_chats):
+            state = _chat_state[chat_id]
+            last_spoke = state.get("last_spoke_at", now)
+            if now - last_spoke >= 7200:
+                state["last_spoke_at"] = time.time()
+                try:
+                    from .history import load_history
+                    history = await load_history(chat_id)
+                    if not history:
+                        continue
+                    
+                    response_text = await _generate_response(history, contextual=True)
+                    if response_text:
+                        await _send_response(
+                            chat_id=chat_id,
+                            response_text=response_text,
+                            reply_to=None,
+                        )
+                except Exception as e:
+                    LOGGER.error(f"Autobot passive trigger error: {e}")
+
+def _ensure_passive_task():
+    global _passive_task
+    try:
+        loop = asyncio.get_running_loop()
+        if _passive_task is None or _passive_task.done():
+            _passive_task = loop.create_task(_passive_trigger_loop())
+    except RuntimeError:
+        pass
 
 # ---------------------------------------------------------------------------
 # Gemini client & generation config
@@ -288,7 +325,12 @@ async def _ingest_message(message) -> tuple[list, dict]:
 async def autobot_reactive_handler(_bot_client, message):
     chat_id = message.chat.id
 
-    if chat_id not in _enabled_chats:
+    is_enabled = chat_id in _enabled_chats
+    is_passive = chat_id in _passive_chats
+
+    _ensure_passive_task()
+
+    if not is_enabled and not is_passive:
         return
 
     if message.from_user and message.from_user.is_self:
@@ -297,9 +339,14 @@ async def autobot_reactive_handler(_bot_client, message):
     history, state = await _ingest_message(message)
     state["msg_counter"] = 0
 
+    if not is_enabled:
+        return
+
     response_text = await _generate_response(history)
     if not response_text:
         return
+
+    state["last_spoke_at"] = time.time()
 
     await _send_response(
         chat_id=chat_id,
@@ -322,7 +369,12 @@ async def autobot_reactive_handler(_bot_client, message):
 async def autobot_handler(_bot_client, message):
     chat_id = message.chat.id
 
-    if chat_id not in _enabled_chats:
+    is_enabled = chat_id in _enabled_chats
+    is_passive = chat_id in _passive_chats
+
+    _ensure_passive_task()
+
+    if not is_enabled and not is_passive:
         return
 
     text = message.text or message.caption or ""
@@ -333,6 +385,9 @@ async def autobot_handler(_bot_client, message):
         return
 
     history, state = await _ingest_message(message)
+
+    if not is_enabled:
+        return
 
     state["msg_counter"] += 1
     should_reply = False
@@ -366,6 +421,8 @@ async def autobot_handler(_bot_client, message):
     if not response_text:
         return
 
+    state["last_spoke_at"] = time.time()
+
     await _send_response(
         chat_id=chat_id,
         response_text=response_text,
@@ -383,8 +440,8 @@ async def reya_cmd(bot: BOT, message: Message):
     """
     CMD: RY
     INFO: Runtime control panel for the Autobot plugin.
-    FLAGS: -r to cycle model, -c to clear history
-    USAGE: ,ry | ,ry -r | ,ry -c
+    FLAGS: -r to cycle model, -c to clear history, -p to toggle passive logging
+    USAGE: ,ry | ,ry -r | ,ry -c | ,ry -p
     """
 
     if "-r" in message.flags:
@@ -404,9 +461,26 @@ async def reya_cmd(bot: BOT, message: Message):
 
     chat_id = message.chat.id
 
+    _ensure_passive_task()
+
+    if "-p" in message.flags:
+        if chat_id in _passive_chats:
+            _passive_chats.discard(chat_id)
+            await message.reply("passive logging off.")
+        else:
+            _passive_chats.add(chat_id)
+            await message.reply("passive logging on.")
+        return
+
     if chat_id in _enabled_chats:
         _enabled_chats.discard(chat_id)
-        await message.reply("autobot is now off")
+        msg_text = "autobot is now off"
+        if chat_id in _passive_chats:
+            msg_text += " (passive logging continues)"
+        await message.reply(msg_text)
     else:
         _enabled_chats.add(chat_id)
-        await message.reply("autobot is now on")
+        msg_text = "autobot is now on"
+        if chat_id in _passive_chats:
+            msg_text += " (passive logging active)"
+        await message.reply(msg_text)
