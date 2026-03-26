@@ -4,7 +4,12 @@ import re
 
 from app.plugins.ai.gemini.configs import SAFETY_SETTINGS
 from google.genai.client import Client
-from google.genai.types import Content, GenerateContentConfig, Part, ThinkingConfig
+from google.genai.types import (
+    Content,
+    GenerateContentConfig,
+    Part,
+    ThinkingConfig,
+)
 from pyrogram.types import ReplyParameters
 from ub_core.utils import run_shell_cmd
 
@@ -13,7 +18,7 @@ from app import BOT, LOGGER, Convo, Message, bot
 from .config import AIG_MODEL_LIST, get_system_prompt_with_tree
 from .functions import execute_function
 from .history import append_model_message, append_user_message, clear_history
-from .tools import AIGENT_TOOLS
+from .tools import AIGENT_TOOLS, URL_CONTEXT_TOOL
 
 # ---------------------------------------------------------------------------
 # Gemini client & config
@@ -22,12 +27,10 @@ from .tools import AIGENT_TOOLS
 _aigent_client = Client(api_key=os.getenv("AUTOBOT_GEMINI_API_KEY")).aio
 
 # ---------------------------------------------------------------------------
-# Model cycling (same list as autobot, skip first two)
+# Model rotation
 # ---------------------------------------------------------------------------
 
 _aig_model_idx = 0
-_aig_requests_since_cycle = 0
-_aig_last_logged_model = None
 
 
 def _get_aig_model() -> str:
@@ -35,10 +38,9 @@ def _get_aig_model() -> str:
 
 
 def _cycle_aig_model():
-    global _aig_model_idx, _aig_requests_since_cycle
+    global _aig_model_idx
     _aig_model_idx = (_aig_model_idx + 1) % len(AIG_MODEL_LIST)
-    _aig_requests_since_cycle = 0
-    LOGGER.info(f"Aigent: cycled model to {_get_aig_model()}")
+    LOGGER.info(f"Aigent: rotated model to {_get_aig_model()}")
 
 
 def _get_aig_config() -> GenerateContentConfig:
@@ -50,7 +52,7 @@ def _get_aig_config() -> GenerateContentConfig:
         max_output_tokens=60000,
         safety_settings=SAFETY_SETTINGS,
         thinking_config=ThinkingConfig(thinking_budget=0),
-        tools=AIGENT_TOOLS,
+        tools=AIGENT_TOOLS + [URL_CONTEXT_TOOL],
     )
 
 
@@ -137,7 +139,7 @@ async def _handle_edit_proposal(
 
     async with bot.Convo(
         chat_id=chat_id,
-        client=bot,
+        client=bot.client,
         from_user=message.from_user.id,
         timeout=120,
     ) as convo:
@@ -188,14 +190,22 @@ async def aigent_cmd(bot: BOT, message: Message):
     """
     CMD: AIG
     INFO: AI coding agent with tool-calling, file creation, editing, and shell commands.
-    FLAGS: -c to clear history
+    FLAGS:
+        -c to clear history
+        -r to rotate to the next model
     USAGE: .aig <message>
     """
 
     # --- Flag: clear history ---
     if "-c" in message.flags:
         clear_history(message.chat.id)
-        await message.reply("aigent history cleared.")
+        await message.reply("history cleared.")
+        return
+
+    # --- Flag: rotate model ---
+    if "-r" in message.flags:
+        _cycle_aig_model()
+        await message.reply(f"rotated to <code>{_get_aig_model()}</code>")
         return
 
     user_input = message.filtered_input
@@ -206,18 +216,9 @@ async def aigent_cmd(bot: BOT, message: Message):
         return
 
     chat_id = message.chat.id
-    status_msg = await message.reply("<code>aigent thinking...</code>")
-
-    # Cycle model if needed
-    global _aig_requests_since_cycle, _aig_last_logged_model
-    _aig_requests_since_cycle += 1
-    if _aig_requests_since_cycle >= 19:
-        _cycle_aig_model()
-
     model_name = _get_aig_model()
-    if model_name != _aig_last_logged_model:
-        _aig_last_logged_model = model_name
-        LOGGER.info(f"Aigent using model: {model_name}")
+    status_msg = await message.reply(f"<code>using {model_name}...</code>")
+
 
     # Build config with fresh tree-injected system prompt
     aig_config = _get_aig_config()
@@ -240,11 +241,11 @@ async def aigent_cmd(bot: BOT, message: Message):
             )
         except Exception as e:
             LOGGER.error(f"Aigent generation error: {e}")
-            await status_msg.edit(f"<code>aigent error: {e}</code>")
+            await status_msg.edit(f"<code>error: {e}</code>")
             return
 
         if not response.candidates or not response.candidates[0].content:
-            await status_msg.edit("<code>aigent: no response.</code>")
+            await status_msg.edit("<code>no response.</code>")
             return
 
         candidate = response.candidates[0]
@@ -257,7 +258,7 @@ async def aigent_cmd(bot: BOT, message: Message):
             func_names = [p.function_call.name for p in func_calls]
             last_func_names = func_names
             await status_msg.edit(
-                f"<code>aigent calling: {', '.join(func_names)}...</code>"
+                f"<code>calling: {', '.join(func_names)}...</code>"
             )
 
             # Append the full model response (with all function calls)
@@ -338,7 +339,7 @@ async def aigent_cmd(bot: BOT, message: Message):
         final_text = "Done."
 
     if not final_text:
-        await status_msg.edit("<code>aigent: empty response.</code>")
+        await status_msg.edit("<code>empty response.</code>")
         return
 
     # Save model response to history
@@ -357,7 +358,7 @@ async def aigent_cmd(bot: BOT, message: Message):
 
         async with bot.Convo(
             chat_id=chat_id,
-            client=bot,
+            client=bot.client,
             from_user=message.from_user.id,
             timeout=120,
         ) as convo:

@@ -1,4 +1,10 @@
-from google.genai.types import FunctionDeclaration, Schema, Tool, Type
+from google.genai.types import (
+    FunctionDeclaration,
+    Schema,
+    Tool,
+    Type,
+    UrlContext,
+)
 
 ASK_AI_TOOL = Tool(
     function_declarations=[
@@ -118,6 +124,8 @@ EDIT_FILE_TOOL = Tool(
     ]
 )
 
+URL_CONTEXT_TOOL = Tool(url_context=UrlContext())
+
 AIGENT_TOOLS = [
     ASK_AI_TOOL,
     CREATE_FILE_TOOL,
@@ -125,3 +133,4 @@ AIGENT_TOOLS = [
     READ_FILE_TOOL,
     EDIT_FILE_TOOL,
 ]
+

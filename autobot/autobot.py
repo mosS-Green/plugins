@@ -238,6 +238,9 @@ async def _send_response(chat_id: int, response_text: str, reply_to: int | None 
     if not response_data:
         return
 
+    # Sort response_data by reply_to_id, treating None as 0 to sort them first
+    response_data.sort(key=lambda x: x.reply_to_id if x.reply_to_id is not None else 0)
+
     for i, msg_data in enumerate(response_data):
         is_thought = msg_data.is_thought
         text = msg_data.text

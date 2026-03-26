@@ -20,7 +20,9 @@ async def ask_default_ai(prompt: str, with_codebase: bool = False) -> str:
 
             kwargs = await get_model_and_config(model_name="THINK")
 
-            response = await async_client.models.generate_content(contents=prompts, **kwargs)
+            response = await async_client.models.generate_content(
+                contents=prompts, **kwargs
+            )
 
             result = Response(response)
             return f"PROMPT: {prompt}\nRESPONSE: {result.text}"
@@ -47,8 +49,6 @@ async def create_file(filename: str, content: str) -> str:
     except Exception as e:
         LOGGER.error(f"Aigent create_file error: {e}")
         return f"ERROR: {e}"
-
-
 
 
 async def upload_file(filepath: str) -> str:
