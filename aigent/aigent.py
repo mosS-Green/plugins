@@ -3,6 +3,7 @@ import os
 import re
 
 from app.plugins.ai.gemini.configs import SAFETY_SETTINGS
+from app.plugins.ai.gemini.utils import upload_tg_file
 from google.genai.client import Client
 from google.genai.types import (
     Content,
@@ -11,7 +12,7 @@ from google.genai.types import (
     ThinkingConfig,
 )
 from pyrogram.types import ReplyParameters
-from ub_core.utils import run_shell_cmd
+from ub_core.utils import get_tg_media_details, run_shell_cmd
 
 from app import BOT, LOGGER, Convo, Message, bot
 
@@ -209,9 +210,11 @@ async def aigent_cmd(bot: BOT, message: Message):
         return
 
     user_input = message.filtered_input
-    if not user_input:
+    reply = message.replied
+
+    if not user_input and not reply:
         await message.reply(
-            "provide a message.\nusage: <code>.aig &lt;message&gt;</code>", del_in=8
+            "provide a message or reply to a file.\nusage: <code>.aig &lt;message&gt;</code>", del_in=8
         )
         return
 
@@ -219,13 +222,50 @@ async def aigent_cmd(bot: BOT, message: Message):
     model_name = _get_aig_model()
     status_msg = await message.reply(f"<code>using {model_name}...</code>")
 
-
     # Build config with fresh tree-injected system prompt
     aig_config = _get_aig_config()
 
+    # --- Handle replied message (file or text) ---
+    replied_file_part = None
+    replied_context = ""
+
+    if reply:
+        if reply.media:
+            try:
+                media = get_tg_media_details(reply)
+                file_name = getattr(media, "file_name", "file") or "file"
+                await status_msg.edit(f"<code>uploading {file_name}...</code>")
+                uploaded = await upload_tg_file(message=reply, check_size=False)
+                replied_file_part = Part.from_uri(
+                    file_uri=uploaded.uri, mime_type=uploaded.mime_type
+                )
+                replied_context = f"[User replied to a file: {file_name}]"
+            except Exception as e:
+                LOGGER.error(f"Aigent file upload error: {e}")
+                replied_context = f"[User replied to a file but upload failed: {e}]"
+                await status_msg.edit(f"<code>using {model_name}...</code>")
+        elif reply.text:
+            replied_context = f"[User replied to this message]:\n{reply.text}"
+
+    # Compose the full user prompt
+    prompt_text = ""
+    if replied_context:
+        prompt_text += replied_context + "\n\n"
+    if user_input:
+        prompt_text += user_input
+    if not prompt_text.strip():
+        prompt_text = "Analyse the attached file."
+
     # Append user message to history
-    history = await append_user_message(chat_id, user_input)
+    history = await append_user_message(chat_id, prompt_text)
     contents = _history_to_contents(history)
+
+    # Inject the file part into the last user message if present
+    if replied_file_part:
+        if contents and contents[-1].role == "user":
+            contents[-1].parts.append(replied_file_part)
+        else:
+            contents.append(Content(role="user", parts=[replied_file_part]))
 
     # --- Function-calling loop ---
     max_iterations = 10
@@ -273,6 +313,10 @@ async def aigent_cmd(bot: BOT, message: Message):
                     if fc_part.function_call.args
                     else {}
                 )
+
+                # Inject message reference for download_replied_file
+                if func_name == "download_replied_file" and reply and reply.media:
+                    func_args["_message"] = reply
 
                 result = await execute_function(func_name, func_args)
 

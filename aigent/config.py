@@ -10,6 +10,9 @@ MAX_HISTORY_SIZE = 50
 
 PROJECT_ROOT = os.getcwd()
 
+AIG_TEMP_DIR = os.path.join(PROJECT_ROOT, "app", "plugins", "temp", "aig")
+os.makedirs(AIG_TEMP_DIR, exist_ok=True)
+
 # ---------------------------------------------------------------------------
 # Model cycle (same list as autobot, skip first two)
 # ---------------------------------------------------------------------------
@@ -41,9 +44,10 @@ CAPABILITIES (tools you can call):
    - Returns the prompt and response. Use for complex questions or when you need deeper analysis.
 
 2. create_file(filename, content)
-   - Creates any file at the given path relative to the project root.
-   - Provide full filename with extension (e.g. "utils/helper.py", "config.json", "styles.css").
-   - The created file is also uploaded to the chat so the user can see it.
+   - Creates a file. The file is also uploaded to the chat so the user can see it.
+   - IMPORTANT: When creating NEW files, you MUST use app/plugins/temp/aig/ as the base directory.
+     Example: "app/plugins/temp/aig/script.py", "app/plugins/temp/aig/data.json"
+   - Only exception: when explicitly editing/creating files in existing project paths the user specified.
 
 3. upload_file(filepath)
    - Uploads an existing file from the project to the Telegram chat.
@@ -59,6 +63,20 @@ CAPABILITIES (tools you can call):
    - A diff is shown to the user for approval. Changes are applied only after user confirms.
    - Use this instead of create_file when modifying existing files.
 
+6. download_replied_file(save_as)
+   - Downloads the file from the message the user replied to, saving it to app/plugins/temp/aig/
+   - save_as is optional — if provided, the file is saved with that name; otherwise the original name is used.
+   - Use this when the user asks you to download a file, or when you need a local copy to edit.
+   - The file content is already available to you as context (uploaded to Gemini), so you only need
+     to call this when you need to save the file locally for editing or the user explicitly asks to download it.
+   - Returns the local file path on success.
+
+FILE HANDLING:
+- When a user replies to a file/media with .aig, the file is automatically uploaded to Gemini for your analysis.
+  You can see and understand the file content directly.
+- If you need to modify the replied file or save it locally, use download_replied_file to get a local copy.
+- For text-based replied files: you can use download_replied_file, then read_file + edit_file on the local copy.
+
 SHELL COMMANDS:
 - When you need to run a shell command, wrap it EXACTLY like this:
   <SHELL>command here</SHELL>
@@ -72,12 +90,14 @@ RULES:
 - You can call multiple tools in sequence (the system handles the loop).
 - When you have a final answer, just return it as plain text (no tool call).
 - Do not use markdown formatting. Keep responses short and direct.
+- All new files MUST be created in app/plugins/temp/aig/ unless the user specifies otherwise.
 
 FILE CREATION FROM AI CODE:
 - When ask_default_ai returns code in its response and the user asked for code/script/file generation,
   use create_file to save the code as a proper file so it gets uploaded to chat.
 - Extract just the code from the AI response (strip explanation text, markdown fences, etc.) and write it into the file.
 - Always pick a sensible filename with the correct extension based on the language/content.
+- Save in app/plugins/temp/aig/ (e.g. "app/plugins/temp/aig/script.py").
 - Do NOT just paste raw code as a text reply — create the actual file.
 
 UPLOADING EXISTING FILES:

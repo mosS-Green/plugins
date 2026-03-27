@@ -5,7 +5,7 @@ import difflib
 from app import LOGGER
 from app.modules.models import ask_ai
 
-from .config import PROJECT_ROOT
+from .config import AIG_TEMP_DIR, PROJECT_ROOT
 
 
 async def ask_default_ai(prompt: str, with_codebase: bool = False) -> str:
@@ -160,12 +160,38 @@ async def edit_file(filepath: str, instruction: str) -> str:
     )
 
 
+async def download_replied_file(save_as: str = "", _message=None) -> str:
+    """Download the replied file to the aig temp directory."""
+    if _message is None:
+        return "ERROR: No replied file available. The user must reply to a file/media message."
+
+    try:
+        from ub_core.utils import get_tg_media_details
+
+        media = get_tg_media_details(_message)
+        original_name = getattr(media, "file_name", None) or "file"
+        file_name = save_as if save_as else original_name
+
+        save_path = os.path.join(AIG_TEMP_DIR, file_name)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+        await _message.download(file_name=save_path)
+
+        # Return relative path for consistency
+        rel_path = os.path.relpath(save_path, PROJECT_ROOT)
+        return f"FILE_DOWNLOADED: {rel_path}"
+    except Exception as e:
+        LOGGER.error(f"Aigent download_replied_file error: {e}")
+        return f"ERROR downloading file: {e}"
+
+
 FUNCTION_MAP = {
     "ask_default_ai": ask_default_ai,
     "create_file": create_file,
     "upload_file": upload_file,
     "read_file": read_file,
     "edit_file": edit_file,
+    "download_replied_file": download_replied_file,
 }
 
 
@@ -186,3 +212,4 @@ async def execute_function(func_name: str, func_args: dict) -> str:
     except Exception as e:
         LOGGER.error(f"Aigent execute_function '{func_name}' error: {e}")
         return f"ERROR executing '{func_name}': {e}"
+

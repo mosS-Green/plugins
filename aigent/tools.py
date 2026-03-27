@@ -126,11 +126,35 @@ EDIT_FILE_TOOL = Tool(
 
 URL_CONTEXT_TOOL = Tool(url_context=UrlContext())
 
+DOWNLOAD_REPLIED_FILE_TOOL = Tool(
+    function_declarations=[
+        FunctionDeclaration(
+            name="download_replied_file",
+            description=(
+                "Download the file from the message the user replied to. "
+                "Saves it to app/plugins/temp/aig/. Use this when you need a local copy "
+                "of the replied file to edit it, or when the user asks to download it."
+            ),
+            parameters=Schema(
+                type=Type.OBJECT,
+                properties={
+                    "save_as": Schema(
+                        type=Type.STRING,
+                        description="Optional filename to save as (e.g. 'script.py'). If not provided, the original filename is used.",
+                    ),
+                },
+                required=[],
+            ),
+        )
+    ]
+)
+
 AIGENT_TOOLS = [
     ASK_AI_TOOL,
     CREATE_FILE_TOOL,
     UPLOAD_FILE_TOOL,
     READ_FILE_TOOL,
     EDIT_FILE_TOOL,
+    DOWNLOAD_REPLIED_FILE_TOOL,
 ]
 
