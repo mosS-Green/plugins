@@ -54,6 +54,7 @@ def _get_aig_config() -> GenerateContentConfig:
         safety_settings=SAFETY_SETTINGS,
         thinking_config=ThinkingConfig(thinking_budget=0),
         tools=AIGENT_TOOLS + [URL_CONTEXT_TOOL],
+        tool_config={"include_server_side_tool_invocations": True},
     )
 
 
