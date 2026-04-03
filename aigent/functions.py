@@ -13,7 +13,7 @@ async def ask_default_ai(prompt: str, with_codebase: bool = False) -> str:
     try:
         if with_codebase:
             from app.plugins.ai.gemini import Response, async_client
-            from app.plugins.ai.gemini.code import upload_codebase
+            from .indexing import upload_codebase
             from app.modules.models import get_model_and_config
 
             prompts = [prompt, await upload_codebase()]
